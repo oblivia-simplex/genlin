@@ -7,7 +7,7 @@
 
 (in-package :genetic.linear)
 
-(defparameter *DEBUG* t)
+(defparameter *DEBUG* nil)
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -31,13 +31,16 @@
   (vector  #'./. #'* #'- #'+))
 ;; nb: setting [0] as - will push towards emptying registers
 
-(defparameter *initial-register-state*
-  '(1 1 1 1 1 1 1 1))
-
+(defvar *initial-register-state*
+  '#(1 2 3 4 5 6 7 8))
 
 (defparameter *opbits* (byte 2 0))
+
 (defparameter *srcbits* (byte 3 2))
+
 (defparameter *dstbits* (byte 3 5))
+
+(defparameter *maxval* (expt 2 64))
 
 
 (defun src? (inst)
@@ -54,7 +57,8 @@
         (srcreg (src? inst))
         (dstreg (dst? inst)))
     (when *DEBUG*
-      (format t "read: ~8,'0b~%opcode: ~a~%src: R~d -> 0x~x~%dst: R~d -> 0x~x~%"
+      (format t
+              "read: ~8,'0b~%opcode: ~a~%src: R~d -> 0x~x~%dst: R~d -> 0x~x~%"
               inst (aref *opcodes* opcode) srcreg (aref registers srcreg)
               dstreg (aref registers dstreg)))
     (list (aref *opcodes* opcode) srcreg dstreg)))
@@ -65,8 +69,7 @@
          (dstreg (caddr ilist))
          (srcval (aref registers (cadr ilist)))
          (dstval (aref registers dstreg)))
-    (setf (aref *registers* dstreg) (apply op (list srcval dstval)))))
-
+    (setf (aref registers dstreg) (mod (apply op (list srcval dstval)) *maxval*))))
 
 (defun execute-sequence (seq &optional (init-state *registers*))
   "Takes a sequence of instructions, seq, and an initial register 
@@ -79,16 +82,29 @@ resulting value in R0."
                       (format t "R~d: 0x~x~%" r (aref registers r))))
     (aref registers 0)))
 
+;; THESE EXECUTE FUNCS ARE VERY SLOW
+;; *********************************
+
+
 (defun load-registers (&rest rdata)
   (loop for i from 0 to (1- *regnum*) do
        (setf (aref *registers* i) (elt rdata i))))
 
 (defun final-dst (seq reg)
   "Gives the subsequence of instructions that terminates in the last 
-occurrence of reg in the DST position."
-  (labels ((fdr (s r)
-             (append (and s (if (= (dst? (car s)) r) s (fdr (cdr s) r))))))
-    (fdr (reverse seq) reg)))
+occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
+  (subseq seq 0 (1+ (or (position reg seq :key #'dst? :from-end t) -1))))
+  
+
+(defun tooshort (seq)
+  (< (length seq) *minlen*))
+
+(defun regfilter (popul r)
+  (flet ((f (x) (final-dst x r)))
+    (let* ((plist (concatenate 'list popul))
+           (pfilt (remove-if #'null (mapcar #'f plist))) ; alt: #'tooshort
+           (pvec (concatenate 'vector pfilt)))
+      pvec)))
 
 ;; Alternate:
 ;;
@@ -97,7 +113,6 @@ occurrence of reg in the DST position."
 ;;      (when (= (dst? (car s)) r)
 ;;        (return s))
 ;;      (pop s)))
-           
 
 (defun seek-reg (seq reg)
   (let* ((rseq (reverse seq))
@@ -110,10 +125,10 @@ occurrence of reg in the DST position."
 ;; Genetic components
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter *best* '(999999999999999 '()))
-(defparameter *popsize* 100)
-(defparameter *population* (make-array `(,*popsize*)
-                                       :adjustable t :fill-pointer 0))
+(defparameter *best* '(0 '()))
+
+(defparameter *population* '())
+
 (defparameter *startlen* 10)
 (defparameter *mutation-rate* 15)
 
@@ -169,8 +184,7 @@ occurrence of reg in the DST position."
   seq)
 
 (defparameter *mutations*
-  (vector #'smutate-imutate #'smutate-butlast #'smutate-pop #'smutate-push
-          #'smutate-append #'smutate-swap))
+  (vector #'smutate-push #'smutate-imutate #'smutate-swap))
 
 (defun random-mutation (seq)
   (apply (aref *mutations* (random (length *mutations*))) `(,seq)))
@@ -181,7 +195,7 @@ occurrence of reg in the DST position."
       seq))
 
 (defun mutate-at-population-index (idx)
-  (setf (aref *population* idx) (random-mutation (aref *population* idx))))
+  (setf (elt *population* idx) (random-mutation (elt *population* idx))))
 
 (defun crossover (p0 p1)
   (let* ((parents (sort (list p0 p1) #'(lambda (x y) (< (length x) (length y)))))
@@ -213,53 +227,109 @@ occurrence of reg in the DST position."
      (setf r (remove-duplicates (cons (+ low (random high)) r)))))
 
 
+;; Standard for fitness functions: let 1 be maximum value. no lower bound -- may
+;; go to arbitrarily small fractions < 1
+
 (defun fitness-0 (seq)
   (let ((target 666))
-    (abs (- (execute-sequence seq) target))))
-
+    (/ 1 (1+ (abs (- (execute-sequence (final-dst seq 0)
+                                       *initial-register-state*) target))))))
+;; it's better to use final-dst in places like this. If we use it to filter out the
+;; population at the get-go, we destroy a lot of diversity, and potentially useful
+;; "junk DNA". 
 
 (defun fitness (seq)
   (flet ((fitfunc (s)
            (fitness-0 s)))
     (let ((f (fitfunc seq)))
-      (when (< f (car *best*))
+      (when (> f (car *best*))
         (setf (cadr *best*) seq)
         (setf (car *best*) f))
       f)))
 
 (defun fitter (x y)
-  "Assumes that fitness peaks at 0."
-  (< (fitness x) (fitness y)))
-
+  "Adopting the convention that fitness is a fraction between 0 and 1."
+  (> (fitness x) (fitness y)))
 
 (defun tournement (population)
   (let* ((lots (n-rnd 0 (length *population*)))
-         (combatants (mapcar #'(lambda (i) (list (aref population i) i)) lots))
-         (ranked (sort combatants
-                       #'(lambda (x y) (< (fitness (car y)) (fitness (car x))))))
+         (combatants (mapcar #'(lambda (i) (list (elt population i) i)) lots))
+         (ranked (sort combatants #'(lambda (x y) (fitter (car x) (car y)))))
          (winners (cddr ranked))
          (parents (mapcar #'car winners))
          (children (apply #'crossover parents))
          (losers (subseq ranked 0 2))
          (graves (mapcar #'cadr losers)))
     ;; (format t "GRAVES: ~a~%" graves)
-    (map 'list #'(lambda (grave child) (setf (aref population grave) child))
-         graves children)
-    (format t "RANKED: ~a~%~%" ranked)
+    (map 'list #'(lambda (grave child) (setf (elt population grave) child))
+         graves children)))
+    ;; (format t "RANKED: ~a~%~%" ranked)
     ;; (mapcar #'fitness children) ;; to update the *best* variable
-    (format t "LOSERS:~c~c~a [~d]~c~a [~d]~%WINNERS:~c~a [~d]~c~a [~d]~%OFFSPRING:~c~a~c~a~%~%"
-            #\Tab #\Tab (caar losers) (cadar losers)
-            #\Tab (caadr losers) (cadadr losers)
-            #\Tab (car parents) (cadar winners)
-            #\Tab (cadr parents) (cadadr winners) 
-            #\Tab (car children) #\Tab (cadr children))
-    ))
+    ;; (format t "LOSERS:~c~c~a [~d]~c~a [~d]~%WINNERS:~c~a [~d]~c~a [~d]~%OFFSPRING:~c~a~c~a~%~%"
+            ;; #\Tab #\Tab (caar losers) (cadar losers)
+            ;; #\Tab (caadr losers) (cadadr losers)
+            ;; #\Tab (car parents) (cadar winners)
+            ;; #\Tab (cadr parents) (cadadr winners) 
+            ;; #\Tab (car children) #\Tab (cadr children))))
+    
+
+;; starting to wonder if *population* should just be a list, instead of a vector...
+;; i seem to be converting it to a list at almost every turn. how much time is really
+;; spend indexing into it, anyways? only in tournement, really.
+
+(defun spin-wheel (wheel top)
+  (let ((ball (random (float top)))
+        (ptr (car wheel)))
+    ;; (format t "TOP: ~a~%BALL: ~a~%" top ball)
+    (loop named spinning for slot in wheel do
+         (when (< ball (car slot))
+           (return-from spinning))
+         (setf ptr slot))
+    ;; ptr now points to where the ball 'lands'
+    ;; (and (null ptr) (error "NIL PTR RESULTING FROM SPIN WHEEL."))
+    ;; (format t "PTR: ~a~%" ptr)
+    (cdr ptr)))
+    
+  
+(defun roulette (population)
+  ;; redundantly recalculates fitness every generation. would be good to memoize this shit. 
+  ;;(let* ((wheel (mapcar #'(lambda (x) (cons (fitness x) x)) population)) ;; bump zeroes
+  ;;       (fitsum (float (apply #'+ (mapcar #'car wheel))))
+  ;;       (popsize (length population))
+  ;;       (tally 0))
+    ;; (format t "fitpop: ~a~%fitsum: ~f~%" wheel fitsum)
+    ;;(loop for slot in wheel do
+    ;;     (incf tally (float (car slot)))
+    ;;    (setf (car slot) tally))
+  (let* ((tally 0)
+         (popsize (length population))
+         (wheel (loop for creature in population
+                   collect (progn
+                             (let ((f (float (fitness creature))))
+                               (incf tally f)
+                               (cons tally creature)))))
+         ;; the roulette wheel is now built
+         ;;(format t "WHEEL: ~a~%" wheel)
+         (breeders (loop for i from 1 to popsize
+                      collect (spin-wheel wheel tally)))
+         (half (/ popsize 2))
+         (mothers (subseq breeders 0 half))
+         (fathers (subseq breeders half popsize)))
+    ;;(format t "MOTHERS: ~a~%FATHERS: ~a~%" mothers fathers)
+    ;;(print "CHILDREN:")
+    (apply #'concatenate 'list (map 'list #'crossover mothers fathers))))
+           
+(defun next-generation ()
+  (setf *population* (roulette *population*)))
+    
+    
+
 
 (defun spawn-sequence (len)
   (loop repeat len collect (random #x100)))
 
 (defun init-population (popsize slen)
-  (concatenate 'vector (loop repeat popsize collect (spawn-sequence slen))))
+  (loop repeat popsize collect (spawn-sequence slen)))
 
 
 (defun test ()
@@ -268,3 +338,5 @@ occurrence of reg in the DST position."
   (load-registers 1 2 3 4 5 6 7 8)
   (tournement *population*)
   (format t "BEST: ~a~cFITNESS: ~f~%~%" (cadr *best*) #\newline (car *best*)))
+
+

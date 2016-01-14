@@ -10,7 +10,7 @@
 (defparameter *mutation-rate* 90) ; percent chance of mutation
 (defparameter *default-best* '(9999999999 ""))
 (defparameter *best* '())
-(defparameter *population* #())
+(defparameter *population* '())
 (defparameter *display-thresh* 99999999999)
 (defparameter *display-step* 100)
 
@@ -91,7 +91,7 @@
 
 (defun tournement (population &optional (psize *pop-size*))
   (let* ((lots (n-rnd 0 psize))
-         (combatants (mapcar #'(lambda (i) (list (aref population i) i)) lots))
+         (combatants (mapcar #'(lambda (i) (list (elt population i) i)) lots))
          (ranked (sort combatants
                        #'(lambda (x y) (< (fitness (car y)) (fitness (car x))))))
          (winners (cddr ranked))
@@ -99,7 +99,7 @@
          (children (apply #'mate parents))
          (losers (subseq ranked 0 2))
          (graves (mapcar #'cadr losers)))
-    (map 'list #'(lambda (grave child) (setf (aref population grave) child))
+    (map 'list #'(lambda (grave child) (setf (elt population grave) child))
          graves children)
     (mapcar #'fitness children) ;; to update the *best* variable
 ;;    (format t "LOSERS:~c~c~a~c~a~%WINNERS:~c~a~c~a~%OFFSPRING:~c~a~c~a~%~%"
