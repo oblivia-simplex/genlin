@@ -1,6 +1,10 @@
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; Linear Genetic Algorithm
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;;; TODO:
+;;; - fix roulette (incorporate recent modifications to engine)
+;;; - let seqs be vecs instead of lists, so that we can manipulate PC
+
 
 (defpackage :genetic.linear
   (:use :common-lisp))
@@ -32,7 +36,7 @@
 
 (defstruct creature fit seq eff idx)
 
-(defparameter *min-len* 2) ;; we want to prevent seqs shrinking to nil!¯\_(ツ)_/¯
+(defparameter *min-len* 2) ;; we want to prevent seqs shrinking to nil
 
 (defparameter *max-len* 256) ;; max instruction length
 
@@ -72,29 +76,46 @@
 ;; --- fields above, so long as their are at least (expt 2 *opf*)
 ;; --- elements in the *opcodes* vector. 
 
-(declaim (inline % ^ & v m)) 
+(declaim (inline DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
 
-(defun % (&rest args)
+(defun DIV (&rest args)
   "A divide-by-zero-proof division operator."
   (if (some #'zerop args) 0
-      (reduce #'/ args)))
+      (/ (car args) (cadr args))))
 
-(defun ^ (&rest args) ;; xor integer parts
-  (reduce #'(lambda (x y) (logxor (floor x) (floor y))) args))
+(defun XOR (&rest args) ;; xor integer parts
+  (logxor (floor (car args)) (floor (cadr args))))
 
-(defun & (&rest args)
-  (reduce #'(lambda (x y) (logand (floor x) (floor y))) args))
+(defun CNJ (&rest args)
+  (logand (floor (car args)) (floor (cadr args))))
 
-(defun v (&rest args)
-  (reduce #'(lambda (x y) (lognot (logand  (lognot (floor x))
-                                      (lognot (floor y))))) args))
-(defun m (&rest args)
+(defun DIS (&rest args)
+;;x  (declare (type (cons fixnum)) args)
+  (lognot (logand  (lognot (floor (car args)))
+                   (lognot (floor (cadr args))))))
+
+(defun PMD (&rest args)
+  "Protected MOD."
   (if (some #'zerop args) (car args)
       (mod (car args) (cadr args))))
 
+(defun ADD (&rest args)
+  (+ (car args) (cadr args)))
+
+(defun SUB (&rest args)
+  (- (car args) (cadr args)))
+
+(defun MUL (&rest args)
+  (* (car args) (cadr args)))
+
+(defun JLE (&rest args) ;; CONDITIONAL JUMP OPERATOR
+  (if (<= (car args) (cadr args)) (1+ (caddr args))
+      (caddr args)))
+    
+
 (defparameter *opcodes*
-  (vector  #'% #'* #'- #'+   ;; basic operations    (2bit opcode)
-           #'^ #'v #'& #'m)) ;; extended operations (3bit opcode)
+  (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    (2bit opcode)
+           #'XOR #'PMD #'CNJ #'JLE)) ;; extended operations (3bit opcode)
 
 ;; adding the extended opcodes seems to result in an immense boost in the
 ;; population's fitness -- 0.905 is now achieved in the time it took to
@@ -144,11 +165,16 @@
 (defparameter *default-registers*
   (concatenate 'vector #(0) (loop for i from 2 to (expt 2 *dstf*)
                                collect (expt -1 i))))
-    
+
+(defparameter *pc-idx*
+  (+ (length *default-registers*) (length *default-input-reg*)))
+
 (defparameter *initial-register-state*
   (concatenate 'vector
                *default-registers*
-               *default-input-reg*))
+               *default-input-reg*
+               #(0))) ;; PROGRAMME COUNTER
+
             ;;   (sieve-of-eratosthenes 18))) ;; some primes for fun
 
 (defparameter *input-start-idx* (length *default-registers*))
@@ -179,9 +205,13 @@
   (declare (type (simple-array function) *opcodes*))
   (aref *opcodes* (ldb *opbits* inst)))
 
+(defun jmp? (inst) ;; ad-hoc-ish...
+  (equalp (op? inst) #'JLE))
+
 (defun enter-input (registers input)
   (let ((copy (copy-seq registers)))
-    (setf (subseq copy *input-start-idx* (+ *input-start-idx* (length input)))
+    (setf (subseq copy *input-start-idx*
+                  (+ *input-start-idx* (length input)))
           input)
     copy))
 
@@ -192,7 +222,7 @@
 (defun print-registers (registers)
   (loop for i from 0 to (1- (length registers)) do
        (format t "R~d: ~6f ~c" i (aref registers i) #\TAB)
-       (if (= 0 (mod (1+ i) 5)) (format t "~%")))
+       (if (= 0 (mod (1+ i) 4)) (format t "~%")))
   (format t "~%"))
 
 (defun func->string (func)
@@ -202,88 +232,97 @@
     o))
 
 (defun inst->string (inst &optional (registers *initial-register-state*))
-  (format nil "[~a R~d, R~d] ;; (~f, ~f)"
+  (format nil "[~a  R~d, R~d] ;; (~f, ~f)"
           (func->string (op? inst)) (src? inst) (dst? inst)
           (aref registers (src? inst)) (aref registers (dst? inst))))
+
 (defun hrule ()
   (format t "-----------------------------------------------------------------------------~%"))
 
-(defun disassemble-sequence (seq &optional input)
-  (let ((registers (enter-input *initial-register-state* input)))
+(defun disassemble-sequence (seq &key (registers *initial-register-state*)
+                                   (input *default-input-reg*)) 
+  (let ((od *debug*)
+        (regs (copy-seq registers)))
+    (enter-input regs input)
     (hrule)
-    (format t "~%")
-    (print-registers registers)
+    (print-registers regs)
     (hrule)
-    (loop for inst in seq do
-         
-         (format t "~a" (inst->string inst registers))
-         (setf (aref registers (dst? inst))
-               (apply (op? inst)
-                      (list (aref registers (src? inst))
-                            (aref registers (dst? inst)))))
-         (format t " ;; now (R~d) = ~f~%" (dst? inst) (aref registers (dst? inst))))
-    (hrule)
-    (format t "~%")
-    (print-registers registers)
+    (setf *debug* 1)
+    (execute-sequence seq :input input :registers regs)
+    (setf *debug* od)
+    (print-registers regs)
     (hrule)))
     
-(defun dbg ()
-  (setf *debug* (not *debug*)))
+(defun dbg (&optional on-off)
+  (case on-off
+    ((on)  (setf *debug* t))
+    ((off) (setf *debug* nil))
+    (otherwise (setf *debug* (not *debug*)))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Intron Removal and Statistics
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun remove-introns (seq &key (out 0))
-  (let ((efr (list out))
-        (rev (reverse seq))
+(defun remove-introns (seq &key (out '(0)))
+  (let ((efr out)
         (efseq '()))
-    (loop for inst in rev do
-         (when (member (dst? inst) efr)
-           (push (src? inst) efr)
-           (push inst efseq)))
-    efseq))
+    (loop for i from (1- (length seq)) downto 0 do
+         (let ((inst (aref seq i)))
+           (when (member (dst? inst) efr)
+             (push (src? inst) efr)
+             (push inst efseq))))
+    (coerce efseq 'vector)))
 
-(defun percent-effective (crt &key (out 0))
+(defun percent-effective (crt &key (out '(0)))
   (unless (creature-eff crt)
     (setf (creature-eff crt) (remove-introns (creature-seq crt) :out out)))
   (float (/ (length (creature-eff crt)) (length (creature-seq crt)))))
 
 (defun average-effective (population &key (out 0))
-  (/ (reduce #'+ (mapcar #'percent-effective population)) (length population)))
+  (/ (reduce #'+ (mapcar #'percent-effective population))
+     (length population)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Execution procedure
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun execute-sequence (seq &key (init-state *initial-register-state* )
+(defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*)
                                     (output 0))
   "Takes a sequence of instructions, seq, and an initial register 
-state vector, init-state, and then runs the virtual machine, returning the
+state vector, registers, and then runs the virtual machine, returning the
 resulting value in R0."
   ;; (declare (optimize (speed 1)))
-  (declare (type (simple-array rational (*)) init-state input *default-input-reg*
-                *initial-register-state*))
+  (declare (type (simple-array rational (*)) registers
+                 input *default-input-reg* *initial-register-state*))
   (declare (type fixnum output *input-start-idx*))
   (declare (inline src? dst? op?))
   
-  (let ((registers (copy-seq init-state)))
-    ;; the input values will be stored in read-only registers
-    (setf (subseq registers *input-start-idx*
+  (let ((regs (copy-seq registers))
+        (seqlen (length seq)))
+    ;; the input values will be stored in read-only regs
+    (setf (subseq regs *input-start-idx*
                   (+ *input-start-idx* (length input))) input)
-    ;;      (format t "input: ~a~%registers: ~a~%" inp registers)
-    (loop for inst in seq do
-         (when *debug*
-           (format t "~a" (inst->string inst registers)))
-         (setf (aref registers (dst? inst))
-               (rem (apply (op? inst) (list (aref registers (src? inst))
-                                            (aref registers (dst? inst))))
-                    *maxval*)) ;; keep register vals from getting too big
-         (when *debug*
-           (format t "  ;; now (R~d) = ~f~%" (dst? inst) (aref registers (dst? inst)))))
-    (and *debug* (format t "------------------------------------------------------------~%"))
-    (aref registers output)))
+    ;;      (format t "input: ~a~%regs: ~a~%" inp regs)
+    (unless (zerop seqlen)
+      (loop do
+           (let* ((inst (aref seq (aref regs *pc-idx*)))
+                (D (if (jmp? inst) *pc-idx* (dst? inst))))
+             
+             (and *debug* (format t "~8,'0b  ~a" inst
+                                  (inst->string inst regs)))
+             (incf (aref regs *pc-idx*))
+             (setf (aref regs D)
+                 (rem (apply (op? inst)
+                             (list (aref regs (src? inst))
+                                   (aref regs (dst? inst))
+                                   (aref regs *pc-idx*))) *maxval*))
+             (and *debug* (format t " ;; now R~d = ~f; PC = ~d~%"
+                                  (dst? inst) (aref regs (dst? inst))
+                                  (aref regs *pc-idx*)))
+             (and (>= (aref regs *pc-idx*) seqlen) (return)))))
+    (and *debug* (hrule))
+    (aref regs output)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic operations (variation)
@@ -301,47 +340,40 @@ resulting value in R0."
 
 (defun smutate-swap (seq)
   "Exchanges the position of two instructions in a sequence."
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (and *debug* (print "smutate-swap"))
   (let* ((len (length seq))
          (i (random len))
          (j (random len))
-         (tmp (nth i seq)))
-    (setf (nth i seq) (nth i seq))
-    (setf (nth j seq) tmp))
+         (tmp (elt seq i)))
+    (setf (elt seq i) (elt seq i))
+    (setf (elt seq j) tmp))
   seq)
 
 (defun smutate-push (seq)
   "Adds another (random) instruction to a sequence."
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (and *debug* (print "smutate-push"))
   (push (random #x100) seq)
   seq)
 
 (defun smutate-pop (seq)
   "Decapitates a sequence."
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (and *debug* (print "smutate-pop"))
   (and (> (length seq) *min-len*) (pop seq))
   seq)
 
-(defun smutate-butlast (seq)
-  "Cuts the last instruction off of a sequence."
-  (declare (type cons seq))
-  (and *debug* (print "smutate-butlast"))
-  (and (> (length seq) *min-len*) (setf seq (butlast seq)))
-  seq)
-
 (defun smutate-grow (seq)
   "Adds another (random) instruction to the end of the sequence."
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (and *debug* (print "smutate-append"))
-  (setf seq (concatenate 'list seq `(,(random #x100))))
+  (setf seq (concatenate 'vector seq `(,(random #x100))))
   seq)
 
 (defun smutate-imutate (seq)
   "Applies imutate-flip to a random instruction in the sequence."
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (and *debug* (print "smutate-imutate"))
   (let ((idx (random (length seq))))
     (setf (elt seq idx) (imutate-flip (elt seq idx))))
@@ -351,11 +383,11 @@ resulting value in R0."
   (vector #'smutate-grow #'smutate-imutate #'smutate-swap))
 
 (defun random-mutation (seq)
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (apply (aref *mutations* (random (length *mutations*))) `(,seq)))
 
 (defun maybe-mutate (seq)
-  (declare (type cons seq))
+  (declare (type simple-array seq))
   (if (< (random 100) *mutation-rate*)
       (random-mutation seq)
       seq))
@@ -444,11 +476,8 @@ resulting value in R0."
 (defun fitness-0 (seq)
   (let ((target 666))
     (/ 1 (1+ (abs (- (execute-sequence (final-dst seq 0)
-                                       :init-state *initial-register-state*)
+                                       :registers *initial-register-state*)
                      target))))))
-;; it's better to use final-dst in places like this. If we use it to filter out the
-;; population at the get-go, we destroy a lot of diversity, and potentially useful
-;; "junk DNA". 
 
 (defun fitness (crt &key (lookup nil) (output-register 0))
   ;; we execute (cdr seq), because the first cons cell of
@@ -458,7 +487,7 @@ resulting value in R0."
     (flet ((fitfunc (s)
              (fitness-binary-classifier-1 s lookup)))
       (setf (creature-eff crt)
-            (remove-introns (creature-seq crt) :out output-register))
+            (remove-introns (creature-seq crt) :out (list output-register)))
       (setf (creature-fit crt) (fitfunc (creature-eff crt)))
       (when (or (null (creature-fit *best*)) (> (creature-fit crt) (creature-fit *best*)))
         (setf *best* (copy-structure crt))
@@ -473,12 +502,12 @@ resulting value in R0."
 (defun tournement (population &key (lookup nil))
   (let* ((lots (n-rnd 0 (length *population*)))
          (combatants (mapcar #'(lambda (i) (nth i population)) lots)))
-;;    (format t "COMBATANTS: ~a~%" combatants)
+    (and *debug* (format t "COMBATANTS BEFORE: ~a~%" combatants))
     (loop for combatant in combatants do
          (unless (creature-fit combatant)
            (setf (creature-fit combatant)
                  (fitness combatant :lookup lookup))))
-;;    (format t "COMBATANTS: ~a~%" combatants)
+    (and *debug* (format t "COMBATANTS AFTER: ~a~%" combatants))
     (let* ((ranked (sort combatants #'(lambda (x y) (< (creature-fit x) (creature-fit y)))))
            (parents (cddr ranked))
            (children (apply #'crossover parents))
@@ -530,7 +559,7 @@ resulting value in R0."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun spawn-sequence (len)
-  (loop repeat len collect (random *max-inst*)))
+  (concatenate 'vector (loop repeat len collect (random *max-inst*))))
 
 (defun spawn-creature (len &key idx)
   (make-creature :seq (spawn-sequence len) :idx idx))
@@ -560,16 +589,18 @@ resulting value in R0."
     (loop for k being the hash-keys in ht do
          (let ((i (aref k 0))
                (f (execute-sequence seq :input k)))
-           (format t "~a~%" (int->board i))
+           (format t "~%~a~%" (int->board i))
          (cond ((> (* (gethash k ht) f) 0)
                 (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%" i f)
                 (incf correct))
                ((< (* (gethash k ht) f) 0)
                 (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%" i f)
                 (incf incorrect))
-               (t (format t "WHO'S TO SAY? ~a -> ~f~%~%" i f)))))
+               (t (format t "WHO'S TO SAY? ~a -> ~f~%~%" i f))))
+         (hrule))
     (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
             correct incorrect)))
+    ;;(format t "~%A STRANGE GAME.~%THE ONLY WINNING MOVE IS NOT TO PLAY.~%~%HOW ABOUT A NICE GAME OF CHESS?")))
 
 (defun do-tournements (&key (rounds 10000) (target 0.97))
   (let ((oldbest *best*))
@@ -578,8 +609,9 @@ resulting value in R0."
               (tournement *population* :lookup *ht*)
               (when (or (null (creature-fit *best*))
                         (> (creature-fit *best*) (creature-fit oldbest)))
-              (setf oldbest *best*)
-              (format t "NEW BEST AT ROUND ~d: ~a~%" i *best*))
+                (setf oldbest *best*)
+                (format t "NEW BEST AT ROUND ~d: ~a~%" i *best*)
+                (disassemble-sequence (creature-eff *best*)))
               (and (> (creature-fit *best*) target) (return-from tournies)))))
     (format t "BEST: ~f~%" (creature-fit *best*))))
 
