@@ -105,8 +105,7 @@ must be disjoint."
 (defun tictactoe-hash-int (str hashtable)
   "Converts the tictactoe string into a base-3 number, and enters it into the hashtable."
   (let ((keyval (split-at-label str)))
-    (setf (gethash (concatenate 'vector ;; let's just stuff it in there, nine times over. 
-                                (loop repeat 9 collect (tictactoe->int (car keyval)))) hashtable)
+    (setf (gethash (vector (tictactoe->int (car keyval))) hashtable)
           (tictactoe-val (cdr keyval)))))
 
 (defun tictactoe-hash-vec (str hashtable)
