@@ -18,13 +18,15 @@
 (defparameter *ht* (make-hash-table :test 'equal))
 
 
+
+
+
 ;;; TODO:
 
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; Virtual machine
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;;                            Virtual machine
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;                           INSTRUCTION FIELDS
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -40,9 +42,11 @@
 
 (defparameter *dstf* 2)  ;; size of destination register field, in bits
 
+
+
 ;; --- Do not adjust the following five parameters manually ---
 
-(defparameter *wordsize* (+ opf srcf dstf))
+(defparameter *wordsize* (+ *opf* *srcf* *dstf*))
 
 (defparameter *max-inst* (expt 2 *wordsize*)) ;; upper bound on inst size
 
@@ -52,9 +56,13 @@
 
 (defparameter *dstbits* (byte *dstf* (+ *srcf* *opf*)))
 
+
+
 ;; --- Operations: these can be tweaked independently of the 
 ;; --- fields above, so long as their are at least (expt 2 *opf*)
 ;; --- elements in the *opcodes* vector. 
+
+(declaim (inline % ^ & v m)) 
 
 (defun % (&rest args)
   "A divide-by-zero-proof division operator."
@@ -132,8 +140,8 @@
 
 (defparameter *maxval* (expt 2 16)) ;; max val that can be stored in reg
 
-
 (defparameter *max-len* 256) ;; max instruction length
+
 (defparameter *max-startlen* 25) ;; max initial instruction length
 
 
@@ -207,22 +215,43 @@
 (defun dbg ()
   (setf *debug* (not *debug*)))
 
+
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun execute-sequence (sequence &key (init-state *initial-register-state* )
-                                    (input *default-input-reg*)
+(defun remove-introns (seq &key (out 0))
+  (let ((efr (list out))
+        (rev (reverse seq))
+        (efseq '()))
+    (loop for inst in rev do
+         (when (member (dst? inst) efr)
+           (push (src? inst) efr)
+           (push inst efseq)))
+    efseq))
+
+(defun percent-effective (crt &key (out 0))
+  (unless (creature-eff crt)
+    (setf (creature-eff crt) (remove-introns (creature-seq crt) :out out)))
+  (float (/ (length (creature-eff crt)) (length (creature-seq crt)))))
+
+(defun average-effective (population &key (out 0))
+  (/ (reduce #'+ (mapcar #'percent-effective population)) (length population)))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defun execute-sequence (seq &key (init-state *initial-register-state* )
+                               (input *default-input-reg*)
                                     (output 0))
   "Takes a sequence of instructions, seq, and an initial register 
 state vector, init-state, and then runs the virtual machine, returning the
 resulting value in R0."
-  (declare (optimize (speed 1)))
+  ;; (declare (optimize (speed 1)))
   (declare (type (simple-array rational (*)) init-state input *default-input-reg*
                 *initial-register-state*))
   (declare (type fixnum output *input-start-idx*))
   (declare (inline src? dst? op?))
-  (let ((registers (copy-seq init-state))
-        (seq (final-dst sequence output))) ;; remove introns
-    ;; the input values will be head in read-only registers
+  
+  (let ((registers (copy-seq init-state)))
+        ;; the input values will be head in read-only registers
     (setf (subseq registers *input-start-idx*
                   (+ *input-start-idx* (length input))) input)
     ;;      (format t "input: ~a~%registers: ~a~%" inp registers)
@@ -231,8 +260,10 @@ resulting value in R0."
                (rem (apply (op? inst) (list (aref registers (src? inst))
                                             (aref registers (dst? inst))))
                     *maxval*)) ;; keep register vals from getting too big
-         (and *debug* *verbose* (disassemble-inst inst)
-              (print-registers registers)))
+         (when *debug*
+           (format t "~a  ;; now (R~d) = ~f~%" (inst->string inst registers)
+                   (dst? inst) (aref registers (dst? inst)))))
+    (and *debug* (format t "------------------------------------------------------------~%"))
     (aref registers output)))
 
 
@@ -240,12 +271,6 @@ resulting value in R0."
 ;; *********************************
 
 
-(defun final-dst (seq reg)
-  "Gives the subsequence of instructions that terminates in the last 
-occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
-  (declare (type cons seq))
-  (declare (type fixnum reg))
-  (subseq seq 0 (1+ (or (position reg seq :key #'dst? :from-end t) -1))))
   
 
 ;; (defun tooshort (seq)
@@ -276,6 +301,8 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic components
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defstruct creature fit seq eff idx)
 
 (defparameter *best* '())
 (defparameter *population* '())
@@ -357,10 +384,10 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
   (setf (elt *population* idx) (random-mutation (elt *population* idx))))
 
 (defun crossover (p0 p1)
-  (declare (type cons p0 p1))
-  (declare (optimize (speed 2)))
-  (let* ((p00 (cdr p0))
-         (p01 (cdr p1))
+;;  (declare (type cons p0 p1))
+;;  (declare (optimize (speed 2)))
+  (let* ((p00 (creature-seq p0))
+         (p01 (creature-seq p1))
          (parents (sort (list p00 p01) #'(lambda (x y) (< (length x) (length y)))))
          (father (car parents))  ;; we trim off the car, which holds fitness
          (mother (cadr parents)) ;; let the father be the shorter of the two
@@ -372,16 +399,17 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
          (idx1 (random (length father)))
          (minidx (min idx0 idx1))
          (maxidx (max idx0 idx1)))
-    (declare (type cons mother father daughter son))
-    (declare (type fixnum idx0 idx1 minidx maxidx offset r-align))
+;;    (declare (type cons mother father daughter son))
+;;    (declare (type fixnum idx0 idx1 minidx maxidx offset r-align))
     ;(format t "minidx: ~d  maxidx: ~d  offset: ~d~%" minidx maxidx offset)
     (setf (subseq daughter (+ offset minidx) (+ offset maxidx))
           (subseq father minidx maxidx))
     (setf (subseq son minidx maxidx)
           (subseq mother (+ offset minidx) (+ offset maxidx)))         
-    ;(format t "mother: ~a~%father: ~a~%daughter: ~a~%son: ~a~%"
-    ;        mother father daughter son)
-    (list (cons nil (maybe-mutate son)) (cons nil (maybe-mutate daughter)))))
+    (format t "mother: ~a~%father: ~a~%daughter: ~a~%son: ~a~%"
+            mother father daughter son)
+    (list (make-creature :seq (maybe-mutate son))
+          (make-creature :seq (maybe-mutate daughter)))))
 ;; we still need to make this modification to roulette, to accommodate the
 ;; fitness-storing cons cell in the car of each individual 
 
@@ -419,29 +447,28 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
 
 (defun fitness-binary-classifier-1 (seq hashtable)
   ;; positive = t; negative = nil
-  (declare (type hash-table hashtable))
-  (declare (type cons seq))
-  (declare (optimize speed))
-  
+  ;; (declare (type hash-table hashtable))
+  ;; (declare (type cons seq))
+  ;; (declare (optimize speed))
   (let ((results (loop for pattern being the hash-keys in hashtable collect
                       (binary-error-measure (execute-sequence seq :input pattern)
                                             (gethash pattern hashtable)))))
-    (declare (type (cons rational) results))
+    ;; (declare (type (cons rational) results))
     (and *debug* *verbose*
          (format t "SEQUENCE:~a~%RESULTS:~%~a~%" seq results))
     (/ (apply #'+ results) (length results)))) ;; average
 
 (defun fitness-binary-classifier-2 (seq hashtable)
-  (declare (type hash-table hashtable))
-  (declare (type (cons rational) seq))
-  (declare (optimize speed))
+  ;; (declare (type hash-table hashtable))
+  ;; (declare (type (cons rational) seq))
+  ;; (declare (optimize speed))
   (let ((correct 0)
         (incorrect 0))
-    (declare (type integer correct incorrect))
+    ;; (declare (type integer correct incorrect))
     (loop for pattern being the hash-keys in hashtable do
          (let ((f (execute-sequence seq :input pattern))
                (v (gethash pattern hashtable)))
-           (declare (type rational f v))
+           ;; (declare (type rational f v))
            (if (> (* f v) 0) (incf correct) (incf incorrect))))
     ;;    (format t "SEQ: ~a~%CORRECT: ~d    INCORRECT ~d~%~%" seq correct incorrect)
     (if (zerop incorrect) 1
@@ -457,41 +484,40 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
 ;; population at the get-go, we destroy a lot of diversity, and potentially useful
 ;; "junk DNA". 
 
-(defun fitness (seq &key (lookup nil))
+
+(defun fitness (crt &key (lookup nil) (output-register 0))
   ;; we execute (cdr seq), because the first cons cell of
   ;; each sequence stores the fitness of that sequence, or
   ;; else, nil. 
-  (unless (car seq)
-    
+  (unless (creature-fit crt)  
     (flet ((fitfunc (s)
              (fitness-binary-classifier-1 s lookup)))
-      (pop seq)
-      (push (fitfunc seq) seq)
-      (when (or (null *best*) (> (car seq) (car *best*)))
-        (setf *best* (copy-seq seq))
-        (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%" (car seq) (car *best*))))))
-  ;;(format t "SEQ: ~a~%" seq)
-  (car seq))
+      (setf (creature-eff crt)
+            (remove-introns (creature-seq crt) :out output-register))
+      (setf (creature-fit crt) (fitfunc (creature-eff crt)))
+      (when (or (null *best*) (> (creature-fit crt) (creature-fit *best*)))
+        (setf *best* (copy-structure crt))
+        (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%"
+                             (creature-fit crt) (creature-fit *best*))))))
+  (creature-fit crt))
 
 (defun tournement (population &key (lookup nil))
   (let* ((lots (n-rnd 0 (length *population*)))
-         (combatants (mapcar #'(lambda (i) (list (nth i population) i)) lots)))
-  ;;  (format t "COMBATANTS: ~a~%" combatants)
+         (combatants (mapcar #'(lambda (i) (nth i population)) lots)))
+    (format t "COMBATANTS: ~a~%" combatants)
     (loop for combatant in combatants do
-         (if (null (caar combatant))
-             (setf (caar combatant)
-                   (fitness (car combatant) :lookup lookup))))
-;;    (format t "COMBATANTS: ~a~%" combatants)
-    (let* ((ranked (sort combatants #'(lambda (x y) (< (caar x) (caar y)))))
-           (winners (cddr ranked))
-           (parents (mapcar #'car winners))
+         (unless (creature-fit combatant)
+           (setf (creature-fit combatant)
+                 (fitness combatant :lookup lookup))))
+    (format t "COMBATANTS: ~a~%" combatants)
+    (let* ((ranked (sort combatants #'(lambda (x y) (< (creature-fit x) (creature-fit y)))))
+           (parents (cddr ranked))
            (children (apply #'crossover parents))
-           (losers (subseq ranked 0 2))
-           (graves (mapcar #'cadr losers)))
-      ;;  (format t "GRAVES: ~a~%" graves)
-      (map 'list #'(lambda (grave child) (setf (nth grave population) child))
-           graves children)
-    ;;  (format t "RANKED: ~a~%" ranked)
+           (the-dead (subseq ranked 0 2)))
+      (map 'list #'(lambda (i j) (setf (creature-idx i) (creature-idx j)))
+           children the-dead)
+      (mapcar #'(lambda (x) (setf (nth (creature-idx x) population) x)) children) 
+      (format t "RANKED: ~a~%" ranked)
       *best*)))
     ;; (mapcar #'fitness children) ;; to update the *best* variable
     ;; (format t "LOSERS:~c~c~a [~d]~c~a [~d]~%WINNERS:~c~a [~d]~c~a [~d]~%OFFSPRING:~c~a~c~a~%~%"
@@ -548,11 +574,14 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun spawn-sequence (len)
-  (cons nil (loop repeat len collect (random *max-inst*))))
+  (loop repeat len collect (random *max-inst*)))
+
+(defun spawn-creature (len &key idx)
+  (make-creature :seq (spawn-sequence len) :idx idx))
 
 (defun init-population (popsize slen)
-  (loop repeat popsize collect (spawn-sequence (+ *minlen* (random slen)))))
-
+  (loop for i from 0 to (1- popsize) collect
+       (spawn-creature (+ *minlen* (random slen)) :idx i)))
 
 (defun test ()
   (and (= (length *population*) 0)
@@ -567,7 +596,7 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
          (hashtable (datafile->hashtable filename :int graycode)))
     (setf *best* '())
     (setf *population* (init-population 500 *max-startlen*))
-    (print "population initialized; data read; returning hashtable")
+    (print "population initialized in *population*; data read; hashtable in *ht*")
     (setf *ht* hashtable)
     hashtable))
     
@@ -602,8 +631,8 @@ occurrence of reg in the DST position. Returns NIL if DST doesn't occur."
   (let ((oldbest *best*))
     (loop repeat rounds do
          (tournement *population* :lookup *ht*)
-         (when (or (null *best*) (> (car *best*) (car oldbest)))
+         (when (or (null *best*) (> (creature-fit *best*) (creature-fit oldbest)))
            (setf oldbest *best*)
            (format t "NEW BEST: ~a~%" *best*)))
-    (format t "BEST: ~f~%" (car *best*))))
+    (format t "BEST: ~f~%" (creature-fit *best*))))
 
