@@ -2,8 +2,9 @@
 ;;; Linear Genetic Algorithm
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; TODO:
-;;; - fix roulette (incorporate recent modifications to engine)
-;;; - let seqs be vecs instead of lists, so that we can manipulate PC
+;;; - split datasets into testing and training hashtables
+;;; - write function to plot genetic programme as directed graph (dot)
+;;; - organize code into files and annotate w comments
 
 
 (defpackage :genetic.linear
@@ -11,36 +12,63 @@
 
 (in-package :genetic.linear)
 
+(defparameter *project-path*
+  "/home/oblivia/Projects/genetic-exercises/genetic-linear/")
+
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
 
-(loadfile "/home/oblivia/Projects/genetic-exercises/genetic-linear/tictactoe.lisp")
-
-(defparameter *tictactoe-path* "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
+(loop for f in '("auxilary.lisp"
+                 "tictactoe.lisp"
+                 "iris.lisp") do
+     (loadfile (concatenate 'string *project-path* f)))
 
 (defparameter *DEBUG* nil)
 
 (defparameter *VERBOSE* nil)
 
-(defparameter *ht* (make-hash-table :test 'equal))
+(defparameter *ht* (make-hash-table :test 'equalp))
+
+(defparameter *training-ht* (make-hash-table :test 'equalp))
+
+(defparameter *testing-ht* (make-hash-table :test 'equalp))
+
+(defparameter *TASK* 'binary)
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic Parameters
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+(defstruct creature fit seq eff idx)
 
 (defparameter *best* (make-creature :fit 0))
 
 (defparameter *population* '())
 
-(defparameter *mutation-rate* 15)
+(defparameter *specimens* '())
 
-(defstruct creature fit seq eff idx)
+(defparameter *mutation-rate* 15)
 
 (defparameter *min-len* 2) ;; we want to prevent seqs shrinking to nil
 
 (defparameter *max-len* 256) ;; max instruction length
 
 (defparameter *max-start-len* 25) ;; max initial instruction length
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Logging
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter =logger=
+  ;; Just an excuse to play with the let-over-lambda design pattern...
+    (let ((log '()))
+      (lambda (&optional (entry nil))
+        (cond ((eq entry 'CLEAR) (setf log '()))
+              (entry (push entry log))
+              (t log)))))
+
+(defun log-best-fit (iteration)
+  (funcall =logger= (cons iteration (creature-fit *best*))))
+
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -97,7 +125,8 @@
 (defun PMD (&rest args)
   "Protected MOD."
   (if (some #'zerop args) (car args)
-      (mod (car args) (cadr args))))
+      (handler-case (mod (car args) (cadr args))
+        (error () 0))))
 
 (defun ADD (&rest args)
   (+ (car args) (cadr args)))
@@ -121,40 +150,12 @@
 ;; population's fitness -- 0.905 is now achieved in the time it took to
 ;; reach 0.64 with the basic operation set. (For tic-tac-toe.)
 
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; General Mathematical Helper Functions
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-(defun n-rnd (low high &optional (r '()) (n 4))
-  "Returns a list of n distinct random numbers between low and high."
-  (declare (type fixnum low high n))
-  (declare (optimize speed))
-  (when (< (- high low) n)
-    (error "Error in n-rnd: interval too small: infinite loop"))
-  (loop (when (= (length r) n)
-          (return r))
-     (setf r (remove-duplicates (cons (+ low (random high)) r)))))
-
-;; a helper:
-(defun sieve-of-eratosthenes (maximum) "sieve for odd numbers"
-       ;; taken from Rosetta Code. 
-       (cons 2
-             (let ((maxi (ash (1- maximum) -1))
-                   (stop (ash (isqrt maximum) -1)))
-               (let ((sieve (make-array (1+ maxi)
-                                        :element-type 'bit
-                                        :initial-element 0)))
-                 (loop for i from 1 to maxi
-                    when (zerop (sbit sieve i))
-                    collect (1+ (ash i 1))
-                    and when (<= i stop) do
-                      (loop for j from
-                           (ash (* i (1+ i)) 1) to maxi by (1+ (ash i 1))
-                         do (setf (sbit sieve j) 1)))))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Parameters for register configuration.
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter *output-reg* '())
 
 (defparameter *maxval* (expt 2 16)) ;; max val that can be stored in reg
 
@@ -229,29 +230,38 @@
   (let* ((fm (format nil "~a" func))
          (i (mismatch fm "#<FUNCTION __"))
          (o (subseq fm i (1- (length fm)))))
-    o))
+    #+sbcl o
+    #+clisp (subseq o 0 (position #\space o))))
 
-(defun inst->string (inst &optional (registers *initial-register-state*))
-  (format nil "[~a  R~d, R~d] ;; (~f, ~f)"
-          (func->string (op? inst)) (src? inst) (dst? inst)
-          (aref registers (src? inst)) (aref registers (dst? inst))))
+(defun inst->string (inst &key (registers *initial-register-state*)
+                            (static nil))
+  (concatenate 'string
+               (format nil "[~a  R~d, R~d]"
+                       (func->string (op? inst))
+                       (src? inst) (dst? inst))
+               (unless static (format nil " ;; (~f, ~f)"
+                                      (aref registers (src? inst))
+                                      (aref registers (dst? inst))))))
 
 (defun hrule ()
   (format t "-----------------------------------------------------------------------------~%"))
 
 (defun disassemble-sequence (seq &key (registers *initial-register-state*)
-                                   (input *default-input-reg*)) 
+                                   (input *default-input-reg*)
+                                   (static nil))
   (let ((od *debug*)
         (regs (copy-seq registers)))
     (enter-input regs input)
-    (hrule)
-    (print-registers regs)
+    (unless static
+      (hrule)
+      (print-registers regs))
     (hrule)
     (setf *debug* 1)
-    (execute-sequence seq :input input :registers regs)
+    (execute-sequence seq :input input :registers regs :static static)
     (setf *debug* od)
-    (print-registers regs)
-    (hrule)))
+    (unless static 
+      (print-registers regs)
+      (hrule))))
     
 (defun dbg (&optional on-off)
   (case on-off
@@ -264,21 +274,28 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun remove-introns (seq &key (out '(0)))
+  "Filters out non-effective instructions from a sequence -- instructions
+that have no bearing on the final value(s) contained in the output 
+register(s)."
   (let ((efr out)
         (efseq '()))
     (loop for i from (1- (length seq)) downto 0 do
          (let ((inst (aref seq i)))
            (when (member (dst? inst) efr)
              (push (src? inst) efr)
-             (push inst efseq))))
+             (push inst efseq)
+             (when (and (not (zerop i)) (jmp? (aref seq (1- i))))
+               (let ((prevjmp (aref seq (1- i))))
+                 (push (src? prevjmp) efr)
+                 (push (dst? prevjmp) efr))))))
     (coerce efseq 'vector)))
 
-(defun percent-effective (crt &key (out '(0)))
+(defun percent-effective (crt &key (out *output-reg*))
   (unless (creature-eff crt)
     (setf (creature-eff crt) (remove-introns (creature-seq crt) :out out)))
   (float (/ (length (creature-eff crt)) (length (creature-seq crt)))))
 
-(defun average-effective (population &key (out 0))
+(defun average-effective (population)
   (/ (reduce #'+ (mapcar #'percent-effective population))
      (length population)))
 
@@ -286,16 +303,18 @@
 ;; Execution procedure
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+
+;; MESSY, and TOO SLOW. Try to delegate debugging output elsewhere. 
 (defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*)
-                                    (output 0))
+                               (static nil))
   "Takes a sequence of instructions, seq, and an initial register 
 state vector, registers, and then runs the virtual machine, returning the
 resulting value in R0."
   ;; (declare (optimize (speed 1)))
-  (declare (type (simple-array rational (*)) registers
-                 input *default-input-reg* *initial-register-state*))
-  (declare (type fixnum output *input-start-idx*))
+;  (declare (type (simple-array fixnum (*)) ;registers
+;                 input *default-input-reg* *initial-register-state*))
+  (declare (type fixnum *input-start-idx*))
   (declare (inline src? dst? op?))
   
   (let ((regs (copy-seq registers))
@@ -308,21 +327,23 @@ resulting value in R0."
       (loop do
            (let* ((inst (aref seq (aref regs *pc-idx*)))
                 (D (if (jmp? inst) *pc-idx* (dst? inst))))
-             
-             (and *debug* (format t "~8,'0b  ~a" inst
-                                  (inst->string inst regs)))
+             (and *debug* (format t "~8,'0b  ~a~c" inst
+                                  (inst->string inst :registers regs
+                                                :static static)
+                                  (if static #\newline #\space)))
              (incf (aref regs *pc-idx*))
-             (setf (aref regs D)
-                 (rem (apply (op? inst)
-                             (list (aref regs (src? inst))
-                                   (aref regs (dst? inst))
-                                   (aref regs *pc-idx*))) *maxval*))
-             (and *debug* (format t " ;; now R~d = ~f; PC = ~d~%"
+             (unless static
+               (setf (aref regs D)
+                     (rem (apply (op? inst)
+                                 (list (aref regs (src? inst))
+                                       (aref regs (dst? inst))
+                                       (aref regs *pc-idx*))) *maxval*))
+               (and *debug* (format t ";; now R~d = ~f; PC = ~d~%"
                                   (dst? inst) (aref regs (dst? inst))
-                                  (aref regs *pc-idx*)))
+                                  (aref regs *pc-idx*))))
              (and (>= (aref regs *pc-idx*) seqlen) (return)))))
     (and *debug* (hrule))
-    (aref regs output)))
+    (mapcar #'(lambda (i) (aref regs i)) *output-reg*)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic operations (variation)
@@ -348,20 +369,6 @@ resulting value in R0."
          (tmp (elt seq i)))
     (setf (elt seq i) (elt seq i))
     (setf (elt seq j) tmp))
-  seq)
-
-(defun smutate-push (seq)
-  "Adds another (random) instruction to a sequence."
-  (declare (type simple-array seq))
-  (and *debug* (print "smutate-push"))
-  (push (random #x100) seq)
-  seq)
-
-(defun smutate-pop (seq)
-  "Decapitates a sequence."
-  (declare (type simple-array seq))
-  (and *debug* (print "smutate-pop"))
-  (and (> (length seq) *min-len*) (pop seq))
   seq)
 
 (defun smutate-grow (seq)
@@ -429,12 +436,15 @@ resulting value in R0."
 ;; Convention for fitness functions: let 1 be maximum value. no lower bound -- may
 ;; go to arbitrarily small fractions < 1
 
-(declaim (inline binary-error-measure))
-
-(defun binary-error-measure (raw goal)
-  ;; goal is a boolean value (t or nil)
-  ;; raw is, typically, the return value in r0
-  (let ((div (/ *maxval* 10000)))
+(let ((n 1))
+  
+  
+  (declaim (inline binary-error-measure))
+  
+  (defun binary-error-measure (raw goal)
+    ;; goal is a boolean value (t or nil)
+    ;; raw is, typically, the return value in r0
+  (let ((div (/ *maxval* 10000))) ;;  (let ((div (/ *maxval* 10000)))
     (flet ((sigmoid (x)
              (tanh (/ x div))))
       ;; if raw is < 0, then (sigmoid raw) will be between
@@ -444,119 +454,146 @@ resulting value in R0."
       ;; likewise when raw is > 0. 
       (/ (abs (+ (sigmoid raw) goal)) 2))))
 
-(defun fitness-binary-classifier-1 (seq hashtable)
-  ;; positive = t; negative = nil
-  ;; (declare (type hash-table hashtable))
-  ;; (declare (type cons seq))
-  ;; (declare (optimize speed))
-  (let ((results (loop for pattern being the hash-keys in hashtable collect
-                      (binary-error-measure (execute-sequence seq :input pattern)
-                                            (gethash pattern hashtable)))))
-    ;; (declare (type (cons rational) results))
-    (and *debug* *verbose*
-         (format t "SEQUENCE:~a~%RESULTS:~%~a~%" seq results))
-    (/ (apply #'+ results) (length results)))) ;; average
+  (defun fitness-binary-classifier-1 (seq hashtable)
+    ;; positive = t; negative = nil
+    ;; (declare (type hash-table hashtable))
+    ;; (declare (type cons seq))
+    ;; (declare (optimize speed))
+    (let ((results (loop for pattern being the hash-keys in hashtable collect
+                        (binary-error-measure
+                         (car (execute-sequence seq :input pattern))
+                         (gethash pattern hashtable)))))
+      ;; (declare (type (cons rational) results))
+      (and *debug* *verbose*
+           (format t "SEQUENCE:~a~%RESULTS:~%~a~%" seq results))
+      (/ (apply #'+ results) (length results)))) ;; average
 
-(defun fitness-binary-classifier-2 (seq hashtable)
-  ;; (declare (type hash-table hashtable))
-  ;; (declare (type (cons rational) seq))
-  ;; (declare (optimize speed))
-  (let ((correct 0)
-        (incorrect 0))
-    ;; (declare (type integer correct incorrect))
-    (loop for pattern being the hash-keys in hashtable do
-         (let ((f (execute-sequence seq :input pattern))
-               (v (gethash pattern hashtable)))
-           ;; (declare (type rational f v))
-           (if (> (* f v) 0) (incf correct) (incf incorrect))))
-    ;;    (format t "SEQ: ~a~%CORRECT: ~d    INCORRECT ~d~%~%" seq correct incorrect)
-    (if (zerop incorrect) 1
-        (/ correct (+ correct incorrect)))))
+  (defun fitness-binary-classifier-2 (seq hashtable)
+    ;; (declare (type hash-table hashtable))
+    ;; (declare (type (cons rational) seq))
+    ;; (declare (optimize speed))
+    (let ((correct 0)
+          (incorrect 0))
+      ;; (declare (type integer correct incorrect))
+      (loop for pattern being the hash-keys in hashtable using (hash-value v)
+         do
+           (let ((f (car (execute-sequence seq :input pattern))))
+             ;; (declare (type rational f v))
+             (if (> (* f v) 0) (incf correct) (incf incorrect))))
+      ;;    (format t "SEQ: ~a~%CORRECT: ~d    INCORRECT ~d~%~%" seq correct incorrect)
+      (if (zerop incorrect) 1
+          (/ correct (+ correct incorrect)))))
 
-(defun fitness-0 (seq)
-  (let ((target 666))
-    (/ 1 (1+ (abs (- (execute-sequence (final-dst seq 0)
-                                       :registers *initial-register-state*)
-                     target))))))
+  (defun fitness-ternary-classifier-1 (seq hashtable)
+    "Where n is the target register, measures fitness as the ratio of Rn to
+the sum of all output registers R0-R2 (wrt absolute value)."
+    (let ((acc 0))
+      (loop for pattern being the hash-keys in hashtable using (hash-value i)
+         do
+           (let ((output (execute-sequence seq :input pattern)))
+             (incf acc (DIV (abs (nth i output))
+                            (reduce #'+ (mapcar #'abs output))))))
+      (/ acc (hash-table-count hashtable))))
 
-(defun fitness (crt &key (lookup nil) (output-register 0))
-  ;; we execute (cdr seq), because the first cons cell of
-  ;; each sequence stores the fitness of that sequence, or
-  ;; else, nil. 
-  (unless (creature-fit crt)  
-    (flet ((fitfunc (s)
-             (fitness-binary-classifier-1 s lookup)))
-      (setf (creature-eff crt)
-            (remove-introns (creature-seq crt) :out (list output-register)))
-      (setf (creature-fit crt) (fitfunc (creature-eff crt)))
-      (when (or (null (creature-fit *best*)) (> (creature-fit crt) (creature-fit *best*)))
+
+  (defun fitness (&key (crt nil) (lookup *ht*) (out *output-reg*)
+                    (fitfunc #'fitness-binary-classifier-1)) 
+    "Measures the fitness of a specimen, according to a specified fitness
+function."
+    (unless (creature-fit crt)  
+      (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
+            (remove-introns (creature-seq crt) :out out))
+      (setf (creature-fit crt)
+            (funcall fitfunc (creature-eff crt) lookup))
+      (when (or (null (creature-fit *best*))
+                (> (creature-fit crt) (creature-fit *best*)))
         (setf *best* (copy-structure crt))
         (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%"
-                             (creature-fit crt) (creature-fit *best*))))))
-  (creature-fit crt))
-
+                             (creature-fit crt) (creature-fit *best*)))))
+    (creature-fit crt))
+)
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Selection functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun tournement (population &key (lookup nil))
-  (let* ((lots (n-rnd 0 (length *population*)))
-         (combatants (mapcar #'(lambda (i) (nth i population)) lots)))
-    (and *debug* (format t "COMBATANTS BEFORE: ~a~%" combatants))
-    (loop for combatant in combatants do
-         (unless (creature-fit combatant)
-           (setf (creature-fit combatant)
-                 (fitness combatant :lookup lookup))))
-    (and *debug* (format t "COMBATANTS AFTER: ~a~%" combatants))
-    (let* ((ranked (sort combatants #'(lambda (x y) (< (creature-fit x) (creature-fit y)))))
-           (parents (cddr ranked))
-           (children (apply #'crossover parents))
-           (the-dead (subseq ranked 0 2)))
-      (map 'list #'(lambda (i j) (setf (creature-idx i) (creature-idx j)))
-           children the-dead)
-      (mapcar #'(lambda (x) (setf (nth (creature-idx x) population) x)) children) 
-      (and *debug* (format t "RANKED: ~a~%" ranked))
-      *best*)))
+(let ((%population% '()))
 
-(defun spin-wheel (wheel top)
-  (let ((ball (random (float top)))
-        (ptr (car wheel)))
-    ;; (format t "TOP: ~a~%BALL: ~a~%" top ball)
-    (loop named spinning for slot in wheel do
-         (when (< ball (car slot))
-           (return-from spinning))
-         (setf ptr slot))
-    ;; ptr now points to where the ball 'lands'
-    ;; (and (null ptr) (error "NIL PTR RESULTING FROM SPIN WHEEL."))
-    ;; (format t "PTR: ~a~%" ptr)
-    (cdr ptr)))
+  (defun tournement! (population &key (lookup nil)
+                                   (fitfunc #'fitness-binary-classifier-1))
+    (let* ((lots (n-rnd 0 (length *population*)))
+           (combatants (mapcar #'(lambda (i) (nth i population)) lots)))
+      (and *debug* (format t "COMBATANTS BEFORE: ~a~%" combatants))
+      (loop for combatant in combatants do
+           (unless (creature-fit combatant)
+             (setf (creature-fit combatant)
+                   (fitness :crt combatant :lookup lookup
+                            :fitfunc fitfunc))))
+      (and *debug* (format t "COMBATANTS AFTER: ~a~%" combatants))
+      (let* ((ranked (sort combatants #'(lambda (x y) (< (creature-fit x) (creature-fit y)))))
+             (parents (cddr ranked))
+             (children (apply #'crossover parents))
+             (the-dead (subseq ranked 0 2)))
+        (map 'list #'(lambda (i j) (setf (creature-idx i) (creature-idx j)))
+             children the-dead)
+        (mapcar #'(lambda (x) (setf (nth (creature-idx x) population) x))
+                children) 
+        (and *debug* (format t "RANKED: ~a~%" ranked))
+        *best*)))
+
+  (defun spin-wheel (wheel top)
+    (let ((ball (random (float top)))
+          (ptr (car wheel)))
+      (loop named spinning for slot in wheel do
+           (when (< ball (car slot))
+             (return-from spinning))
+           (setf ptr slot))
+      (cdr ptr)))
   
-(defun roulette (population &key (lookup nil))
-  (let* ((tally 0)
-         (popsize (length population))
-         (wheel (loop for creature in population
-                   collect (progn
-                             (let ((f (float (fitness creature
-                                                      :lookup lookup))))
-                               (incf tally f)
-                               (cons tally creature)))))
-         ;; the roulette wheel is now built
-         ;;(format t "WHEEL: ~a~%" wheel)
-         (breeders (loop for i from 1 to popsize
-                      collect (spin-wheel wheel tally)))
-         (half (/ popsize 2))
-         (mothers (subseq breeders 0 half))
-         (fathers (subseq breeders half popsize)))
-    ;;(format t "MOTHERS: ~a~%FATHERS: ~a~%" mothers fathers)
-    ;;(print "CHILDREN:")
-    (apply #'concatenate 'list (map 'list #'crossover mothers fathers))))
+  (defun f-roulette (population &key (lookup *ht*)
+                                  (fitfunc #'fitness-binary-classifier-1))
+    (let* ((tally 0)
+           (popsize (length population))
            
-(defun next-generation (&key (lookup nil))
-  (setf *population* (roulette *population* :lookup lookup)))
+           (wheel (loop for creature in population
+                     collect (progn
+                               (let ((f (float (fitness :crt creature
+                                                        :fitfunc fitfunc
+                                                        :lookup lookup))))
+                                 (incf tally f)
+                                 (cons tally creature)))))
+           ;; the roulette wheel is now built
+           (breeders (loop for i from 1 to popsize
+                        collect (spin-wheel wheel tally)))
+           (half (/ popsize 2))
+           (mothers (subseq breeders 0 half))
+           (fathers (subseq breeders half popsize)))
+      (apply #'concatenate 'list (map 'list #'crossover mothers fathers))))
 
+  (defun greedy-roulette! (population &key (lookup *ht*)
+                                        (fitfunc #'fitness-binary-classifier-1))
+    "New and old generations compete for survival. Takes twice as long
+as #'roulette!"
+    (let ((popsize (length population)))
+      (setf (subseq population 0 popsize)
+            (subseq (sort (concatenate 'list population
+                                       (f-roulette population :lookup lookup
+                                                   :fitfunc fitfunc))
+                          #'(lambda (x y) (> (fitness :crt x :lookup lookup
+                                                 :fitfunc fitfunc)
+                                        (fitness :crt y :lookup lookup
+                                                 :fitfunc fitfunc))))
+                    0 popsize))))
+
+  (defun roulette! (population &key (lookup *ht*)
+                                 (fitfunc #'fitness-binary-classifier-1))
+    (setf (subseq population 0 (length population))
+          (f-roulette population :lookup lookup :fitfunc fitfunc)))
+)
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Initialization functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; --- Prepare the population ---
 
 (defun spawn-sequence (len)
   (concatenate 'vector (loop repeat len collect (random *max-inst*))))
@@ -568,12 +605,43 @@ resulting value in R0."
   (loop for i from 0 to (1- popsize) collect
        (spawn-creature (+ *min-len* (random slen)) :idx i)))
 
-(defun setup-tictactoe (&optional (graycode t))
+;; -- Prepare the data (general) ---
+
+(defun partition-data (hashtable ratio)
+  (flet ((shuffle (l)
+           (sort l #'(lambda (x y) (= 0 (random 2))))))
+    (let* ((size (hash-table-count hashtable))
+           (training-size (floor (* ratio size)))
+           (keys (loop for k being the hash-keys in hashtable collect k))
+           (shuffled (shuffle keys)))
+      (setf *training-ht* (make-hash-table :test 'equalp))
+      (setf *testing-ht* (make-hash-table :test 'equalp))
+       (loop for i from 1 to size do
+           (let ((k (pop shuffled))
+                 (dst-ht (if (< i training-size) *training-ht* *testing-ht*)))
+             (setf (gethash k dst-ht) (gethash k hashtable)))))))
+
+;; --- Prepare the data (domain-specific) ---
+
+(defun setup-tictactoe (&key (int t) (gray t))
   (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
-         (hashtable (datafile->hashtable filename :int graycode)))
+         (hashtable (ttt-datafile->hashtable filename :int int :gray gray)))
+    (setf *output-reg* '(0))
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population 500 *max-start-len*))
     (print "population initialized in *population*; data read; hashtable in *ht*")
+    (setf *TASK* 'binary)
+    (setf *ht* hashtable)
+    hashtable))
+
+(defun setup-iris ()
+  (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/Iris/iris.data")
+         (hashtable (iris-datafile->hashtable filename)))
+    (setf *output-reg* '(0 1 2))
+    (setf *best* (make-creature :fit 0))
+    (setf *population* (init-population 500 *max-start-len*))
+    (print "population initialized in *population*; data read; hashtable in *ht*")
+    (setf *TASK* 'ternary)
     (setf *ht* hashtable)
     hashtable))
 
@@ -581,37 +649,160 @@ resulting value in R0."
 ;; User interface functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun classification-report (crt &optional (ht *ht*))
-  (format t "REPORT FOR ~a~%=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%" crt)
-  (let ((seq (creature-eff crt))
-        (correct 0)
-        (incorrect 0))
-    (loop for k being the hash-keys in ht do
-         (let ((i (aref k 0))
-               (f (execute-sequence seq :input k)))
-           (format t "~%~a~%" (int->board i))
-         (cond ((> (* (gethash k ht) f) 0)
-                (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%" i f)
-                (incf correct))
-               ((< (* (gethash k ht) f) 0)
-                (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%" i f)
-                (incf incorrect))
-               (t (format t "WHO'S TO SAY? ~a -> ~f~%~%" i f))))
-         (hrule))
-    (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
-            correct incorrect)))
-    ;;(format t "~%A STRANGE GAME.~%THE ONLY WINNING MOVE IS NOT TO PLAY.~%~%HOW ABOUT A NICE GAME OF CHESS?")))
 
-(defun do-tournements (&key (rounds 10000) (target 0.97))
+;; need a better naming scheme for these UI & helper funcs!
+
+
+(defun print-params ()
+  "Prints major global parameters, and some statistics, too."
+  (hrule)
+  (format t "[+] INSTRUCTION SIZE:     ~d bits~%" *wordsize*)
+  (format t "[+] # of RW REGISTERS:   ~d~%" (expt 2 *dstf*))
+  (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *srcf*))
+  (format t "[+] PRIMITIVE OPERATIONS: ")
+  (loop for i from 0 to (1- (expt 2 *opf*)) do
+       (format t "~a " (func->string (aref *opcodes* i))))
+  (format t "~%[+] POPULATION SIZE:      ~d~%" (length *population*))
+  (format t "[+] MUTATION RATE:        ~d%~%" *mutation-rate*)
+  (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
+  (format t "[+] MAX STARTING LENGTH:  ~d~%" *max-start-len*)
+  (format t "[+] # of TRAINING CASES:  ~d~%"
+          (hash-table-count *training-ht*))
+  (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
+  (format t "[+] FITNESS FUNCTION:     ~s~%" *task*)
+  (hrule))
+
+(defun print-statistics ()
+  (hrule)
+  (format t "[*] STRUCTURAL INTRON FREQUENCY: ~d%~%"
+          (* 100 (- 1 (average-effective *population*))))
+  (format t "[*] BEST FITNESS SCORE ACHIEVED: ~d%~%" (* 100 (creature-fit *best*)))
+  (format t "[*] BEST FITNESS BY GENERATION:  ~a~%" (funcall =logger=)))
+  
+
+(defun plot-fitness ()
+  (hrule)
+  (format t "                    PLOT OF BEST FITNESS OVER GENERATIONS~%")
+  (hrule)
+  (let* ((fitlog (funcall =logger=))
+         (lastgen (caar fitlog))
+         (row #\newline)
+         (divisor 35)
+         (interval (max 1 (floor (div lastgen divisor))))
+         (scale 128)
+         (bar-char #\X)
+         (end-char #\x))
+    (dotimes (i (+ lastgen interval))
+      (when (assoc i fitlog)
+        (setf row (format nil "~v@{~c~:*~}"
+                          (ceiling (* (- (cdr (assoc i fitlog)) .5)
+                                      scale)) bar-char)))
+      (when (= (mod i interval) 0)
+        (format t "~5d | ~a~%" i row)))
+    (hrule)
+    (format t "        ")
+    (let ((x-axis 50))
+      (dotimes (i (floor (div scale 2)))
+        (if (= (pmd i (floor (div scale 10.6))) 0)
+            (progn 
+              (format t "~d" x-axis)
+              (when (>= x-axis 100) (return))
+              (incf x-axis 10))
+            (format t " "))))
+    (format t "~%")
+    (hrule)))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Runners
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defun run-breeder (&key (method 'tournement!) (dataset 'unknown)
+                      (rounds 10000) (target 0.97) (ht *ht*)
+                      (fitfunc #'fitness-binary-classifier-1))
   (let ((oldbest *best*))
-    (time (block tournies
+    (funcall =logger= 'clear)
+    (time (block evolver
             (dotimes (i rounds)
-              (tournement *population* :lookup *ht*)
+              (funcall (symbol-function method) *population*
+                       :lookup ht :fitfunc fitfunc)
               (when (or (null (creature-fit *best*))
                         (> (creature-fit *best*) (creature-fit oldbest)))
                 (setf oldbest *best*)
+                (log-best-fit i)
+                (format t "DATASET: ~s; METHOD: ~s~%" dataset method)
                 (format t "NEW BEST AT ROUND ~d: ~a~%" i *best*)
-                (disassemble-sequence (creature-eff *best*)))
-              (and (> (creature-fit *best*) target) (return-from tournies)))))
+                (disassemble-sequence (creature-eff *best*)
+                                      :static t ))
+              (when (> (creature-fit *best*) target)
+                (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
+                (return-from evolver)))))
+    (push *best* *specimens*)
     (format t "BEST: ~f~%" (creature-fit *best*))))
 
+
+(defun evolve (&key (method 'tournement!) (rounds 50000) (target 0.97)
+                 (dataset 'tictactoe) (ratio 8/10)
+                 (fitfunc #'fitness-binary-classifier-1))
+  "Do everything: initialize a population and hashtable, then run the breeder function, with specified method (roulette or tournmenent, e.g.) for a specified number of rounds or until a given fitness target is reached, whichever comes first." 
+  (setf *ht* (make-hash-table :test 'equalp))
+  (cond ((eq dataset 'tictactoe) (setup-tictactoe :int t :gray t))
+        ((eq dataset 'iris) (setup-iris))
+        (t (error "DATASET UNKNOWN")))
+  (hrule)
+  (format t "INITIAL POPULATION~%")
+  (hrule)
+  (print *population*)
+  (format t "~%")
+  (hrule)
+  (print-params)
+  (print-statistics)
+  (partition-data *ht* ratio)
+  (run-breeder :dataset dataset :method method :rounds rounds
+               :target target :ht *training-ht* :fitfunc fitfunc)
+  (format t "~%FINAL POPULATION~%")
+  (print *population*)
+  (format t "~%")
+  (hrule)
+  (format t "~%TRAINING COMPLETE. TESTING BEST SPECIMEN.~%" )
+  (hrule)
+  (case dataset
+    ((tictactoe) (ttt-classification-report *best* *testing-ht*))
+    ((iris) (iris-classification-report *best* *testing-ht*)))
+  (print-params)
+  (print-statistics)
+  (plot-fitness))
+  
+(defun omnibus ()
+  (let* ((t-rounds 10000)
+         (r-rounds 500)
+         (targ 1)
+         (params `((:method tournement! :dataset tictactoe
+                            :fitfunc fitness-binary-classifier-1
+                            :rounds ,t-rounds :target ,targ)
+                   (:method roulette! :dataset tictactoe
+                            :fitfunc fitness-binary-classifier-1
+                            :rounds ,r-rounds :target ,targ)
+                   (:method greedy-roulette! :dataset tictactoe
+                            :fitfunc fitness-binary-classifier-1
+                            :rounds ,r-rounds :target ,targ)
+                   (:method tournement! :dataset iris
+                            :fitfunc fitness-ternary-classifier-1
+                            :rounds ,t-rounds :target ,targ)
+                   (:method roulette! :dataset iris
+                            :fitfunc fitness-ternary-classifier-1
+                            :rounds ,r-rounds :target ,targ)
+                   (:method greedy-roulette! :dataset iris
+                            :fitfunc fitness-ternary-classifier-1
+                            :rounds ,r-rounds :target ,targ))))
+    (hrule)
+    (loop for param-list in params do
+         (format t "METHOD: ~S; DATASET: ~S~%FITNESS FUNCTION: ~A~%"
+                 (getf param-list :method)
+                 (getf param-list :dataset)
+                 (getf param-list :fitfunc))
+         (hrule)
+         (apply #'evolve param-list))))
+
+
+(defun compactify (population)
+  ) ;; define new fitfunc to reward the shortest sequence that still satisfies the old fitfunc 
