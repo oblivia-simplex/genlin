@@ -8,7 +8,8 @@
 
 
 (defpackage :genetic.linear
-  (:use :common-lisp))
+  (:use :common-lisp
+        :sb-thread))
 
 (in-package :genetic.linear)
 
@@ -311,19 +312,25 @@ resulting value in R0."
 
 ;; Convention for fitness functions: let 1 be maximum value. no lower bound -- may
 ;; go to arbitrarily small fractions < 1
-(let ((.fitfunc. nil)
-      (.hashtable. nil)
-      (.testing-hashtable. nil)
-      (.out-reg. nil))
+(let ((.fitfunc. );(if .fitfunc. .fitfunc.))
+      (.hashtable. ); (if .hashtable. .hashtable.))
+      (.testing-hashtable. ); (if .testing-hashtable. .testing-hashtable.) )
+      (.out-reg. ));(if .out-reg. .out-reg.)))
 
   (defun init-fitness-env (&key fitfunc training-hashtable testing-hashtable out-reg)
     "Works sort of like a constructor, to initialize the fitness 
 environment."
+    (if (<= (hash-table-count training-hashtable) 1 )
+        (error "Training hashtable did not load correctly. Error caught in init-fitness-env."))
     (setf .fitfunc. fitfunc)
     (setf .hashtable. training-hashtable)
     (setf .testing-hashtable. testing-hashtable)
     (setf .out-reg. (copy-seq out-reg)))
 
+
+  (defun peek-fitness-scope ()
+    (format t ".fitfunc. = ~a ~% .hashtable. = ~a ~% .testing-hashtable. = ~a ~% .out-reg. = ~a~% " .fitfunc. .hashtable. .testing-hashtable. .out-reg.))
+  
   ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   ;; Intron Removal and Statistics
   ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -385,10 +392,13 @@ register(s)."
   (defun fitness-ternary-classifier-1 (seq)
     "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
-    (let ((acc 0)) 
+    (let ((acc 0))
+      (format t "******* .hashtable. = ~a *******~%" .hashtable.)
       (loop for pattern being the hash-keys in .hashtable.
          using (hash-value i) do
+
            (let ((output (execute-sequence seq :input pattern)))
+           (FORMAT T "*********** OUTPUT: ~a ***************~%" output)
              (incf acc (DIV (abs (nth i output))
                             (reduce #'+ (mapcar #'abs output))))))
       (/ acc (hash-table-count .hashtable.))))
@@ -412,6 +422,7 @@ fitness function."
     (if testing
         (setf ht .testing-hashtable.)
         (setf ht .hashtable.))
+    (if (<= (hash-table-count ht) 1) (error "Hash table did not load correctly."))
     (case dataset
       (tictactoe (ttt-classification-report crt ht))
       (iris (iris-classification-report crt ht))
@@ -597,33 +608,48 @@ as #'roulette!"
     (let* ((size (hash-table-count hashtable))
            (training-size (floor (* ratio size)))
            (keys (loop for k being the hash-keys in hashtable collect k))
-           (shuffled (shuffle keys)))
-      (setf *training-ht* (make-hash-table :test 'equalp))
-      (setf *testing-ht* (make-hash-table :test 'equalp))
+           (shuffled (shuffle keys))
+           (training (make-hash-table :test 'equalp))
+           (testing (make-hash-table :test 'equalp)))
       (loop for i from 1 to size do
            (let ((k (pop shuffled))
-                 (dst-ht (if (< i training-size) *training-ht* *testing-ht*)))
-             (setf (gethash k dst-ht) (gethash k hashtable)))))))
+                 (dst-ht (if (< i training-size) training testing)))
+             (setf (gethash k dst-ht) (gethash k hashtable))))
+      (cons training testing))))
 
 ;; --- Prepare the data (domain-specific) ---
 
-(defun setup-tictactoe (&key (int t) (gray t))
-  (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
-         (hashtable (ttt-datafile->hashtable filename :int int :gray gray)))
-    (format t "at line 614, hashtable = ~a~%" hashtable)
-    (init-fitness-env :training-hashtable hashtable
+(defun setup-tictactoe (&key (int t) (gray t) (ratio 4/5))
+  (flet ((count-1-in-ht (h)
+           (length (remove-if-not #'(lambda (x) (= x 1))
+                                  (loop for v being the hash-values
+                                     in h collect v)))))
+    (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
+           (hashtable (ttt-datafile->hashtable filename :int int :gray gray))
+           (tt (print (partition-data hashtable ratio)))
+           (training (print (car tt)))
+           (testing (print (cdr tt)))
+           (train-pos (count-1-in-ht training))
+           (train-neg (- (hash-table-count training) train-pos))
+           (test-pos (count-1-in-ht testing))
+           (test-neg (- (hash-table-count testing) test-pos)))
+      (format t "~%TRAINING AND TESTING HASHTABLES PREPARED~%TRAINING: ~d+ / ~d-~%TESTING: ~d+ / ~d-~%" train-pos train-neg test-pos test-neg)
+    
+    (init-fitness-env :training-hashtable training
+                      :testing-hashtable testing
                       :fitfunc #'fitness-binary-classifier-1
                       :out-reg '(0))
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population 500 *max-start-len*))
     (print "population initialized in *population*; data read")
-    hashtable))
+    hashtable)))
 
-(defun setup-iris ()
+(defun setup-iris (&key (ratio 4/5))
   (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/Iris/iris.data")
          (hashtable (iris-datafile->hashtable filename)))
+    (partition-data hashtable ratio)
     (init-fitness-env :training-hashtable hashtable
-                      :fitfunc fitness-ternary-classifier-1
+                      :fitfunc #'fitness-ternary-classifier-1
                       :out-reg '(0 1 2))
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population 500 *max-start-len*))
@@ -654,7 +680,7 @@ as #'roulette!"
   (format t "[+] # of TRAINING CASES:  ~d~%"
           (hash-table-count *training-ht*))
   (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
-  (format t "[+] FITNESS FUNCTION:     ~s~%" *task*)
+;;  (format t "[+] FITNESS FUNCTION:     ~s~%" *task*)
   (hrule))
 
 (defun print-statistics ()
@@ -739,8 +765,8 @@ is reached, whichever comes first."
   (format t "~%")
   (hrule)
   (print-params)
-  (print-statistics)
-  (partition-data *ht* ratio)
+;;  (print-statistics)
+;;  (partition-data *ht* ratio)
   (run-breeder :dataset dataset :method method
                :rounds rounds :target target)
   (format t "~%FINAL POPULATION~%")
@@ -789,3 +815,5 @@ is reached, whichever comes first."
 ;; something more like "static" class variables, in let-over-defuns.
 ;; resist the temptation to do this with mutable variables, like
 ;; population, until it's clear that this won't interfere with hyperthreading.
+
+;; (setf *debug* nil)
