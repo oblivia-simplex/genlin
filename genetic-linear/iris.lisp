@@ -96,3 +96,10 @@
     (hrule)
     failures))
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; data processing tools
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defun split-at-label (str)
+  (let ((lastcomma-idx (position #\, str :from-end t)))
+    (cons (subseq str 0 lastcomma-idx) (subseq str (1+ lastcomma-idx)))))
