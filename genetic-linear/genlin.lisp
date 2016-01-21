@@ -23,6 +23,8 @@
                  "iris.lisp") do
      (loadfile (concatenate 'string *project-path* f)))
 
+(defparameter *STOP* nil)
+
 (defparameter *DEBUG* nil)
 
 (defparameter *VERBOSE* nil)
@@ -101,6 +103,27 @@
 (defparameter *srcbits* (byte *srcf* *opf*))
 
 (defparameter *dstbits* (byte *dstf* (+ *srcf* *opf*)))
+
+
+(defun inst-schema-match (&rest instructions)
+  "Returns a Holland-style schema that matches all of the instructions
+passed in as arguments. This will be a bitvector (an integer) with a 1
+for every bit that represents a match, and a 0 for every bit that
+represents a clash."
+  (ldb (byte *wordsize* 0) (apply #'logeqv instructions)))
+
+(defun seq-schema-match (seq1 seq2)
+  (map 'list #'inst-schema-match seq1 seq2))
+
+(defun allonesp (inst)
+  (= inst (ldb (byte *wordsize* 0) (lognot 0))))
+
+(defun boolean-seq-schema-match (seq1 seq2)
+  (mapcar #'allonesp (seq-schema-match seq1 seq2)))
+
+(defun likeness (seq1 seq2)
+  (/ (length (remove-if #'null (boolean-seq-schema-match seq1 seq2)))
+     (max (length seq1) (length seq2))))
 
 ;; --- Operations: these can be tweaked independently of the 
 ;; --- fields above, so long as their are at least (expt 2 *opf*)
@@ -277,9 +300,11 @@ returning the resulting value in R0."
       (let ((regs (copy-seq registers))
             (seqlen (length seq))
             (debugger (or debug *debug*)))
+
         ;; the input values will be stored in read-only regs
         (setf (subseq regs *input-start-idx*
                       (+ *input-start-idx* (length input))) input)
+;;;        (print regs) ;;;;;;;;;;;;;;;;;;;;;;;;;;DEBUGGING
         (unless (zerop seqlen)
           (loop do
              ;; Fetch the next instruction
@@ -312,7 +337,7 @@ returning the resulting value in R0."
     (if len (print (subseq history 0 len))
         (print history)))
 
-
+;;; IS THE REGISTER STATE PERSISTING BETWEEN SEQUENCES?
   (defun disassemble-history (&key (len 0) (all t) (static nil)
                                 (show-registers nil))
     "If passed a sequence in the static field, disassemble it without
@@ -325,8 +350,8 @@ entries in the history stack, tracking changes to the registers."
                           (reverse (subseq history 0 len)))))
       (when show-registers
         (hrule)
-            (print-registers (cdar story))
-            (hrule))
+            (print-registers (cdar story)))
+      
       (loop for couplet in story do
            (let ((registers (if static nil (cdr couplet)))
                  (inst (if static couplet (car couplet))))
@@ -396,11 +421,16 @@ register(s)."
        (length population)))
   
   ;; ......................................................................
-  
+
+
+  ;; design a meta-gp to evolve the sigmoid function?
   (defun fitness-binary-classifier-1 (seq)
-    (let ((divisor (/ *maxval* (expt 2 12))))
+    (let ((divisor (/ *maxval* (expt 2 13.5))))
       (flet ((error-gauge (raw goal)
-               (/ (abs (+ (tanh (/ raw divisor)) goal)) 2)))
+               (if (zerop raw)
+                   0
+             ;;      (/ (abs (+ (tanh (* 100 (log raw))) goal)) 2))))
+                (/ (abs (+ (tanh (/ raw divisor)) goal)) 2))))
       (let ((results))
         (setf results (loop for pattern
                          being the hash-keys in .hashtable. collect
@@ -633,19 +663,19 @@ as #'roulette!"
 
 ;; -- Prepare the data (general) ---
 
-(defun obsolete-partition-data (hashtable ratio)
-  (flet ((shuffle (l)
-           (sort l #'(lambda (x y) (= 0 (random 2))))))
-    (let* ((size (hash-table-count hashtable))
-           (training-size (floor (* ratio size)))
-           (keys (loop for k being the hash-keys in hashtable collect k))
-           (shuffled (shuffle keys)))
-      (setf *training-ht* (make-hash-table :test 'equalp))
-      (setf *testing-ht* (make-hash-table :test 'equalp))
-      (loop for i from 1 to size do
-           (let ((k (pop shuffled))
-                 (dst-ht (if (< i training-size) *training-ht* *testing-ht*)))
-             (setf (gethash k dst-ht) (gethash k hashtable)))))))
+;; (defun obsolete-partition-data (hashtable ratio)
+;;   (flet ((shuffle (l)
+;;            (sort l #'(lambda (x y) (= 0 (random 2))))))
+;;     (let* ((size (hash-table-count hashtable))
+;;            (training-size (floor (* ratio size)))
+;;            (keys (loop for k being the hash-keys in hashtable collect k))
+;;            (shuffled (shuffle keys)))
+;;       (setf *training-ht* (make-hash-table :test 'equalp))
+;;       (setf *testing-ht* (make-hash-table :test 'equalp))
+;;       (loop for i from 1 to size do
+;;            (let ((k (pop shuffled))
+;;                  (dst-ht (if (< i training-size) *training-ht* *testing-ht*)))
+;;              (setf (gethash k dst-ht) (gethash k hashtable)))))))
 
 
 (defun partition-data (hashtable ratio)
@@ -717,13 +747,27 @@ as #'roulette!"
   (format t "[+] FITNESS FUNCTION:     ~s~%" *task*)
   (hrule))
 
+(defun likeness-to-specimen (population specimen)
+  (float (/ (reduce #'+
+                    (mapcar #'(lambda (x) (likeness (creature-seq specimen)
+                                               (creature-seq x)))
+                            population))
+            (length population))))
+
+
 (defun print-statistics ()
   (hrule)
   (format t "[*] STRUCTURAL INTRON FREQUENCY: ~d%~%"
           (* 100 (- 1 (average-effective *population*))))
   (format t "[*] BEST FITNESS SCORE ACHIEVED: ~d%~%" (* 100 (creature-fit *best*)))
-  (format t "[*] BEST FITNESS BY GENERATION:  ~a~%" (funcall =logger=)))
-
+  (format t "[*] BEST FITNESS BY GENERATION:  ~a~%" (funcall =logger=))
+  (format t "[*] AVERAGE SIMILARITY TO BEST:  ~f%~%"
+          (* 100 (likeness-to-specimen *population* *best*)))
+  (format t "[*] AVERAGE FITNESS: ~f~%"
+          (/ (reduce #'+
+                     (remove-if #'null (mapcar #'creature-fit *population*)))
+             (length *population*))))
+                  
 
 (defun plot-fitness ()
   (hrule)
@@ -763,11 +807,17 @@ as #'roulette!"
 
 (defun run-breeder (&key (method #'tournement!) (dataset 'unknown)
                       (rounds 10000) (target 0.97))
-  (let ((oldbest *best*))
+  (setf *STOP* nil)
+  (let ((oldbest *best*)
+        (stat-interval 500))
     (funcall =logger= 'clear)
     (time (block evolver
             (dotimes (i rounds)
               (funcall method *population*)
+              (when (= 0 (mod i stat-interval))
+                (hrule)
+                (format t "[ITERATION ~d]~%" i)
+                (print-statistics))
               (when (or (null (creature-fit *best*))
                         (> (creature-fit *best*) (creature-fit oldbest)))
                 (setf oldbest *best*)
@@ -776,7 +826,7 @@ as #'roulette!"
                 (format t "NEW BEST AT ROUND ~d: ~a~%" i *best*)
                 (disassemble-sequence (creature-eff *best*)
                                       :static t ))
-              (when (> (creature-fit *best*) target)
+              (when (or (> (creature-fit *best*) target) *STOP*)
                 (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
                 (return-from evolver)))))
     (push *best* *specimens*)
@@ -847,3 +897,4 @@ is reached, whichever comes first."
 ;; something more like "static" class variables, in let-over-defuns.
 ;; resist the temptation to do this with mutable variables, like
 ;; population, until it's clear that this won't interfere with hyperthreading.
+(setf *STOP* nil)
