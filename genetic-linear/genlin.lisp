@@ -8,8 +8,7 @@
 
 
 (defpackage :genetic.linear
-  (:use :common-lisp
-        :sb-thread))
+  (:use :common-lisp))
 
 (in-package :genetic.linear)
 
@@ -240,20 +239,12 @@
 (defun disassemble-sequence (seq &key (registers *initial-register-state*)
                                    (input *default-input-reg*)
                                    (static nil))
-  (let ((od *debug*)
-        (regs (copy-seq registers)))
-    (enter-input regs input)
-    (unless static
-      (hrule)
-      (print-registers regs))
-    (hrule)
-    (setf *debug* 1)
-    (execute-sequence seq :input input :registers regs :static static)
-    (setf *debug* od)
-    (unless static 
-      (print-registers regs)
-      (hrule))))
+  (hrule)
+  (if static (disassemble-history :static seq)
+      (execute-sequence seq :debug t :input input :registers registers))
+  (hrule))
 
+  
 (defun dbg (&optional on-off)
   (case on-off
     ((on)  (setf *debug* t))
@@ -268,69 +259,112 @@
 ;; encapsulate in its own let environment?
 
 ;; MESSY, and TOO SLOW. Try to delegate debugging output elsewhere. 
-(defun execute-sequence (seq &key (registers *initial-register-state* )
-                               (input *default-input-reg*)
-                               (static nil) (output nil))
-  "Takes a sequence of instructions, seq, and an initial register 
-state vector, registers, and then runs the virtual machine, returning the
-resulting value in R0."
 
-  (declare (type fixnum *input-start-idx*))
-  (declare (inline src? dst? op?))
-  (let ((regs (copy-seq registers))
-        (seqlen (length seq)))
-    ;; the input values will be stored in read-only regs
-    (setf (subseq regs *input-start-idx*
-                  (+ *input-start-idx* (length input))) input)
-    ;;      (format t "input: ~a~%regs: ~a~%" inp regs)
-    (unless (zerop seqlen)
-      (loop do
-           (let* ((inst (aref seq (aref regs *pc-idx*)))
-                  (D (if (jmp? inst) *pc-idx* (dst? inst))))
-             (and *debug* (format t "~8,'0b  ~a~c" inst               ;;
-                                  (inst->string inst :registers regs  ;;
-                                                :static static)       ;;
-                                  (if static #\newline #\space)))     ;;
-             (incf (aref regs *pc-idx*))
-             (unless static                                           ;;-
-               (setf (aref regs D)
-                     (rem (apply (op? inst)
-                                 (list (aref regs (src? inst))
-                                       (aref regs (dst? inst))
-                                       (aref regs *pc-idx*))) *maxval*))
-               (and *debug* (format t ";; now R~d = ~f; PC = ~d~%"       ;;
-                                    (dst? inst) (aref regs (dst? inst))  ;;
-                                    (aref regs *pc-idx*))))              ;;
-             (and (>= (aref regs *pc-idx*) seqlen) (return)))))
-    (and *debug* (hrule))                                                ;;
-    (mapcar #'(lambda (i) (aref regs i)) output)))
+(let ((history '()))
+
+;; is it my imagination, or did avg fitness drop after making these edits?
+
+  (defun execute-sequence (seq &key (registers *initial-register-state* )
+                                 (input *default-input-reg*) (output nil)
+                                 (debug nil))
+    "Takes a sequence of instructions, seq, and an initial
+register state vector, registers, and then runs the virtual machine,
+returning the resulting value in R0."
+    (declare (type fixnum *input-start-idx*))
+    (declare (inline src? dst? op?))
+    (flet ((save-state (inst)
+             (push (cons inst registers) history)))
+      (let ((regs (copy-seq registers))
+            (seqlen (length seq))
+            (debugger (or debug *debug*)))
+        ;; the input values will be stored in read-only regs
+        (setf (subseq regs *input-start-idx*
+                      (+ *input-start-idx* (length input))) input)
+        (unless (zerop seqlen)
+          (loop do
+             ;; Fetch the next instruction
+               (let* ((inst (aref seq (aref regs *pc-idx*)))
+                      ;; Determine the target register
+                      (D (if (jmp? inst) *pc-idx* (dst? inst))))
+                 ;; Increment the programme counter
+                 (incf (aref regs *pc-idx*))
+                 ;; Perform the operation and store the result in [dst]
+                 (setf (aref regs D)
+                       (rem (apply (op? inst)
+                                   (list (aref regs (src? inst))
+                                         (aref regs (dst? inst))
+                                         (aref regs *pc-idx*))) *maxval*))
+                 ;; Save history for debugger
+                 (and debugger (save-state inst)
+                      (disassemble-history :len 1 :all nil))
+                     
+                 (and (>= (aref regs *pc-idx*) seqlen)
+                      (return)))))
+        (mapcar #'(lambda (i) (aref regs i)) output))))
+
+  (defun history-push-test (seq reg)
+    (push (cons seq reg) history))
+
+  (defun history-flush ()
+    (setf history '()))
+
+  (defun history-print (&optional len)
+    (if len (print (subseq history 0 len))
+        (print history)))
 
 
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  (defun disassemble-history (&key (len 0) (all t) (static nil)
+                                (show-registers nil))
+    "If passed a sequence in the static field, disassemble it without
+any reference to register states. If not, disassemble the last len
+entries in the history stack, tracking changes to the registers."
+    (let* ((len (if all (length history) len))
+           (show-registers (and show-registers (not static)))
+           (story (if static
+                      (coerce static 'list)
+                          (reverse (subseq history 0 len)))))
+      (when show-registers
+        (hrule)
+            (print-registers (cdar story))
+            (hrule))
+      (loop for couplet in story do
+           (let ((registers (if static nil (cdr couplet)))
+                 (inst (if static couplet (car couplet))))
+             (format t "~8,'0b  ~a~c"
+                     inst
+                     (inst->string inst
+                                   :registers registers
+                                   :static static)
+                     (if static #\NEWLINE #\SPACE))
+             (if (not static)
+                 (format t ";; now R~d = ~f ;; PC = ~d~%"
+                         (dst? inst)
+                         (aref registers (dst? inst))
+                         (aref registers *pc-idx*)))))
+      (when show-registers
+        (hrule)
+        (print-registers (cdar (last story)))
+        (hrule)))))
+
+  ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Functions related to fitness measurement
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 ;; Convention for fitness functions: let 1 be maximum value. no lower bound -- may
 ;; go to arbitrarily small fractions < 1
-(let ((.fitfunc. );(if .fitfunc. .fitfunc.))
-      (.hashtable. ); (if .hashtable. .hashtable.))
-      (.testing-hashtable. ); (if .testing-hashtable. .testing-hashtable.) )
-      (.out-reg. ));(if .out-reg. .out-reg.)))
+(let ((.fitfunc. nil)
+      (.hashtable. nil)
+      (.testing-hashtable. nil)
+      (.out-reg. nil))
 
   (defun init-fitness-env (&key fitfunc training-hashtable testing-hashtable out-reg)
     "Works sort of like a constructor, to initialize the fitness 
 environment."
-    (if (<= (hash-table-count training-hashtable) 1 )
-        (error "Training hashtable did not load correctly. Error caught in init-fitness-env."))
     (setf .fitfunc. fitfunc)
     (setf .hashtable. training-hashtable)
     (setf .testing-hashtable. testing-hashtable)
     (setf .out-reg. (copy-seq out-reg)))
 
-
-  (defun peek-fitness-scope ()
-    (format t ".fitfunc. = ~a ~% .hashtable. = ~a ~% .testing-hashtable. = ~a ~% .out-reg. = ~a~% " .fitfunc. .hashtable. .testing-hashtable. .out-reg.))
-  
   ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
   ;; Intron Removal and Statistics
   ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -392,13 +426,10 @@ register(s)."
   (defun fitness-ternary-classifier-1 (seq)
     "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
-    (let ((acc 0))
-      (format t "******* .hashtable. = ~a *******~%" .hashtable.)
+    (let ((acc 0)) 
       (loop for pattern being the hash-keys in .hashtable.
          using (hash-value i) do
-
            (let ((output (execute-sequence seq :input pattern)))
-           (FORMAT T "*********** OUTPUT: ~a ***************~%" output)
              (incf acc (DIV (abs (nth i output))
                             (reduce #'+ (mapcar #'abs output))))))
       (/ acc (hash-table-count .hashtable.))))
@@ -422,9 +453,8 @@ fitness function."
     (if testing
         (setf ht .testing-hashtable.)
         (setf ht .hashtable.))
-    (if (<= (hash-table-count ht) 1) (error "Hash table did not load correctly."))
     (case dataset
-      (tictactoe (ttt-classification-report crt ht))
+      (tictactoe (ttt-classification-report :crt crt :ht ht :out .out-reg.))
       (iris (iris-classification-report crt ht))
       (otherwise (error "Unknown dataset."))))
 
@@ -602,6 +632,21 @@ as #'roulette!"
 
 ;; -- Prepare the data (general) ---
 
+(defun obsolete-partition-data (hashtable ratio)
+  (flet ((shuffle (l)
+           (sort l #'(lambda (x y) (= 0 (random 2))))))
+    (let* ((size (hash-table-count hashtable))
+           (training-size (floor (* ratio size)))
+           (keys (loop for k being the hash-keys in hashtable collect k))
+           (shuffled (shuffle keys)))
+      (setf *training-ht* (make-hash-table :test 'equalp))
+      (setf *testing-ht* (make-hash-table :test 'equalp))
+      (loop for i from 1 to size do
+           (let ((k (pop shuffled))
+                 (dst-ht (if (< i training-size) *training-ht* *testing-ht*)))
+             (setf (gethash k dst-ht) (gethash k hashtable)))))))
+
+
 (defun partition-data (hashtable ratio)
   (flet ((shuffle (l)
            (sort l #'(lambda (x y) (= 0 (random 2))))))
@@ -620,36 +665,24 @@ as #'roulette!"
 ;; --- Prepare the data (domain-specific) ---
 
 (defun setup-tictactoe (&key (int t) (gray t) (ratio 4/5))
-  (flet ((count-1-in-ht (h)
-           (length (remove-if-not #'(lambda (x) (= x 1))
-                                  (loop for v being the hash-values
-                                     in h collect v)))))
-    (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
-           (hashtable (ttt-datafile->hashtable filename :int int :gray gray))
-           (tt (print (partition-data hashtable ratio)))
-           (training (print (car tt)))
-           (testing (print (cdr tt)))
-           (train-pos (count-1-in-ht training))
-           (train-neg (- (hash-table-count training) train-pos))
-           (test-pos (count-1-in-ht testing))
-           (test-neg (- (hash-table-count testing) test-pos)))
-      (format t "~%TRAINING AND TESTING HASHTABLES PREPARED~%TRAINING: ~d+ / ~d-~%TESTING: ~d+ / ~d-~%" train-pos train-neg test-pos test-neg)
-    
-    (init-fitness-env :training-hashtable training
-                      :testing-hashtable testing
+  (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
+         (hashtable (ttt-datafile->hashtable filename :int int :gray gray))
+         (tht-tht (partition-data hashtable ratio)))
+    (format t "at line 614, hashtable = ~a~%" hashtable)
+    (init-fitness-env :training-hashtable (car tht-tht)
+                      :testing-hashtable  (cdr tht-tht)
                       :fitfunc #'fitness-binary-classifier-1
                       :out-reg '(0))
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population 500 *max-start-len*))
     (print "population initialized in *population*; data read")
-    hashtable)))
+    hashtable))
 
-(defun setup-iris (&key (ratio 4/5))
+(defun setup-iris ()
   (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/Iris/iris.data")
          (hashtable (iris-datafile->hashtable filename)))
-    (partition-data hashtable ratio)
     (init-fitness-env :training-hashtable hashtable
-                      :fitfunc #'fitness-ternary-classifier-1
+                      :fitfunc fitness-ternary-classifier-1
                       :out-reg '(0 1 2))
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population 500 *max-start-len*))
@@ -680,7 +713,7 @@ as #'roulette!"
   (format t "[+] # of TRAINING CASES:  ~d~%"
           (hash-table-count *training-ht*))
   (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
-;;  (format t "[+] FITNESS FUNCTION:     ~s~%" *task*)
+  (format t "[+] FITNESS FUNCTION:     ~s~%" *task*)
   (hrule))
 
 (defun print-statistics ()
@@ -765,8 +798,8 @@ is reached, whichever comes first."
   (format t "~%")
   (hrule)
   (print-params)
-;;  (print-statistics)
-;;  (partition-data *ht* ratio)
+  (print-statistics)
+  (partition-data *ht* ratio)
   (run-breeder :dataset dataset :method method
                :rounds rounds :target target)
   (format t "~%FINAL POPULATION~%")
@@ -775,9 +808,7 @@ is reached, whichever comes first."
   (hrule)
   (format t "~%TRAINING COMPLETE. TESTING BEST SPECIMEN.~%" )
   (hrule)
-  (case dataset
-    ((tictactoe) (ttt-classification-report *best* *testing-ht*))
-    ((iris) (iris-classification-report *best* *testing-ht*)))
+  (classification-report *best* dataset)
   (print-params)
   (print-statistics)
   (plot-fitness))
@@ -815,5 +846,3 @@ is reached, whichever comes first."
 ;; something more like "static" class variables, in let-over-defuns.
 ;; resist the temptation to do this with mutable variables, like
 ;; population, until it's clear that this won't interfere with hyperthreading.
-
-;; (setf *debug* nil)
