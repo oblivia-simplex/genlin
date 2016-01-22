@@ -11,18 +11,23 @@
 
 ;; -- Tic-Tac-Toe Environment)
 
-(let* ((.tictactoe-path. "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
+(let* ((.tictactoe-path. "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/generated-ttt.csv")
        (.xob-digits. '((#\x . 2)
                        (#\o . 1)
                        (#\b . 0)))
        (.digits-xob. (mapcar #'(lambda (x) (cons (cdr x) (car x))) .xob-digits.)))
   
+
+  (defun xobstring->numvec (xobstring)
+    (let* ((stripped (remove-if #'(lambda (x) (char= #\, x)) xobstring))
+           (vec (sub-map (concatenate 'vector stripped) .xob-digits.)))
+      vec))
+    
   (defun tictactoe->int (xobstring &key (gray t))
     "Reads a csv string represenation of a tictactoe board, and
 returns an integer that uniquely represents that board. The integer is
 just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
-    (let* ((stripped (remove-if #'(lambda (x) (char= #\, x)) xobstring))
-           (vec (sub-map (concatenate 'vector stripped) .xob-digits.)))
+    (let ((vec (xobstring->numvec xobstring)))
       (if gray (gethash vec *degray-lookup*)
           (read-from-string
            (concatenate 'string "#3r"
@@ -37,7 +42,8 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
                                  (coerce
                                   (format nil "~3r" n) 'list)) 'vector))))
       (coerce (sub-map (convert int) .digits-xob.) 'string)))
-
+          
+  
   (defun fmt-board (string)
     (let* ((row " ~c | ~c | ~c ~%")
            (lin "---+---+---~%")
@@ -85,7 +91,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
              (coerce (mapcar #'1- (eval (read-from-string (concatenate 'string "'(" (substitute #\1 #\b (substitute #\0 #\x (substitute #\2 #\o (substitute #\space #\, k)))) ")")))) 'vector) hashtable)
             (tictactoe-val v))))
 
-  (defun ttt-datafile->hashtable (filename &key (int t) (gray t))
+  (defun ttt-datafile->hashtable (&key (filename .tictactoe-path.) (int t) (gray t))
     (format t "FILENAME: ~a~%" filename)
     (let ((ht (make-hash-table :test 'equalp))
           (in (open filename :if-does-not-exist nil)))
@@ -111,20 +117,40 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
           (correct 0)
           (incorrect 0)
           (failures '()))
-      (loop for k being the hash-keys in ht do
-           (let ((i (aref k 0))
-                 (f (car (execute-sequence seq :input k :output out))))
+      (loop for k being the hash-keys in ht using (hash-value v) do
+           (let* ((i (elt k 0))
+                 (output (execute-sequence seq :input k :output out))
+                 (sum (reduce #'+ (mapcar #'abs output)))
+                 (certainties (mapcar #'(lambda (x) (* (div x sum) 100)) output)))
              (format t "~%~a~%" (int->board i))
-             (cond ((> (* (gethash k ht) f) 0)
-                    (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%" i f)
-                    (incf correct))
-                   ((< (* (gethash k ht) f) 0)
-                    (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%" i f)
-                    (incf incorrect)
-                    (push k failures))
-                   (t (format t "WHO'S TO SAY? ~a -> ~f~%~%" i f)
-                      (push k failures))))
-           (hrule))
+             (if (equal out '(0))
+                 (cond ((> (* v (car output)) 0)
+                        (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%"
+                                i (car output))
+                        (incf correct))
+                       ((< (* v (car output)) 0)
+                    (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%"
+                            i (car output))
+                        (incf incorrect)
+                        (push k failures))
+                       (t (format t "WHO'S TO SAY? ~a -> ~f~%~%"
+                                  i (car output))
+                          (push k failures)))
+                 (progn
+                   (format t "X WINS:  ~f%~%X LOSES: ~f%~%"
+                           (car certainties) (cadr certainties))
+                   (cond ((or (and (< v 0) (< (car certainties)
+                                              (cadr certainties)))
+                              (and (> v 0) (> (car certainties)
+                                              (cadr certainties))))
+                          (incf correct)
+                          (format t "CORRECTLY CLASSIFIED~%"))
+                         (t (incf incorrect)
+                            (format t "INCORRECTLY CLASSIFIED: X ~s~%"
+                                    (if (< v 0) 'LOST 'WON))
+                            (push k failures))))))
+             
+           (hrule));; BUGGY FOR F3!
       (format t "FAILURES:~%")
       (hrule)
       (loop for fail in failures do
@@ -145,6 +171,74 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
             (format t "~c" y)
             (format t "~c" n)))))
 
+
+  (defun deterministic-ttt-eval (xobstring)
+    "A deterministic, always-correct (barring bugs) tic-tac-toe evaluator,
+which can be used to provide more training cases for the GP."
+    (let* ((grid (xobstring->numvec xobstring))
+           (streaks '((0 1 2)
+                      (3 4 5)
+                      (6 7 8)
+                      (0 3 6)
+                      (1 4 7)
+                      (2 5 8)
+                      (0 4 8)
+                      (2 4 6)))
+           (winner nil))
+      (loop for streak in streaks do
+           (let* ((in-streak
+                  (remove-duplicates (mapcar #'(lambda (x) (elt grid x)) streak)))
+                 (xobstreak (mapcar #'(lambda (y) (cdr (assoc y .digits-xob.)))
+                                    in-streak)))
+             (when (equal '(#\x) xobstreak)
+               (setf winner 'x)
+               (return))))
+      winner))
+             
+
+  (defun xobstring->csv (xobstring)
+      (let ((positive (deterministic-ttt-eval xobstring))
+            (xoblist (coerce xobstring 'list))
+            (commas '(#\, #\, #\, #\, #\, #\, #\, #\, #\,)))
+        (concatenate 'string (flatten (mapcar #'list xoblist commas))
+                     (if positive "positive" "negative"))))
+
+  (defun endgame-generator (&key (positive 100) (negative 100))
+    (let ((poscount 0)
+          (negcount 0)
+          (results '()))
+      (loop repeat #3r1000000000 do
+           (let* ((int (random #3r1000000000))
+                  (xobstring (int->tictactoe int))
+                  (xcount (count #\x xobstring))
+                  (ocount (count #\x xobstring)))
+             (when (and (>= negcount negative)
+                        (>= poscount positive))
+               (return))
+             (when (and (>= xcount 3) (< (abs (- xcount ocount)) 2))
+               (cond ((deterministic-ttt-eval xobstring)
+                      (incf poscount)
+                      (if (<= poscount positive)
+                          (push (xobstring->csv xobstring) results)))
+                     (t (incf negcount)
+                        (if (<= negcount negative)
+                            (push (xobstring->csv xobstring) results)))))))
+      results))
+
+  (defun write-ttt-csv (&key (filename "generated-ttt.csv")
+                          (positive 1000)
+                          (negative 1000))
+    (with-open-file (fd filename :direction :output)
+                              
+      (loop for line in (endgame-generator
+                         :positive positive
+                         :negative negative) do
+           (write-line line fd))
+      (close fd)))
+    
+    
+             
+  
   ) ;; end tictactoe environment
 
 

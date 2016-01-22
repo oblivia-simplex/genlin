@@ -52,7 +52,7 @@
            (format t "~a ~f ~v@{~A~:*~}~%" (aref headings i) (aref vec i)
                    (round (* 7.5 (aref vec i))) #\#))))
 
-  (defun iris-classification-report (crt &optional (ht *ht*))
+  (defun iris-classification-report  (&key (crt *best*) (ht *ht*) (out '0))
     (format t "REPORT FOR ~a~%=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%" crt)
     (dbg 'on)
     (let ((seq (creature-eff crt))
@@ -61,7 +61,9 @@
           (failures '())
           (iris-names '(SETOSA VERSICOLOR VIRGINICA)))
       (loop for k being the hash-keys in ht using (hash-value v) do
-           (let* ((output (mapcar #'abs (execute-sequence seq :input k)))
+           (let* ((output (mapcar #'abs (execute-sequence seq
+                                                          :input k
+                                                          :output out)))
                   (sum (reduce #'+ output))
                   (certainties (loop for guess in output collect
                                     (* (div guess sum) 100)))
