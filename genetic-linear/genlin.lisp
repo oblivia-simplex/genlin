@@ -19,6 +19,12 @@
 (defparameter *project-path*
   "/home/oblivia/Projects/genetic-exercises/genetic-linear/")
 
+(defparameter *tictactoe-path*
+  (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe-balanced.data"))
+
+(defparameter *iris-path*
+  (concatenate 'string *project-path* "datasets/Iris/iris.data"))
+
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
 
@@ -53,13 +59,17 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic Parameters
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-(defstruct creature fit seq eff idx)
+(defstruct creature fit seq eff gen home parents) ;; home tags the creature w its native deme
+
+(defstruct island id of deme best age logger)
 
 (defparameter *best* (make-creature :fit 0))
 
 (defparameter *population* '())
 
-(defparameter *population-size* 500)
+(defparameter +ISLAND-RING+ '()) ;; make var later
+
+(defparameter *population-size* 800)
 
 (defparameter *specimens* '())
 
@@ -75,13 +85,16 @@
 ;; Logging
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter =logger=
-  ;; Just an excuse to play with the let-over-lambda design pattern...
+(defun make-logger ()
   (let ((log '()))
     (lambda (&optional (entry nil))
       (cond ((eq entry 'CLEAR) (setf log '()))
             (entry (push entry log))
             (t log)))))
+
+(defparameter =logger= ;; global -- will replace with local per island
+  ;; Just an excuse to play with the let-over-lambda design pattern...
+  (make-logger))
 
 (defun log-best-fit (iteration)
   (funcall =logger= (cons iteration (creature-fit *best*))))
@@ -344,6 +357,7 @@ entries in the history stack, tracking changes to the registers."
                                       (aref registers *pc-idx*))
                  (format t "~%")))))
   (if static (hrule)))
+
 (defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*) (output nil)
                                (debug nil))
@@ -414,17 +428,6 @@ register(s)."
   ;;            (push inst efseq))))
   ;;   (coerce efseq 'vector)))
 
-
-  
-(defun percent-effective (crt &key (out *output-reg*))
-  (when (equalp #() (creature-eff crt))
-    (setf (creature-eff crt) (remove-introns (creature-seq crt)
-                                             :output out)))
-  (float (/ (length (creature-eff crt)) (length (creature-seq crt)))))
-
-(defun average-effective (population)
-  (/ (reduce #'+ (mapcar #'percent-effective population))
-     (length population)))
 
 ;; ......................................................................
 
@@ -623,12 +626,12 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 fitness function."
   (unless (creature-fit crt)  
     (setf (creature-fit crt)
-          (funcall .fitfunc. crt))
-    (when (or (null (creature-fit *best*))
-              (> (creature-fit crt) (creature-fit *best*)))
-      (setf *best* (copy-structure crt))
-      (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%"
-                           (creature-fit crt) (creature-fit *best*)))))
+          (funcall .fitfunc. crt)))
+    ;; (when (or (null (creature-fit *best*))
+    ;;           (> (creature-fit crt) (creature-fit *best*)))
+    ;;   (setf *best* (copy-structure crt))
+    ;;   (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%"
+    ;;                        (creature-fit crt) (creature-fit *best*)))))
   (creature-fit crt))
 
 
@@ -696,7 +699,7 @@ fitness function."
       (random-mutation seq)
       seq))
 
-(defun crossover (p0 p1)
+(defun crossover (p0 p1 &key (genealogy t))
   ;;  (declare (type cons p0 p1))
   ;;  (declare (optimize (speed 2)))
   (let* ((p00 (creature-seq p0))
@@ -711,7 +714,8 @@ fitness function."
          (idx0 (random (length father)))
          (idx1 (random (length father)))
          (minidx (min idx0 idx1))
-         (maxidx (max idx0 idx1)))
+         (maxidx (max idx0 idx1))
+         (children))
     ;;    (declare (type cons mother father daughter son))
     ;;    (declare (type fixnum idx0 idx1 minidx maxidx offset r-align))
                                         ;(format t "minidx: ~d  maxidx: ~d  offset: ~d~%" minidx maxidx offset)
@@ -721,37 +725,61 @@ fitness function."
           (subseq mother (+ offset minidx) (+ offset maxidx)))         
     ;;    (format t "mother: ~a~%father: ~a~%daughter: ~a~%son: ~a~%"
     ;;            mother father daughter son)
-    (list (make-creature :seq (maybe-mutate son))
-          (make-creature :seq (maybe-mutate daughter)))))
+    (setf children (list (make-creature :seq (maybe-mutate son))
+                         (make-creature :seq (maybe-mutate daughter))))
+    (when genealogy
+      (mapcar #'(lambda (x) (setf (creature-gen x)
+                             (1+ (max (creature-gen p0) (creature-gen p1)))
+                             (creature-parents x)
+                             (list p0 p1)))
+              children))
+    children))
+                                        
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Selection functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+(defun update-best-if-better (crt island &key (verbose t))
+  (when (> (creature-fit crt) (creature-fit (island-best island)))
+    (setf (island-best island) crt)
+    ;; log updates in the island's own logger
+    (funcall (island-logger island) `(,(island-age island) . ,(creature-fit crt)))
+    (when verbose (print-new-best-update island))))
 
-
-(defun tournement! (population)
-  (let* ((lots (n-rnd 0 (length *population*)))
-         (combatants (mapcar #'(lambda (i) (nth i population)) lots)))
+(defun tournement! (island &key (genealogy t))
+  "Tournement selction function: selects four combatants at random
+from the population provide, and lets the two fittest reproduce. Their
+children replace the two least fit of the four. Disable genealogy to
+facilitate garbage-collection of the dead, at the cost of losing a
+genealogical record."
+  (let* ((population (island-deme island))
+         (lots (n-rnd 0 (length population)))
+         (combatants (mapcar #'(lambda (i) (cons (nth i population) i)) lots)))
     (and *debug* (format t "COMBATANTS BEFORE: ~a~%" combatants))
     (loop for combatant in combatants do
-         (unless (creature-fit combatant)
-           (fitness combatant)))
+         (unless (creature-fit (car combatant))
+           (fitness (car combatant))))
     (and *debug* (format t "COMBATANTS AFTER: ~a~%" combatants))
     (let* ((ranked (sort combatants
-                         #'(lambda (x y) (< (creature-fit x) (creature-fit y)))))
+                         #'(lambda (x y) (< (creature-fit (car x))
+                                       (creature-fit (car y))))))
+           (best-in-show  (caar (last ranked)))
            (parents (cddr ranked))
-           (children (apply #'crossover parents))
+           (children (apply #'(lambda (x y) (crossover (car x) (car y)
+                                                  :genealogy genealogy)) parents))
            (the-dead (subseq ranked 0 2)))
-      (map 'list #'(lambda (i j) (setf (creature-idx i) (creature-idx j)))
-           children the-dead)
-      (mapcar #'(lambda (x) (setf (nth (creature-idx x) population) x))
-              children) 
-      (and *debug* (format t "RANKED: ~a~%" ranked))
-      *best*)))
+;;      (FORMAT T "RANKED: ~A~%BEST-IN-SHOW: ~A~%" ranked best-in-show)
+      (incf (island-age island))
+      (update-best-if-better best-in-show island)
+      ;; Now replace the dead with the children of the winners
+      (mapcar #'(lambda (x y) (setf (elt population (cdr y)) x)) children the-dead)
+      ;;(and t (format t "CHILDREN: ~A~%" children))
+      (island-best island))))
 
 (defun spin-wheel (wheel top)
+  "A helper function for f-roulette."
   (let ((ball (if (> top 0)
                   (random (float top))
                   (progn (print "*** ALERT: ZERO TOP IN SPIN-WHEEL ***")
@@ -763,48 +791,145 @@ fitness function."
          (setf ptr slot)) ;; each slot is a cons pair of a float and creature
     (cdr ptr))) ;; extract the creature from the slot the ptr lands on
 
-(defun f-roulette (population)
-  (let* ((tally 0)
+(defun f-roulette (island &key (genealogy t))
+  "Generational selection function: assigns each individual a
+probability of mating that is proportionate to its fitness, and then
+chooses n/2 mating pairs, where n is the size of the population, and
+returns a list of the resulting offspring. Turn off genealogy to save
+on memory use, as it will prevent the dead from being
+garbage-collected."
+  (let* ((population (island-deme island))
+         (tally 0)
          (popsize (length population))
-         
          (wheel (loop for creature in population
                    collect (progn
                              (let ((f (float (fitness creature))))
+                               (incf (island-age island))
+                               (update-best-if-better creature island)
                                (incf tally f)
                                (cons tally creature)))))
          ;; the roulette wheel is now built
          (breeders (loop for i from 1 to popsize
                       collect (spin-wheel wheel tally)))
-         (half (/ popsize 2))
+         (half (/ popsize 2)) ;; what to do when island population is odd?
          (mothers (subseq breeders 0 half))
-         (fathers (subseq breeders half popsize)))
-    (apply #'concatenate 'list (map 'list #'crossover mothers fathers))))
+         (fathers (subseq breeders half popsize))
+         (broods (mapcar #'(lambda (x y) (crossover x y :genealogy genealogy))
+                              mothers fathers)))
+    (apply #'concatenate 'list broods)))
 
-(defun greedy-roulette! (population)
-  "New and old generations compete for survival. Takes twice as long
-as #'roulette!"
-  (let ((popsize (length population)))
-    (setf (subseq population 0 popsize)
-          (subseq (sort (concatenate 'list population
-                                     (f-roulette population))
+(defun greedy-roulette! (island)
+  "New and old generations compete for survival. Instead of having the
+new generation replace the old, the population is replaced with the
+fittest n members of the union of the old population and the new (as
+resulting from f-roulette). Changes the population in place. Takes
+twice as long as #'roulette!"
+  (let ((popsize (length (island-deme island))))
+    (setf (island-deme island)
+          (subseq (sort (concatenate 'list (island-deme island)
+                                     (f-roulette island))
                         #'(lambda (x y) (> (fitness x)
                                       (fitness y))))
                   0 popsize))))
 
-(defun roulette! (population)
-  (setf (subseq population 0 (length population))
-        (f-roulette population)))
+(defun roulette! (island)
+  "Replaces the given island's population with the one generated by
+f-roulette."
+  (setf (island-deme island)
+        (f-roulette island)))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Population control
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
+(defun de-ring (island-ring)
+  (subseq island-ring 0 (island-of (car island-ring))))
+
+;; (defun shuffle-demes (island-ring)
+;;   (loop for isle in (de-ring island-ring) do
+;;        (setf (island-deme isle) (shuffle (island-deme isle)))))
+
+(defun extract-seqs-from-island-ring (island-ring)
+  "Returns lists of instruction-vectors representing each creature on
+each island. Creatures dwelling on the same island share a list."
+  (mapcar #'(lambda (x) (mapcar #'(lambda (y) (creature-seq y)) (island-deme x)))
+          (de-ring island-ring)))
+
+(defun shuffle-demes (island-ring)
+  "Shuffles the demes of each island in the ring."
+  (loop for isle in (de-ring island-ring) do
+       (setf (island-deme isle)
+             (shuffle (island-deme isle)))))
+    
+(defun migrate (island-ring &key (emigrant-percent 10))
+  "Migrates a randomly-populated percentage of each island to the
+preceding island in the island-ring. The demes of each island are
+shuffled in the process."
+    (let* ((island-pop (length (island-deme (car island-ring))))
+           (emigrant-count (* island-pop (/ emigrant-percent 100)))
+           (buffer))
+      (shuffle-demes island-ring)
+      (setf buffer (subseq (island-deme (car island-ring)) 0 emigrant-count))
+      (loop
+         for (isle-1 isle-2) on island-ring
+         for i from 1 to (1- (island-of (car island-ring))) do
+           (setf (subseq (island-deme isle-1) 0 emigrant-count)
+                 (subseq (island-deme isle-2) 0 emigrant-count)))
+      (setf (subseq (island-deme (elt island-ring (1- (island-of (car island-ring)))))
+                    0 emigrant-count) buffer)
+      island-ring))    
+
+(defun island-log (isle entry)
+  (funcall (island-logger isle) entry))
+
+(defun island-by-id (island-ring id)
+  (let ((limit (island-of (car island-ring))))
+    (find id island-ring :key #'island-id :end limit)))
+  
+(defun population->islands (population number-of-islands)
+  "Takes a population list and returns a circular list of 'islands' --
+structs that contain portions of the initial population in 'demes',
+along with a handful of other attributes. Note that this list is
+circular, and so it must be cut with the de-ring function before
+applying, say, mapcar or length to it, in most cases."
+  (let ((i 0)
+        (islands (loop for i from 0 to (1- number-of-islands)
+                    collect (make-island :id i
+                                         :of number-of-islands
+                                         :age 0
+                                         ;; stave off <,> errors w null creature
+                                         :best (make-creature :fit 0)
+                                         :logger (make-logger)))))
+    (loop for creature in population do ;; allocate the initial pop into islands
+         (let ((home-isle (mod i number-of-islands)))
+           (setf (creature-home creature) home-isle)
+           (push creature (island-deme (elt islands home-isle)))
+           (incf i)))
+    (circular islands))) ;; circular is defined in auxiliary.lisp
+;; it forms the list (here, islands) into a circular linked list, by
+;; setting the cdr of its last element as a pointer to its car.
+             
+(defun islands->population (island-ring)
+  (apply #'concatenate 'list (mapcar #'(lambda (x) (island-deme x))
+                                     (de-ring island-ring))))
+  
 (defun spawn-sequence (len)
   (concatenate 'vector (loop repeat len collect (random *max-inst*))))
 
-(defun spawn-creature (len &key idx)
-  (make-creature :seq (spawn-sequence len) :idx idx))
+(defun spawn-creature (len)
+  (make-creature :seq (spawn-sequence len)
+                 :gen 0))
 
-(defun init-population (popsize slen)
-  (loop for i from 0 to (1- popsize) collect
-       (spawn-creature (+ *min-len* (random slen)) :idx i)))
+(defun init-population (popsize slen &key (number-of-islands 4))
+  (let ((adjusted-popsize (+ popsize (mod popsize (* 2 number-of-islands)))))
+    ;; we need to adjust the population size so that there exists an integer
+    ;; number of mating pairs on each island -- so long as we want roulette to
+    ;; work without a hitch. 
+    (population->islands (loop for i from 0 to (1- adjusted-popsize) collect
+                            (spawn-creature (+ *min-len*
+                                               (random slen))))
+                       number-of-islands)))
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -848,39 +973,40 @@ as #'roulette!"
 
 ;; --- Prepare the data (domain-specific) ---
 
-(defun setup-tictactoe (&key (int t) (gray t) (ratio 4/5)
-                          (fitfunc-name 'binary-1)
-                          (file "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data"))
-  (let* ((filename file)
-         (hashtable (ttt-datafile->hashtable :filename filename
-                                             :int int :gray gray))
-         (tht-tht (partition-data hashtable ratio)))
-    (format t "at line 614, hashtable = ~a~%" hashtable)
-    (init-fitness-env :training-hashtable (car tht-tht)
-                      :testing-hashtable  (cdr tht-tht)
+
+;; MERGE THE TWO SETUP FUNCTIONS.
+(defun setup (&key (int t) (gray t) (ratio 4/5)
+                (dataset 'tictactoe)
+                (fitfunc-name)
+                (popsize *population-size*)
+                (num-islands 4)
+                (file))
+  (let ((filename)
+        (hashtable)
+        (training+testing))
+    (case dataset
+      ((tictactoe)
+       (unless file (setf filename *tictactoe-path*))
+       (unless fitfunc-name (setf fitfunc-name 'binary-3))
+       (setf hashtable (ttt-datafile->hashtable :filename filename :int int :gray gray)))
+      ((iris)
+       (unless file (setf filename *iris-path*))
+       (unless fitfunc-name (setf fitfunc-name 'ternary-1))
+       (setf hashtable (iris-datafile->hashtable :filename filename)))
+      (otherwise (error "DATASET UNKNOWN (IN SETUP)")))
+    (setf training+testing (partition-data hashtable ratio))
+    (init-fitness-env :training-hashtable (car training+testing)
+                      :testing-hashtable  (cdr training+testing)
                       :fitfunc-name fitfunc-name)
-    (setf *best* (make-creature :fit 0))
-    (setf *population* (init-population *population-size* *max-start-len*))
+    ;; (setf *best* (make-creature :fit 0))
+    (setf +ISLAND-RING+ (init-population popsize *max-start-len*
+                                   :number-of-islands num-islands))
     (format t "~%")
     (hrule)
-    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES~%[!] POPULATION INITIALIZED, STORED IN *POPULATION*~%[!] FITNESS ENVIRONMENT INITIALIZED:~%")
+    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES~%[!] POPULATION OF ~d INITIALIZED~%[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED~%[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize num-islands)
     (hrule)
     (peek-fitness-environment)
     (hrule)
-    hashtable))
-
-(defun setup-iris (&key (ratio 4/5) (fitfunc #'fitness-ternary-classifier-1))
-  (let* ((filename "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/Iris/iris.data")
-         (hashtable (iris-datafile->hashtable filename))
-         (tht-tht (partition-data hashtable ratio)))
-    (init-fitness-env :training-hashtable (car tht-tht)
-                      :testing-hashtable  (cdr tht-tht)
-                      :fitfunc fitfunc
-                      :out-reg nil) ;; fitfunc will init this (bad hack)
-    (setf *best* (make-creature :fit 0))
-    (setf *population* (init-population *population-size* *max-start-len*))
-    (print "population initialized in *population*; data read; hashtable in *ht*")
-    (peek-fitness-environment)
     hashtable))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -888,142 +1014,38 @@ as #'roulette!"
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-;; need a better naming scheme for these UI & helper funcs!
-
-
-(defun print-params ()
-  "Prints major global parameters, and some statistics, too."
-  (hrule)
-  (format t "[+] INSTRUCTION SIZE:     ~d bits~%" *wordsize*)
-  (format t "[+] # of RW REGISTERS:    ~d~%" (expt 2 *dstf*))
-  (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *srcf*))
-  (format t "[+] PRIMITIVE OPERATIONS: ")
-  (loop for i from 0 to (1- (expt 2 *opf*)) do
-       (format t "~a " (func->string (aref *opcodes* i))))
-  (format t "~%[+] POPULATION SIZE:      ~d of ~d~%"
-          (length *population*) *population-size*)
-  (format t "[+] MUTATION RATE:        ~d%~%" *mutation-rate*)
-  (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
-  (format t "[+] MAX STARTING LENGTH:  ~d~%" *max-start-len*)
-  (format t "[+] # of TRAINING CASES:  ~d~%"
-          (hash-table-count *training-ht*))
-  (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
-  (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
-  (hrule))
-
-(defun likeness-to-specimen (population specimen)
-  "A weak, but often informative, likeness gauge. Assumes gene alignment,
-for the sake of a quick algorithm that can be dispatched at runtime
-without incurring delays."
-  (float (div (reduce #'+
-                      (mapcar #'(lambda (x) (likeness (creature-eff specimen)
-                                                 (creature-eff x)))
-                              (remove-if
-                               #'(lambda (x) (equalp #() (creature-eff x)))
-                               population)))
-              (length population))))
-
-
-(defun print-fitness-by-gen ()
-  (flet ((.*. (x y)
-           (if (numberp y)
-               (* x y)
-               NIL)))
-  (let ((l (funcall =logger=)))
-    (loop for (e1 e2) on l by #'cddr do
-         (format t "~c~d:~c~5,4f %~c~c~d:~c~5,4f %~%" #\tab
-                 (car e1) #\tab (.*. 100 (cdr e1)) #\tab #\tab
-                 (car e2) #\tab (.*. 100 (cdr e2)))))))
-
-(defun print-statistics ()
-  (hrule)
-  (format t "[*] BEST FITNESS SCORE ACHIEVED: ~5,4f %~%" (* 100 (creature-fit *best*)))
-  (format t "[*] AVERAGE FITNESS: ~5,2f %~%"
-          (* 100 (/ (reduce #'+
-                     (remove-if #'null (mapcar #'creature-fit *population*)))
-             (length *population*))))
-  (format t "[*] BEST FITNESS BY GENERATION:  ~%")
-  (print-fitness-by-gen)
-  (format t "[*] AVERAGE SIMILARITY TO BEST:  ~5,2f %~%"
-          (* 100 (likeness-to-specimen *population* *best*)))
-  (format t "[*] STRUCTURAL INTRON FREQUENCY: ~5,2f %~%"
-          (* 100 (- 1 (average-effective *population*))))
-
-  (format t "[*] AVERAGE LENGTH: ~5,2f instructions (~5,2f effective)~%"
-          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-seq x)))
-                                 *population*))
-             (length *population*))
-          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-eff x)))
-                                 *population*))
-             (length (remove-if #'(lambda (x) (equalp #() (creature-eff x)))
-                                *population*))))
-  (format t "[*] EFFECTIVE OPCODE CENSUS:~%")
-  (opcode-census *population*)
-  (hrule))
-                  
-
-(defun plot-fitness ()
-  (hrule)
-  (format t "                    PLOT OF BEST FITNESS OVER GENERATIONS~%")
-  (hrule)
-  (let* ((fitlog (funcall =logger=))
-         (lastgen (caar fitlog))
-         (row #\newline)
-         (divisor 35)
-         (interval (max 1 (floor (div lastgen divisor))))
-         (scale 128)
-         (bar-char #\X))
-;;         (end-char #\x))
-    (dotimes (i (+ lastgen interval))
-      (when (assoc i fitlog)
-        (setf row (format nil "~v@{~c~:*~}"
-                          (ceiling (* (- (cdr (assoc i fitlog)) .5)
-                                      scale)) bar-char)))
-      (when (= (mod i interval) 0)
-        (format t "~5d | ~a~%" i row)))
-    (hrule)
-    (format t "        ")
-    (let ((x-axis 50))
-      (dotimes (i (floor (div scale 2)))
-        (if (= (pmd i (floor (div scale 10.6))) 0)
-            (progn 
-              (format t "~d" x-axis)
-              (when (>= x-axis 100) (return))
-              (incf x-axis 10))
-            (format t " "))))
-    (format t "~%")
-    (hrule)))
-
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Runners
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun run-breeder (&key (method #'tournement!) (dataset 'unknown)
-                      (rounds 10000) (target 0.97) (stat-interval 500))
-                      ;; adjustments needed to add fitfunc param here. 
+(defun best-of-all (island-ring)
+  (let ((best-so-far (make-creature :fit 0)))
+    (loop for isle in island-ring do
+         (if (> (creature-fit (island-best isle)) (creature-fit best-so-far))
+             (setf best-so-far (island-best isle))))
+    best-so-far))
+
+(defun run-breeder (&key (method #'tournement!) (rounds 10000) (target 0.97)
+                      (stat-interval 500) (island-ring +island-ring+)
+                      (migration-freq 777) (migration-size 10))
+  ;; adjustments needed to add fitfunc param here. 
   (setf *STOP* nil)
-  (let ((oldbest *best*))
-    (funcall =logger= 'clear)
-    (time (block evolver
-            (dotimes (i rounds)
-              (funcall method *population*)
-              (when (= 0 (mod i stat-interval))
-                (hrule)
-                (format t "[ITERATION ~d]~%" i)
-                (print-statistics))
-              (when (or (null (creature-fit *best*))
-                        (> (creature-fit *best*) (creature-fit oldbest)))
-                (setf oldbest *best*)
-                (log-best-fit i)
-                (format t "DATASET: ~s; METHOD: ~s~%" dataset method)
-                (format t "NEW BEST AT ROUND ~d: ~a~%" i *best*)
-                (disassemble-sequence (creature-eff *best*)
-                                      :static t ))
-              (when (or (> (creature-fit *best*) target) *STOP*)
-                (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
-                (return-from evolver)))))
-    (push *best* *specimens*)
-    (format t "BEST: ~f~%" (creature-fit *best*))))
+  ;;; Just putting this here temporarily:
+  (time (block evolver
+          (loop for i from 1 to rounds do
+               (let ((isle (pop island-ring))) ;; island-ring is circular, so pop
+                 ;; will cycle & not exhaust it
+                 (funcall method isle) ;; this could be threaded
+                 (when (and (> migration-freq 0) (= 0 (mod i migration-freq)))
+                   (format t ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
+                   (migrate island-ring :emigrant-percent migration-size))
+                 (when (= 0 (mod i stat-interval))
+                     (print-statistics island-ring))
+                 (when (or (> (creature-fit (island-best isle)) target) *STOP*)
+                   (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
+                   (return-from evolver))))))
+  (format t "BEST:~%")
+  (print-creature (best-of-all island-ring)))
 
 
 (defun evolve (&key (method 'tournement!) (rounds 50000) (target 0.97)
@@ -1032,22 +1054,19 @@ without incurring delays."
 breeder function, with specified method (roulette or tournmenent,
 e.g.) for a specified number of rounds or until a given fitness target
 is reached, whichever comes first."
-  (cond ((eq dataset 'tictactoe) (setup-tictactoe
-                                  :int t :gray t
-                                  :fitfunc-name fitfunc-name
-                                  :ratio ratio))
-        ((eq dataset 'iris) (setup-iris
-                             :ratio ratio))
-        (t (error "DATASET UNKNOWN")))
+  (setup :dataset dataset
+         :int t :gray t
+         :fitfunc-name fitfunc-name
+         :ratio ratio)
   (hrule)
   ;; set default fitness functions
   (format t "INITIAL POPULATION~%")
   (hrule)
- ;; (print *population*)
+  ;; (print *population*)
   (format t "~%")
   (hrule)
-  (print-params)
-  (print-statistics)
+  ;;  (print-params)
+  ;;  (print-statistics)
   (partition-data *ht* ratio)
   (run-breeder :dataset dataset :method method
                :rounds rounds :target target)
@@ -1092,15 +1111,57 @@ is reached, whichever comes first."
          (apply #'evolve param-list))))
 
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Debugging functions and information output
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-;; TODO:
-;; replace the rest of the frequently-passed RO variables with
-;; something more like "static" class variables, in let-over-defuns.
-;; resist the temptation to do this with mutable variables, like
-;; population, until it's clear that this won't interfere with hyperthreading.
-(setf *STOP* nil)
-(print-params)
 
+;; need a better naming scheme for these UI & helper funcs!
+
+
+(defun print-params ()
+  "Prints major global parameters, and some statistics, too."
+  (hrule)
+  (format t "[+] INSTRUCTION SIZE:     ~d bits~%" *wordsize*)
+  (format t "[+] # of RW REGISTERS:    ~d~%" (expt 2 *dstf*))
+  (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *srcf*))
+  (format t "[+] PRIMITIVE OPERATIONS: ")
+  (loop for i from 0 to (1- (expt 2 *opf*)) do
+       (format t "~a " (func->string (aref *opcodes* i))))
+  (format t "~%[+] POPULATION SIZE:      ~d of ~d~%"
+          (length *population*) *population-size*)
+  (format t "[+] MUTATION RATE:        ~d%~%" *mutation-rate*)
+  (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
+  (format t "[+] MAX STARTING LENGTH:  ~d~%" *max-start-len*)
+  (format t "[+] # of TRAINING CASES:  ~d~%"
+          (hash-table-count *training-ht*))
+  (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
+  (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
+  (hrule))
+
+(defun likeness-to-specimen (population specimen)
+  "A weak, but often informative, likeness gauge. Assumes gene alignment,
+for the sake of a quick algorithm that can be dispatched at runtime
+without incurring delays."
+  (float (div (reduce #'+
+                      (mapcar #'(lambda (x) (likeness (creature-eff specimen)
+                                                 (creature-eff x)))
+                              (remove-if
+                               #'(lambda (x) (equalp #() (creature-eff x)))
+                               population)))
+              (length population))))
+
+
+(defun print-fitness-by-gen (logger)
+  (flet ((.*. (x y)
+           (if (numberp y)
+               (* x y)
+               NIL)))
+  (let ((l (funcall logger)))
+    (loop for (e1 e2) on l by #'cddr do
+         (format t "~c~d:~c~5,4f %~c~c~d:~c~5,4f %~%" #\tab
+                 (car e1) #\tab (.*. 100 (cdr e1)) #\tab #\tab
+                 (car e2) #\tab (.*. 100 (cdr e2)))))))
 
 
 (defun opcode-census (population)
@@ -1125,6 +1186,109 @@ is reached, whichever comes first."
                  (* 100 (div (aref buckets y) sum))))))
 
 
+  
+(defun percent-effective (crt &key (out *output-reg*))
+  (when (equalp #() (creature-eff crt))
+    (setf (creature-eff crt) (remove-introns (creature-seq crt)
+                                             :output out)))
+  (float (/ (length (creature-eff crt)) (length (creature-seq crt)))))
+
+(defun average-effective (population)
+  (/ (reduce #'+ (mapcar #'percent-effective population))
+     (length population)))
 
 
-(print-params)
+(defun print-statistics (island-ring)
+  (mapcar #'print-statistics-for-island (subseq island-ring 0
+                                                (island-of (car island-ring))))
+  (hrule))
+
+(defun print-statistics-for-island (island)
+  ;; eventually, we should change *best* to list of bests, per deme.
+  ;; same goes for logger. 
+  (hrule)
+  (format t "              *** STATISTICS FOR ISLAND #~d AT AGE ~d ***~%"
+          (island-id island)
+          (island-age island))
+  (hrule)
+  (format t "[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: ~5,4f %~%"
+          (* 100 (creature-fit (island-best island))))
+  (format t "[*] AVERAGE FITNESS ON ISLAND: ~5,2f %~%"
+          (* 100 (/ (reduce #'+
+                            (remove-if #'null (mapcar #'creature-fit (island-deme island))))
+                    (length (island-deme island)))))
+  (format t "[*] BEST FITNESS BY GENERATION:  ~%")
+  (print-fitness-by-gen (island-logger island))
+  (format t "[*] AVERAGE SIMILARITY TO BEST:  ~5,2f %~%"
+          (* 100 (likeness-to-specimen (island-deme island) (island-best island))))
+  (format t "[*] STRUCTURAL INTRON FREQUENCY: ~5,2f %~%"
+          (* 100 (- 1 (average-effective (island-deme island)))))
+
+  (format t "[*] AVERAGE LENGTH: ~5,2f instructions (~5,2f effective)~%"
+          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-seq x)))
+                                 (island-deme island)))
+             (length (island-deme island)))
+          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-eff x)))
+                                 (island-deme island)))
+             (length (remove-if #'(lambda (x) (equalp #() (creature-eff x)))
+                                (island-deme island)))))
+  (format t "[*] EFFECTIVE OPCODE CENSUS:~%")
+  (opcode-census (island-deme island)))
+                  
+
+(defun plot-fitness ()
+  (hrule)
+  (format t "                    PLOT OF BEST FITNESS OVER GENERATIONS~%")
+  (hrule)
+  (let* ((fitlog (funcall =logger=))
+         (lastgen (caar fitlog))
+         (row #\newline)
+         (divisor 35)
+         (interval (max 1 (floor (div lastgen divisor))))
+         (scale 128)
+         (bar-char #\X))
+;;         (end-char #\x))
+    (dotimes (i (+ lastgen interval))
+      (when (assoc i fitlog)
+        (setf row (format nil "~v@{~c~:*~}"
+                          (ceiling (* (- (cdr (assoc i fitlog)) .5)
+                                      scale)) bar-char)))
+      (when (= (mod i interval) 0)
+        (format t "~5d | ~a~%" i row)))
+    (hrule)
+    (format t "        ")
+    (let ((x-axis 50))
+      (dotimes (i (floor (div scale 2)))
+        (if (= (pmd i (floor (div scale 10.6))) 0)
+            (progn 
+              (format t "~d" x-axis)
+              (when (>= x-axis 100) (return))
+              (incf x-axis 10))
+            (format t " "))))
+    (format t "~%")
+    (hrule)))
+
+(defun print-creature (crt)
+  (format t "FIT: ~A~%SEQ: ~A~%EFF: ~A~%HOME: ISLAND #~A~%GEN: ~A~%"
+          (creature-fit crt)
+          (creature-seq crt)
+          (creature-eff crt)
+          (creature-home crt)
+          (creature-gen crt))
+  (when (creature-parents crt)
+    (format t "FITNESS OF PARENTS: ~F, ~F~%"
+            (creature-fit (car (creature-parents crt)))
+            (creature-fit (cadr (creature-parents crt)))))
+  (hrule)
+  (format t "DISASSEMBLY OF EFFECTIVE CODE:~%")
+  (disassemble-sequence (creature-eff crt)))
+  
+          
+(defun print-new-best-update (island)
+;;  (hrule)
+  (format t "****************** NEW BEST ON ISLAND #~d AT GENERATION ~d ******************~%"
+          (island-id island) (island-age island))
+  (print-creature (island-best island)))
+  ;;(format t "*****************************************************************************~%"))
+          
+;;(print-params)
