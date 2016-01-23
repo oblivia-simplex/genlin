@@ -774,6 +774,7 @@ genealogical record."
       (incf (island-age island))
       (update-best-if-better best-in-show island)
       ;; Now replace the dead with the children of the winners
+      (mapcar #'(lambda (x) (setf (creature-home x) (island-id island))) children)
       (mapcar #'(lambda (x y) (setf (elt population (cdr y)) x)) children the-dead)
       ;;(and t (format t "CHILDREN: ~A~%" children))
       (island-best island))))
@@ -1020,9 +1021,10 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun best-of-all (island-ring)
   (let ((best-so-far (make-creature :fit 0)))
-    (loop for isle in island-ring do
+    (loop for isle in (de-ring island-ring) do
          (if (> (creature-fit (island-best isle)) (creature-fit best-so-far))
              (setf best-so-far (island-best isle))))
+    (setf *best* best-so-far)
     best-so-far))
 
 (defun run-breeder (&key (method #'tournement!) (rounds 10000) (target 0.97)
@@ -1278,7 +1280,11 @@ without incurring delays."
   (when (creature-parents crt)
     (format t "FITNESS OF PARENTS: ~F, ~F~%"
             (creature-fit (car (creature-parents crt)))
-            (creature-fit (cadr (creature-parents crt)))))
+            (creature-fit (cadr (creature-parents crt))))
+    (format t "HOMES OF PARENTS: ISLAND ~D, ISLAND ~D~%"
+            (creature-home (car (creature-parents crt)))
+            (creature-home (car (creature-parents crt)))))
+  
   (hrule)
   (format t "DISASSEMBLY OF EFFECTIVE CODE:~%")
   (disassemble-sequence (creature-eff crt)))
