@@ -54,7 +54,6 @@
 
   (defun iris-classification-report  (&key (crt *best*) (ht *ht*) (out '0))
     (format t "REPORT FOR ~a~%=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%" crt)
-    (dbg 'on)
     (let ((seq (creature-eff crt))
           (correct 0)
           (incorrect 0)
@@ -91,7 +90,7 @@
            (format t "~%SPECIES: ~s, VECTOR: ~a~%"
                    (elt iris-names (gethash fail ht)) fail)
            (iris-plot fail))
-      (dbg 'off)
+
       (hrule)
       (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
               correct incorrect)

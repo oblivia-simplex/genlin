@@ -70,7 +70,6 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
   (defun draw-board (key)
     (grayvec->board key))
 
-
   (defun tictactoe-val (str)
     (if (equalp str "positive") 1
         -1))
@@ -110,58 +109,65 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
       (show-all-boards (1+ int))))
 
 
+  ;; this report function is turning into an awful piece of spaghetti code!
   (defun ttt-classification-report (&key (crt *best*) (ht *ht*) (out '0))
     (format t "REPORT FOR ~a~%=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%" crt)
-    (dbg 'on)
     (let ((seq (creature-eff crt))
           (correct 0)
           (incorrect 0)
-          (failures '()))
-      (loop for k being the hash-keys in ht using (hash-value v) do
-           (let* ((i (elt k 0))
-                 (output (execute-sequence seq :input k :output out))
-                 (sum (reduce #'+ (mapcar #'abs output)))
-                 (certainties (mapcar #'(lambda (x) (* (div x sum) 100)) output)))
-             (format t "~%~a~%" (int->board i))
-             (if (equal out '(0))
-                 (cond ((> (* v (car output)) 0)
-                        (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%"
-                                i (car output))
-                        (incf correct))
-                       ((< (* v (car output)) 0)
-                    (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%"
-                            i (car output))
-                        (incf incorrect)
-                        (push k failures))
-                       (t (format t "WHO'S TO SAY? ~a -> ~f~%~%"
-                                  i (car output))
-                          (push k failures)))
-                 (progn
-                   (format t "X WINS:  ~f%~%X LOSES: ~f%~%"
-                           (car certainties) (cadr certainties))
-                   (cond ((or (and (< v 0) (< (car certainties)
-                                              (cadr certainties)))
-                              (and (> v 0) (> (car certainties)
-                                              (cadr certainties))))
-                          (incf correct)
-                          (format t "CORRECTLY CLASSIFIED~%"))
-                         (t (incf incorrect)
-                            (format t "INCORRECTLY CLASSIFIED: X ~s~%"
-                                    (if (< v 0) 'LOST 'WON))
-                            (push k failures))))))
-             
-           (hrule));; BUGGY FOR F3!
-      (format t "FAILURES:~%")
-      (hrule)
-      (loop for fail in failures do
-           (format t "~%CODE ~d~%~a~%" fail (int->board (aref fail 0))))
-      (dbg 'off)
-      (hrule)
-      (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
-              correct incorrect)
-      (hrule)
-      failures)) ;; returns failures, as a convenience for retraining
-
+          (failures '())
+          (fitf (if (equalp '(0) out)
+                    'FB1
+                    'FB3)))
+      (labels ((deneg (n)
+                 (abs n)) ;; sometimes I just drop negative numbers.
+               (val-idx (v)
+                 (if (< v 0) 0 1))
+               (fb3-correct (o v)
+                 (< (deneg (elt o (val-idx v)))
+                    (deneg (elt o (! (val-idx v))))))
+               (fb1-correct (o v)
+                 (> (* v (car o)) 0)))
+        (loop for k being the hash-keys in ht using (hash-value v) do
+             (let* ((i (elt k 0))
+                    (output (execute-sequence seq :input k :output out))
+                    (sum (reduce #'+ (mapcar #'deneg output)))
+                    (certainties
+                     (mapcar #'(lambda (x) (* (div x sum) 100)) output)))
+               (format t "~%~a~%" (int->board i))
+             (cond ((eq fitf 'FB1)
+                    (cond ((fb1-correct output v)
+                           (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%"
+                                     i (car output))
+                           (incf correct))
+                          (t
+                           (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%"
+                                   i (car output))
+                           (incf incorrect)
+                           (push k failures))))
+                    ((eq fitf 'FB3)
+                     (format t "X WINS:  ~f%~%X LOSES: ~f%~%"
+                             (car certainties) (cadr certainties))
+                     (cond ((fb3-correct output v)
+                            (incf correct)
+                            (format t "CORRECTLY CLASSIFIED~%"))
+                           (t (incf incorrect)
+                              (format t "INCORRECTLY CLASSIFIED: X ~s~%"
+                                      (if (< v 0) 'LOST 'WON))
+                              (push k failures))))))))
+  
+        (hrule)
+        (format t "FAILURES:~%")
+        (hrule)
+        (loop for fail in failures do
+             (format t "~%CODE ~d~%~a~%" fail (int->board (aref fail 0))))
+        
+        (hrule)
+        (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
+                correct incorrect)
+        (hrule)
+        failures))) ;; returns failures, as a convenience for retraining
+    
 
   (defun show-search-space (ht &key (upto #3r222222222))
     (let ((y #\@)

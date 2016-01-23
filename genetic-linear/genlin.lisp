@@ -7,6 +7,10 @@
 ;;; - organize code into files and annotate w comments
 
 
+;; Weirdly, the evolution seems to run fine, but is severely retarded,
+;; if auxiliary.lisp isn't loaded *explicitly* before C-L loading this
+;; file. Not sure of details, but I'm screwing up somewhere w src files. 
+
 (defpackage :genetic.linear
   (:use :common-lisp))
 
@@ -26,6 +30,15 @@
 (defparameter *STOP* nil)
 
 (defparameter *DEBUG* nil)
+
+  
+(defun dbg (&optional on-off)
+  (case on-off
+    ((on)  (setf *debug* t))
+    ((off) (setf *debug* nil))
+    (otherwise (setf *debug* (not *debug*)))))
+
+
 
 (defparameter *VERBOSE* nil)
 
@@ -158,8 +171,7 @@ represents a clash."
 (defun PMD (&rest args)
   "Protected MOD."
   (if (some #'zerop args) (car args)
-      (handler-case (mod (car args) (cadr args))
-        (error () 0))))
+      (mod (car args) (cadr args))))
 
 (defun ADD (&rest args)
   (+ (car args) (cadr args)))
@@ -179,7 +191,7 @@ represents a clash."
 
 (defparameter *opcodes*
   (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    (2bit opcode)
-           #'XOR #'PMD #'CNJ #'JLE)) ;; extended operations (3bit opcode)
+           #'XOR #'PMD #'CNJ #'MOV)) ;; extended operations (3bit opcode)
 
 ;; adding the extended opcodes seems to result in an immense boost in the
 ;; population's fitness -- 0.905 is now achieved in the time it took to
@@ -193,6 +205,8 @@ represents a clash."
 (defparameter *output-reg* '())
 
 (defparameter *maxval* (expt 2 16)) ;; max val that can be stored in reg
+
+(defparameter *minval* (expt 2 -16)) ;; floor this to 0
 
 (defparameter *default-input-reg*
   (concatenate 'vector
@@ -273,13 +287,6 @@ represents a clash."
   (if static (disassemble-history :static seq)
       (execute-sequence seq :debug t :input input :registers registers))
   (hrule))
-
-  
-(defun dbg (&optional on-off)
-  (case on-off
-    ((on)  (setf *debug* t))
-    ((off) (setf *debug* nil))
-    (otherwise (setf *debug* (not *debug*)))))
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -365,10 +372,11 @@ returning the resulting value in R0."
                (incf (aref regs *pc-idx*))
                ;; Perform the operation and store the result in [dst]
                (setf (aref regs D)
-                     (rem (apply (op? inst)
-                                 (list (aref regs (src? inst))
-                                       (aref regs (dst? inst))
-                                       (aref regs *pc-idx*))) *maxval*))
+                     (max (min (apply (op? inst)
+                                      (list (aref regs (src? inst))
+                                            (aref regs (dst? inst))
+                                            (aref regs *pc-idx*))) *maxval*)
+                          *minval*))
                ;; Save history for debugger
                (and debugger (save-state inst regs)
                     (disassemble-history :len 1 :all nil))
@@ -385,18 +393,6 @@ returning the resulting value in R0."
   "Filters out non-effective instructions from a sequence -- instructions
 that have no bearing on the final value(s) contained in the output 
 register(s)."
-  ;; (let ((efr output)
-  ;;       (efseq '()))
-  ;;   (loop for i from (1- (length seq)) downto 0 do
-  ;;        (let ((inst (aref seq i)))
-  ;;          (when (member (dst? inst) efr)
-  ;;            (push (src? inst) efr)
-  ;;            (push inst efseq)
-  ;;            (when (and (not (zerop i)) (jmp? (aref seq (1- i))))
-  ;;              (let ((prevjmp (aref seq (1- i))))
-  ;;                (push (src? prevjmp) efr)
-  ;;                (push (dst? prevjmp) efr))))))
-  ;;   (coerce efseq 'vector)))
   (let ((efr output)
         (efseq '()))
     (loop for i from (1- (length seq)) downto 0 do
@@ -404,12 +400,24 @@ register(s)."
            (when (member (dst? inst) efr)
              (push (src? inst) efr)
              (push inst efseq))))
+         ;;    (when (and (not (zerop i)) (jmp? (aref seq (1- i))))
+         ;;      (let ((prevjmp (aref seq (1- i))))
+         ;;        (push (src? prevjmp) efr)
+         ;;        (push (dst? prevjmp) efr))))))
     (coerce efseq 'vector)))
+  ;; (let ((efr output)
+  ;;       (efseq '()))
+  ;;   (loop for i from (1- (length seq)) downto 0 do
+  ;;        (let ((inst (aref seq i)))
+  ;;          (when (member (dst? inst) efr)
+  ;;            (push (src? inst) efr)
+  ;;            (push inst efseq))))
+  ;;   (coerce efseq 'vector)))
 
 
   
 (defun percent-effective (crt &key (out *output-reg*))
-  (unless (creature-eff crt)
+  (when (equalp #() (creature-eff crt))
     (setf (creature-eff crt) (remove-introns (creature-seq crt)
                                              :output out)))
   (float (/ (length (creature-eff crt)) (length (creature-seq crt)))))
@@ -456,34 +464,36 @@ register(s)."
 (defun get-fitfunc ()
   .fitfunc.)
 
-(defun set-fitfunc (fitfunc)
-  (setf .fitfunc. fitfunc))
 
 (defun get-out-reg ()
   .out-reg.)
 
 (defun peek-fitness-environment ()
-  (format t ".fitfunc. = ~a~%.training-hashtable. = ~a~%.testing-hashtable = ~a~%.out-reg. = ~a~%" .fitfunc. .training-hashtable. .testing-hashtable. .out-reg.))
+  (format t ".fitfunc. = ~a~%.training-hashtable. = ~a~%.testing-hashtable. = ~a~%.out-reg. = ~a~%" .fitfunc. .training-hashtable. .testing-hashtable. .out-reg.))
 
-(defun init-fitness-env (&key fitfunc training-hashtable testing-hashtable out-reg)
+
+(defun set-fitfunc (name)
+  (case name
+    ((binary-1) (setf .fitfunc. #'fitness-binary-classifier-1)
+     (setf .out-reg. '(0)))
+    ((binary-2) (setf .fitfunc. #'fitness-binary-classifier-2)
+     (setf .out-reg. '(0)))
+    ((binary-3) (setf .fitfunc. #'fitness-binary-classifier-3)
+     (setf .out-reg. '(0 1)))
+    ((ternary-1) (setf .fitfunc. #'fitness-ternary-classifier-1)
+     (setf .out-reg. '(0 1 2)))
+    (otherwise (error "FITFUNC NICKNAME NOT RECOGNIZED. MUST BE ONE OF THE FOLLOWING: BINARY-1, BINARY-2, BINARY-3, TERNARY-1."))))
+
+(defun init-fitness-env (&key fitfunc-name training-hashtable testing-hashtable)
   "Works sort of like a constructor, to initialize the fitness 
 environment."
-  (let ((fit-out-pairs (pairlis '('#'fitness-binary-classifier-1
-                                  '#'fitness-binary-classifier-2
-                                  '#'fitness-binary-classifier-3
-                                  '#'fitness-ternary-classifier-1)
-                                '('(0)
-                                  '(0)
-                                  '(0 1)
-                                  '(0 1 2)))))
-    (if (null out-reg)
-        (setf out-reg (cdr (assoc fitfunc fit-out-pairs))))
 
-    (setf .fitfunc. fitfunc)
-    (setf .training-hashtable. training-hashtable)
-    (setf .testing-hashtable. testing-hashtable)
-    (setf .out-reg. (copy-seq out-reg))
-    (peek-fitness-environment)))
+  (set-fitfunc fitfunc-name)
+  (setf .training-hashtable. training-hashtable)
+  (setf .testing-hashtable. testing-hashtable))
+  
+
+
 
 
 ;; DO NOT TINKER WITH THIS ANY MORE. 
@@ -502,7 +512,7 @@ environment."
 
 ;; design a meta-gp to evolve the sigmoid function?
 (defun fitness-binary-classifier-1 (crt)
-  "Fitness is gauged as the output of a sigmoid function over the
+    "Fitness is gauged as the output of a sigmoid function over the
 output in register 0 times the labelled value of the input (+1 for
 positive, -1 for negative."
   (if (null .out-reg.) (setf .out-reg. '(0)))
@@ -540,6 +550,8 @@ positive, -1 for negative."
     (if (zerop miss) 1
         (/ hit (+ hit miss)))))
 
+
+  
 (defun fitness-binary-classifier-3 (crt)
   "Measures fitness as the proportion of the absolute value
 contained in the 'correct' register to the sum of the values in
@@ -549,19 +561,44 @@ positive (+1)."
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
           (remove-introns (creature-seq crt) :output '(0 1 2))))
-  (flet ((plop (x) ;; translates hash value to register index
-           (if (< 0 x) 0 1)))
-    (let ((acc 0)
+  (labels ((deneg (n)
+             (abs n))
+           (to-idx (x) ;; translates hash value to register index
+             (if (< 0 x) 0 1))
+           (check (out v-idx)
+             (if (> (deneg (elt out v-idx))
+                    (deneg (elt out (ldb (byte 1 0) (lognot v-idx)))))
+               1
+               0)))
+    (let ((acc1)
+          (acc2)
+          (acc3)
+          (weight 1)
           (seq (creature-eff crt)))
+      (setf acc1 0 acc2 0 acc3 0)
+      
       (loop for pattern being the hash-keys in .training-hashtable.
          using (hash-value val) do
            (let ((output (execute-sequence seq
                                            :input pattern
                                            :output '(0 1))))
+             
              ;; measure proportion of correct vote to total votes
-             (incf acc (DIV (abs (nth (plop val) output))
-                            (reduce #'+ (mapcar #'abs output))))))
-      (float (/ acc (hash-table-count .training-hashtable.))))))
+             ;; compare r0 to sum if val < 0
+             ;; compare r1 to sum if val >= 0
+             (incf acc1 (DIV (deneg (nth (to-idx val) output))
+                             (reduce #'+ (mapcar #'deneg output))))
+             (incf acc2 (check output (to-idx val)))))
+
+      (setf acc1 (float (/ acc1 (hash-table-count .training-hashtable.))))
+      (setf acc2 (float (/ acc2 (hash-table-count .training-hashtable.))))
+      (setf acc3 (/ (+ acc1 (* weight acc2)) 2))
+;;c      (format t "acc1: ~5,4f     acc2: ~5,4f  ==> avg = ~4,2f~%" acc1 acc2 acc3)
+      acc3)))
+
+
+;; In Linear Genetic Programming, the author suggests using the
+;; sum of two fitness measures as the fitness: 
 
 (defun fitness-ternary-classifier-1 (crt)
   "Where n is the target register, measures fitness as the ratio of
@@ -593,6 +630,8 @@ fitness function."
       (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%"
                            (creature-fit crt) (creature-fit *best*)))))
   (creature-fit crt))
+
+
 
 (defun classification-report (crt dataset &key (testing t) (ht .testing-hashtable.))
   (if testing
@@ -810,7 +849,7 @@ as #'roulette!"
 ;; --- Prepare the data (domain-specific) ---
 
 (defun setup-tictactoe (&key (int t) (gray t) (ratio 4/5)
-                          (fitfunc #'fitness-binary-classifier-1)
+                          (fitfunc-name 'binary-1)
                           (file "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data"))
   (let* ((filename file)
          (hashtable (ttt-datafile->hashtable :filename filename
@@ -819,11 +858,15 @@ as #'roulette!"
     (format t "at line 614, hashtable = ~a~%" hashtable)
     (init-fitness-env :training-hashtable (car tht-tht)
                       :testing-hashtable  (cdr tht-tht)
-                      :fitfunc fitfunc
-                      :out-reg nil)  ;; fitfunc will init this (bad hack)
+                      :fitfunc-name fitfunc-name)
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population *population-size* *max-start-len*))
-    (print "population initialized in *population*; data read")
+    (format t "~%")
+    (hrule)
+    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES~%[!] POPULATION INITIALIZED, STORED IN *POPULATION*~%[!] FITNESS ENVIRONMENT INITIALIZED:~%")
+    (hrule)
+    (peek-fitness-environment)
+    (hrule)
     hashtable))
 
 (defun setup-iris (&key (ratio 4/5) (fitfunc #'fitness-ternary-classifier-1))
@@ -837,6 +880,7 @@ as #'roulette!"
     (setf *best* (make-creature :fit 0))
     (setf *population* (init-population *population-size* *max-start-len*))
     (print "population initialized in *population*; data read; hashtable in *ht*")
+    (peek-fitness-environment)
     hashtable))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -868,28 +912,54 @@ as #'roulette!"
   (hrule))
 
 (defun likeness-to-specimen (population specimen)
+  "A weak, but often informative, likeness gauge. Assumes gene alignment,
+for the sake of a quick algorithm that can be dispatched at runtime
+without incurring delays."
   (float (div (reduce #'+
-                      (mapcar #'(lambda (x) (likeness (creature-seq specimen)
-                                                 (creature-seq x)))
-                              population))
+                      (mapcar #'(lambda (x) (likeness (creature-eff specimen)
+                                                 (creature-eff x)))
+                              (remove-if
+                               #'(lambda (x) (equalp #() (creature-eff x)))
+                               population)))
               (length population))))
 
 
+(defun print-fitness-by-gen ()
+  (flet ((.*. (x y)
+           (if (numberp y)
+               (* x y)
+               NIL)))
+  (let ((l (funcall =logger=)))
+    (loop for (e1 e2) on l by #'cddr do
+         (format t "~c~d:~c~5,4f %~c~c~d:~c~5,4f %~%" #\tab
+                 (car e1) #\tab (.*. 100 (cdr e1)) #\tab #\tab
+                 (car e2) #\tab (.*. 100 (cdr e2)))))))
+
 (defun print-statistics ()
   (hrule)
-  (format t "[*] BEST FITNESS SCORE ACHIEVED: ~d%~%" (* 100 (creature-fit *best*)))
-  (format t "[*] AVERAGE FITNESS: ~f~%"
-          (/ (reduce #'+
+  (format t "[*] BEST FITNESS SCORE ACHIEVED: ~5,4f %~%" (* 100 (creature-fit *best*)))
+  (format t "[*] AVERAGE FITNESS: ~5,2f %~%"
+          (* 100 (/ (reduce #'+
                      (remove-if #'null (mapcar #'creature-fit *population*)))
-             (length *population*)))
-  (format t "[*] BEST FITNESS BY GENERATION:  ~a~%" (funcall =logger=))
-  (format t "[*] STRUCTURAL INTRON FREQUENCY: ~d%~%"
+             (length *population*))))
+  (format t "[*] BEST FITNESS BY GENERATION:  ~%")
+  (print-fitness-by-gen)
+  (format t "[*] AVERAGE SIMILARITY TO BEST:  ~5,2f %~%"
+          (* 100 (likeness-to-specimen *population* *best*)))
+  (format t "[*] STRUCTURAL INTRON FREQUENCY: ~5,2f %~%"
           (* 100 (- 1 (average-effective *population*))))
 
-  (format t "[*] AVERAGE SIMILARITY TO BEST:  ~f%~%"
-          (* 100 (likeness-to-specimen *population* *best*)))
-  (format t "[*] OPCODE CENSUS:~%")
-  (opcode-census *population*))
+  (format t "[*] AVERAGE LENGTH: ~5,2f instructions (~5,2f effective)~%"
+          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-seq x)))
+                                 *population*))
+             (length *population*))
+          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-eff x)))
+                                 *population*))
+             (length (remove-if #'(lambda (x) (equalp #() (creature-eff x)))
+                                *population*))))
+  (format t "[*] EFFECTIVE OPCODE CENSUS:~%")
+  (opcode-census *population*)
+  (hrule))
                   
 
 (defun plot-fitness ()
@@ -929,12 +999,10 @@ as #'roulette!"
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun run-breeder (&key (method #'tournement!) (dataset 'unknown)
-                      (rounds 10000) (target 0.97) (fitfunc nil))
+                      (rounds 10000) (target 0.97) (stat-interval 500))
                       ;; adjustments needed to add fitfunc param here. 
   (setf *STOP* nil)
-  (set-fitfunc fitfunc)
-  (let ((oldbest *best*)
-        (stat-interval 500))
+  (let ((oldbest *best*))
     (funcall =logger= 'clear)
     (time (block evolver
             (dotimes (i rounds)
@@ -959,20 +1027,20 @@ as #'roulette!"
 
 
 (defun evolve (&key (method 'tournement!) (rounds 50000) (target 0.97)
-                 (dataset 'tictactoe) (ratio 8/10) (fitfunc nil))
+                 (dataset 'tictactoe) (ratio 8/10) (fitfunc-name 'binary-3))
   "Do everything: initialize a population and hashtable, then run the
 breeder function, with specified method (roulette or tournmenent,
 e.g.) for a specified number of rounds or until a given fitness target
 is reached, whichever comes first."
-  (cond ((eq dataset 'tictactoe) (setup-tictactoe :int t :gray t))
-        ((eq dataset 'iris) (setup-iris))
+  (cond ((eq dataset 'tictactoe) (setup-tictactoe
+                                  :int t :gray t
+                                  :fitfunc-name fitfunc-name
+                                  :ratio ratio))
+        ((eq dataset 'iris) (setup-iris
+                             :ratio ratio))
         (t (error "DATASET UNKNOWN")))
   (hrule)
   ;; set default fitness functions
-  (unless fitfunc
-    (if (eq dataset 'tictactoe)
-        (setf fitfunc #'fitness-binary-classifier-1)
-        (setf fitfunc #'fitness-ternary-classifier-1)))
   (format t "INITIAL POPULATION~%")
   (hrule)
  ;; (print *population*)
@@ -982,7 +1050,7 @@ is reached, whichever comes first."
   (print-statistics)
   (partition-data *ht* ratio)
   (run-breeder :dataset dataset :method method
-               :rounds rounds :target target :fitfunc fitfunc)
+               :rounds rounds :target target)
   (format t "~%FINAL POPULATION~%")
   ;;(print *population*)
   (format t "~%")
@@ -1033,7 +1101,6 @@ is reached, whichever comes first."
 (setf *STOP* nil)
 (print-params)
 
-;(dbg)
 
 
 (defun opcode-census (population)
@@ -1043,12 +1110,19 @@ is reached, whichever comes first."
          (sum (length instructions)))
     (loop for inst in instructions do
          (incf (aref buckets (ldb (byte *opf* 0) inst))))
-    (loop for i from 0 to (1- (length buckets)) do
-         (format t "    ~a: ~d~c(~$%)~%"
-                 (func->string (aref *opcodes* i))
-                 (aref buckets i)
+    (loop repeat (/ (length buckets) 2)
+       for x = 0 then (+ x 2)
+       for y = 1 then (+ y 2) do
+         (format t "~C~A: ~4D~C(~5,2f%)~C" #\tab
+                 (func->string (aref *opcodes* x))
+                 (aref buckets x)
                  #\tab
-                 (* 100 (div (aref buckets i) sum))))))
+                 (* 100 (div (aref buckets x) sum)) #\tab)
+         (format t "~C~A: ~4D~c(~5,2f%)~%" #\tab
+                 (func->string (aref *opcodes* y))
+                 (aref buckets y)
+                 #\tab
+                 (* 100 (div (aref buckets y) sum))))))
 
 
 

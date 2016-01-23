@@ -96,6 +96,12 @@ must be disjoint."
                          do (setf (sbit sieve j) 1)))))))
 
 
+(defun pospart (n)
+  (if (< n 0) 0 n))
+
+(defun ! (n)s
+  "Just like C's -- except that 0 will not be interpreted as false in CL."
+  (if (= n 0) 1 0))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; pretty printing
@@ -118,3 +124,45 @@ must be disjoint."
 (defun split-at-label (str)
   (let ((lastcomma-idx (position #\, str :from-end t)))
     (cons (subseq str 0 lastcomma-idx) (subseq str (1+ lastcomma-idx)))))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; List processing
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; from Rosetta Code
+
+;; Memoization Macro for dynamic programming
+(defmacro mem-defun (name args body)
+  (let ((hash-name (gensym)))
+    `(let ((,hash-name (make-hash-table :test 'equal)))
+       (defun ,name ,args
+         (or (gethash (list ,@args) ,hash-name)
+             (setf (gethash (list ,@args) ,hash-name)
+                   ,body))))))
+
+;; Longest common subsequence
+(mem-defun lcs (xs ys)
+           (labels ((longer (a b) (if (> (length a) (length b)) a b)))
+             (cond ((or (null xs) (null ys)) nil)
+                   ((equal (car xs) (car ys)) (cons (car xs) (lcs (cdr xs) (cdr ys))))
+                   (t (longer (lcs (cdr xs) ys)
+                                    (lcs xs (cdr ys)))))))
+
+
+;; from Paul Graham, On Lisp
+(defun flatten (x)
+  (labels ((rec (x acc)
+             (cond ((null x) acc)
+                   ((atom x) (cons x acc))
+                   (t (rec
+                       (car x)
+                       (rec (cdr x) acc))))))
+    (rec x nil)))
+
+
+(defun circular (list)
+  (setf (cdr (last list)) list))
+
+(defun make-iter (list)
+  (lambda ()
+    (pop list)))
