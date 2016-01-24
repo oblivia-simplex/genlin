@@ -10,9 +10,11 @@
 ;; Weirdly, the evolution seems to run fine, but is severely retarded,
 ;; if auxiliary.lisp isn't loaded *explicitly* before C-L loading this
 ;; file. Not sure of details, but I'm screwing up somewhere w src files. 
+(ql:quickload :bordeaux-threads)
 
 (defpackage :genetic.linear
-  (:use :common-lisp))
+  (:use :common-lisp
+        :bordeaux-threads))
 
 (in-package :genetic.linear)
 
@@ -44,7 +46,9 @@
     ((off) (setf *debug* nil))
     (otherwise (setf *debug* (not *debug*)))))
 
+(defparameter *parallel* nil)
 
+(defparameter ~print-lock~ (make-lock "PRINT LOCK"))
 
 (defparameter *VERBOSE* nil)
 
@@ -715,12 +719,20 @@ fitness function."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun update-best-if-better (crt island &key (verbose t))
+  (let ((verbosity (if *parallel* nil verbose)))
   (when (> (creature-fit crt) (creature-fit (island-best island)))
     (setf (island-best island) crt)
     ;; log updates in the island's own logger
-    (funcall (island-logger island) `(,(island-age island) . ,(creature-fit crt)))
-    (when verbose (print-new-best-update island))))
+    (funcall (island-logger island) `(,(island-age island) .
+                                       ,(creature-fit crt)))
+    (with-lock-held ~print-lock~ 
+      (print-new-best-update island)))))
 
+
+;; Throws "too big an index" errors when running in parallel mode.
+;; the problem might lie with n-rnd. consider shuffle method?
+;; take top four elements off of shuffled population, then push
+;; winners + children back on. simpler than indexing into a large list. 
 (defun tournement! (island &key (genealogy *track-genealogy*))
   "Tournement selction function: selects four combatants at random
 from the population provide, and lets the two fittest reproduce. Their
@@ -841,7 +853,7 @@ each island. Creatures dwelling on the same island share a list."
 preceding island in the island-ring. The demes of each island are
 shuffled in the process."
     (let* ((island-pop (length (island-deme (car island-ring))))
-           (emigrant-count (* island-pop (/ emigrant-percent 100)))
+           (emigrant-count (floor (* island-pop (/ emigrant-percent 100))))
            (buffer))
       (shuffle-demes island-ring)
       (setf buffer (subseq (island-deme (car island-ring)) 0 emigrant-count))
@@ -925,7 +937,7 @@ applying, say, mapcar or length to it, in most cases."
 ;; User interface functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun setup (&key (int t) (gray t) (ratio 4/5)
+(defun setup (&key (ratio 4/5)
                 (dataset 'tictactoe)
                 (fitfunc-name)
                 (popsize *population-size*)
@@ -944,7 +956,8 @@ applying, say, mapcar or length to it, in most cases."
       ((tictactoe)
        (unless file (setf filename *tictactoe-path*))
        (unless fitfunc-name (setf fitfunc-name 'binary-3))
-       (setf hashtable (ttt-datafile->hashtable :filename filename :int int :gray gray)))
+       (setf hashtable (ttt-datafile->hashtable
+                        :filename filename :int t :gray t)))
       ((iris)
        (unless file (setf filename *iris-path*))
        (unless fitfunc-name (setf fitfunc-name 'ternary-1))
@@ -982,23 +995,33 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun evolve (&key (method #'tournement!) (dataset 'iris) (rounds 10000) (target 0.97)
                  (stat-interval 500) (island-ring +island-ring+) 
-                 (migration-rate *migration-rate*) (migration-size *migration-size*))
+                 (migration-rate *migration-rate*)
+                 (migration-size *migration-size*)
+                 (parallelize t))
   ;; adjustments needed to add fitfunc param here. 
   (setf *STOP* nil)
+  (setf *parallel* parallelize)
   ;;; Just putting this here temporarily:
   (time (block evolver
           (loop for i from 1 to rounds do
-               (let ((isle (pop island-ring))) ;; island-ring is circular, so pop
+               (let ((isle (pop island-ring)))
+                 ;; island-ring is circular, so pop
                  ;; will cycle & not exhaust it
-                 (funcall method isle) ;; this could be threaded
-                 (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
-                   (format t ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
-                   (migrate island-ring :emigrant-percent migration-size))
-                 (when (= 0 (mod i stat-interval))
+                 (labels ((dispatcher ()
+                            (funcall method isle))
+                          (dispatch ()
+                            (if parallelize
+                                (make-thread #'dispatcher)
+                                (dispatcher))))
+                   (dispatch)
+                   (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
+                     (format t ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
+                     (migrate island-ring :emigrant-percent migration-size))
+                   (when (= 0 (mod i stat-interval))
                      (print-statistics island-ring))
-                 (when (or (> (creature-fit (island-best isle)) target) *STOP*)
-                   (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
-                   (return-from evolver))))))
+                   (when (or (> (creature-fit (island-best isle)) target) *STOP*)
+                     (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
+                     (return-from evolver)))))))
   (format t "BEST:~%")
   (print-creature (best-of-all island-ring))
   (classification-report *best* dataset)
@@ -1137,7 +1160,7 @@ without incurring delays."
   (if (< 0 (island-id island))
       (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ~@R~%"
               (island-id island))
-      (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO~%")
+      (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO~%"))
              
   (hrule)
   (let* ((fitlog (funcall (island-logger island)))

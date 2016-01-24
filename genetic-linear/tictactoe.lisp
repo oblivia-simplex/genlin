@@ -11,7 +11,7 @@
 
 ;; -- Tic-Tac-Toe Environment)
 
-(let* ((.tictactoe-path. "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/generated-ttt.csv")
+(let* ((.tictactoe-path. "/home/oblivia/Projects/genetic-exercises/genetic-linear/datasets/TicTacToe/tic-tac-toe-balanced.data")
        (.xob-digits. '((#\x . 2)
                        (#\o . 1)
                        (#\b . 0)))
@@ -111,7 +111,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
 
   ;; this report function is turning into an awful piece of spaghetti code!
   (defun ttt-classification-report (&key (crt *best*) (ht *ht*) (out '0))
-    (format t "REPORT FOR ~a~%=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%" crt)
+    (print-creature crt)
     (let ((seq (creature-eff crt))
           (correct 0)
           (incorrect 0)
@@ -166,7 +166,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
         (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
                 correct incorrect)
         (hrule)
-        failures))) ;; returns failures, as a convenience for retraining
+        failures)) ;; returns failures, as a convenience for retraining
     
 
   (defun show-search-space (ht &key (upto #3r222222222))
@@ -243,9 +243,4 @@ which can be used to provide more training cases for the GP."
       (close fd)))
     
     
-             
-  
-  ) ;; end tictactoe environment
-
-
-
+) ;; end of tictactoe environment
