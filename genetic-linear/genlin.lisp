@@ -54,8 +54,6 @@
 
 (defparameter *testing-ht* (make-hash-table :test 'equalp))
 
-(defparameter *TASK* 'binary)
-
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic Parameters
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -69,11 +67,21 @@
 
 (defparameter +ISLAND-RING+ '()) ;; make var later
 
+(defparameter *number-of-islands* 4)
+
 (defparameter *population-size* 800)
 
 (defparameter *specimens* '())
 
 (defparameter *mutation-rate* 15)
+
+(defparameter *migration-size* 10) ;; percent
+
+(defparameter *migration-rate* 777)
+
+(defparameter *track-genealogy* t)
+
+;; a migration is triggered every n loops through #'run-breeder
 
 (defparameter *min-len* 2) ;; we want to prevent seqs shrinking to nil
 
@@ -92,12 +100,12 @@
             (entry (push entry log))
             (t log)))))
 
-(defparameter =logger= ;; global -- will replace with local per island
-  ;; Just an excuse to play with the let-over-lambda design pattern...
-  (make-logger))
+;;(defparameter =logger= ;; global -- will replace with local per island
+;;  ;; Just an excuse to play with the let-over-lambda design pattern...
+ ;; (make-logger))
 
-(defun log-best-fit (iteration)
-  (funcall =logger= (cons iteration (creature-fit *best*))))
+;;(defun log-best-fit (iteration)
+;;  (funcall =logger= (cons iteration (creature-fit *best*))))
 
 
 
@@ -400,7 +408,7 @@ returning the resulting value in R0."
       (mapcar #'(lambda (i) (aref regs i)) output))))
 
 ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-;; Intron Removal and Statistics
+;; Intron Removal
 ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 (defun remove-introns (seq &key (output '(0)))
@@ -413,55 +421,25 @@ register(s)."
          (let ((inst (aref seq i)))
            (when (member (dst? inst) efr)
              (push (src? inst) efr)
-             (push inst efseq))))
-         ;;    (when (and (not (zerop i)) (jmp? (aref seq (1- i))))
-         ;;      (let ((prevjmp (aref seq (1- i))))
-         ;;        (push (src? prevjmp) efr)
-         ;;        (push (dst? prevjmp) efr))))))
+             (push inst efseq)
+             (when (and (not (zerop i)) (jmp? (aref seq (1- i))))
+               ;; a jump immediately before an effective instruction
+               ;; is also an effective instruction. 
+               (let ((prevjmp (aref seq (1- i))))
+                 (push (src? prevjmp) efr)
+                 (push (dst? prevjmp) efr))))))
     (coerce efseq 'vector)))
-  ;; (let ((efr output)
-  ;;       (efseq '()))
-  ;;   (loop for i from (1- (length seq)) downto 0 do
-  ;;        (let ((inst (aref seq i)))
-  ;;          (when (member (dst? inst) efr)
-  ;;            (push (src? inst) efr)
-  ;;            (push inst efseq))))
-  ;;   (coerce efseq 'vector)))
-
-
-;; ......................................................................
-
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Functions related to fitness measurement
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-;; Convention for fitness functions: let 1 be maximum value. no lower bound -- may
-;; go to arbitrarily small fractions < 1
-
-;; (defparameter =fitness-parameters=
-;;   (let* ((.fitfunc. nil)
-;;          (.training-hashtable. nil)
-;;          (.testing-hashtable. nil)
-;;          (.out-reg. nil))
-;;     (lambda (&key (get nil))
-;;       (case get
-;;         (('fitfunc) .fitfunc.)
-;;         (('training-hashtable) .training-hashtable.)
-;;         (('testing-hashtable) .testing-hashtable.)
-;;         (('out-reg) .out-reg.)
-;;         (otherwise `(,.fitfunc.
-;;                      ,.training-hashtable.
-;;                      ,.testing-hashtable.
-;;                      ,.out-reg.))))))
- 
-
-;; these parameters could be wrapped in a let, encapsulating the fitness
-;; related functions that follow in a "regional" environment.
-
 (defparameter .fitfunc. nil)
+
 (defparameter .training-hashtable. nil)
+
 (defparameter .testing-hashtable. nil)
+
 (defparameter .out-reg. nil)
 
 (defun get-fitfunc ()
@@ -514,7 +492,7 @@ environment."
       (/ (abs (+ (sigmoid raw) goal)) 2))))
 
 ;; design a meta-gp to evolve the sigmoid function?
-(defun fitness-binary-classifier-1 (crt)
+(defun fitness-binary-classifier-1 (crt &key (ht .training-hashtable.))
     "Fitness is gauged as the output of a sigmoid function over the
 output in register 0 times the labelled value of the input (+1 for
 positive, -1 for negative."
@@ -525,18 +503,18 @@ positive, -1 for negative."
   (let ((seq (creature-eff crt)))
     (let ((results
            (loop for pattern
-              being the hash-keys in .training-hashtable. collect
+              being the hash-keys in ht collect
                 (sigmoid-error
                  (car (execute-sequence seq
                                ;;         :registers *initial-register-state*
                                         :input pattern
                                         :output '(0) )) ;; raw
-                 (gethash pattern .training-hashtable.))))) ;; goal
+                 (gethash pattern ht))))) ;; goal
       (and *debug* *verbose*
            (format t "SEQUENCE:~a~%RESULTS:~%~a~%" seq results))
       (/ (reduce #'+ results) (length results)))))
 
-(defun fitness-binary-classifier-2 (crt)
+(defun fitness-binary-classifier-2 (crt &key (ht .training-hashtable.))
   (if (null .out-reg.) (setf .out-reg. '(0)))
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
@@ -544,7 +522,7 @@ positive, -1 for negative."
   (let ((hit 0)
         (miss 0)
         (seq (creature-eff crt)))
-    (loop for pattern being the hash-keys in .training-hashtable.
+    (loop for pattern being the hash-keys in ht
        using (hash-value v) do
          (let ((f ;; shooting in the dark, here. 
                 (tanh (/ (car (execute-sequence seq :input pattern
@@ -555,7 +533,7 @@ positive, -1 for negative."
 
 
   
-(defun fitness-binary-classifier-3 (crt)
+(defun fitness-binary-classifier-3 (crt &key (ht .training-hashtable.))
   "Measures fitness as the proportion of the absolute value
 contained in the 'correct' register to the sum of the values in
 registers 0 and 1. Setting R0 for negative (-1) and R1 for
@@ -580,7 +558,7 @@ positive (+1)."
           (seq (creature-eff crt)))
       (setf acc1 0 acc2 0 acc3 0)
       
-      (loop for pattern being the hash-keys in .training-hashtable.
+      (loop for pattern being the hash-keys in ht
          using (hash-value val) do
            (let ((output (execute-sequence seq
                                            :input pattern
@@ -593,8 +571,8 @@ positive (+1)."
                              (reduce #'+ (mapcar #'deneg output))))
              (incf acc2 (check output (to-idx val)))))
 
-      (setf acc1 (float (/ acc1 (hash-table-count .training-hashtable.))))
-      (setf acc2 (float (/ acc2 (hash-table-count .training-hashtable.))))
+      (setf acc1 (float (/ acc1 (hash-table-count ht))))
+      (setf acc2 (float (/ acc2 (hash-table-count ht))))
       (setf acc3 (/ (+ acc1 (* weight acc2)) 2))
 ;;c      (format t "acc1: ~5,4f     acc2: ~5,4f  ==> avg = ~4,2f~%" acc1 acc2 acc3)
       acc3)))
@@ -603,7 +581,7 @@ positive (+1)."
 ;; In Linear Genetic Programming, the author suggests using the
 ;; sum of two fitness measures as the fitness: 
 
-(defun fitness-ternary-classifier-1 (crt)
+(defun fitness-ternary-classifier-1 (crt &key (ht .training-hashtable.))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
   (if (null .out-reg.) (setf .out-reg. '(0 1 2)))
@@ -612,7 +590,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
           (remove-introns (creature-seq crt) :output '(0 1 2))))
   (let ((acc 0)
         (seq (creature-eff crt)))
-    (loop for pattern being the hash-keys in .training-hashtable.
+    (loop for pattern being the hash-keys in ht
        using (hash-value i) do
          (let ((output (execute-sequence seq
                                          :input pattern
@@ -621,20 +599,15 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                           (reduce #'+ (mapcar #'abs output))))))
     (/ acc (hash-table-count .training-hashtable.))))
 
-(defun fitness (crt)
+(defun fitness (crt &key (ht .training-hashtable.))
   "Measures the fitness of a specimen, according to a specified
 fitness function."
   (unless (creature-fit crt)  
     (setf (creature-fit crt)
-          (funcall .fitfunc. crt)))
-    ;; (when (or (null (creature-fit *best*))
-    ;;           (> (creature-fit crt) (creature-fit *best*)))
-    ;;   (setf *best* (copy-structure crt))
-    ;;   (and *debug* (format t "FITNESS: ~f~%BEST:    ~f~%"
-    ;;                        (creature-fit crt) (creature-fit *best*)))))
+          (funcall .fitfunc. crt :ht ht)))
   (creature-fit crt))
 
-
+;; there needs to be an option to run the fitness functions with the testing hashtable. 
 
 (defun classification-report (crt dataset &key (testing t) (ht .testing-hashtable.))
   (if testing
@@ -643,7 +616,7 @@ fitness function."
   (case dataset
     (tictactoe (ttt-classification-report :crt crt :ht ht :out .out-reg.))
     (iris (iris-classification-report :crt crt :ht ht :out .out-reg.))
-    (otherwise (error "Unknown dataset.")))) 
+    (otherwise (error "Unknown dataset."))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic operations (variation)
@@ -699,7 +672,7 @@ fitness function."
       (random-mutation seq)
       seq))
 
-(defun crossover (p0 p1 &key (genealogy t))
+(defun crossover (p0 p1 &key (genealogy *track-genealogy*))
   ;;  (declare (type cons p0 p1))
   ;;  (declare (optimize (speed 2)))
   (let* ((p00 (creature-seq p0))
@@ -748,7 +721,7 @@ fitness function."
     (funcall (island-logger island) `(,(island-age island) . ,(creature-fit crt)))
     (when verbose (print-new-best-update island))))
 
-(defun tournement! (island &key (genealogy t))
+(defun tournement! (island &key (genealogy *track-genealogy*))
   "Tournement selction function: selects four combatants at random
 from the population provide, and lets the two fittest reproduce. Their
 children replace the two least fit of the four. Disable genealogy to
@@ -933,30 +906,6 @@ applying, say, mapcar or length to it, in most cases."
                        number-of-islands)))
 
 
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; Initialization functions
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-;; --- Prepare the population ---
-
-
-;; -- Prepare the data (general) ---
-
-;; (defun obsolete-partition-data (hashtable ratio)
-;;   (flet ((shuffle (l)
-;;            (sort l #'(lambda (x y) (= 0 (random 2))))))
-;;     (let* ((size (hash-table-count hashtable))
-;;            (training-size (floor (* ratio size)))
-;;            (keys (loop for k being the hash-keys in hashtable collect k))
-;;            (shuffled (shuffle keys)))
-;;       (setf *training-ht* (make-hash-table :test 'equalp))
-;;       (setf *testing-ht* (make-hash-table :test 'equalp))
-;;       (loop for i from 1 to size do
-;;            (let ((k (pop shuffled))
-;;                  (dst-ht (if (< i training-size) *training-ht* *testing-ht*)))
-;;              (setf (gethash k dst-ht) (gethash k hashtable)))))))
-
-
 (defun partition-data (hashtable ratio)
   (flet ((shuffle (l)
            (sort l #'(lambda (x y) (= 0 (random 2))))))
@@ -972,19 +921,25 @@ applying, say, mapcar or length to it, in most cases."
              (setf (gethash k dst-ht) (gethash k hashtable))))
       (cons training testing))))
 
-;; --- Prepare the data (domain-specific) ---
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; User interface functions
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-
-;; MERGE THE TWO SETUP FUNCTIONS.
 (defun setup (&key (int t) (gray t) (ratio 4/5)
                 (dataset 'tictactoe)
                 (fitfunc-name)
                 (popsize *population-size*)
-                (num-islands 4)
+                (number-of-islands *number-of-islands*)
+                (migration-rate *migration-rate*)
+                (migration-size *migration-size*)
                 (file))
   (let ((filename)
         (hashtable)
         (training+testing))
+    (setf *number-of-islands* number-of-islands)
+    (setf *population-size* popsize)
+    (setf *migration-rate* migration-rate)
+    (setf *migration-size* migration-size)
     (case dataset
       ((tictactoe)
        (unless file (setf filename *tictactoe-path*))
@@ -1001,19 +956,14 @@ applying, say, mapcar or length to it, in most cases."
                       :fitfunc-name fitfunc-name)
     ;; (setf *best* (make-creature :fit 0))
     (setf +ISLAND-RING+ (init-population popsize *max-start-len*
-                                   :number-of-islands num-islands))
+                                   :number-of-islands number-of-islands))
     (format t "~%")
     (hrule)
-    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES~%[!] POPULATION OF ~d INITIALIZED~%[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED~%[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize num-islands)
+    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES~%[!] POPULATION OF ~d INITIALIZED~%[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED~%[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize number-of-islands)
     (hrule)
     (peek-fitness-environment)
     (hrule)
     hashtable))
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; User interface functions
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Runners
@@ -1024,12 +974,15 @@ applying, say, mapcar or length to it, in most cases."
     (loop for isle in (de-ring island-ring) do
          (if (> (creature-fit (island-best isle)) (creature-fit best-so-far))
              (setf best-so-far (island-best isle))))
+    ;; you could insert a validation routine here
     (setf *best* best-so-far)
     best-so-far))
 
-(defun run-breeder (&key (method #'tournement!) (rounds 10000) (target 0.97)
-                      (stat-interval 500) (island-ring +island-ring+)
-                      (migration-freq 777) (migration-size 10))
+;;(defun selection-thread-dispatcher
+
+(defun evolve (&key (method #'tournement!) (dataset 'iris) (rounds 10000) (target 0.97)
+                 (stat-interval 500) (island-ring +island-ring+) 
+                 (migration-rate *migration-rate*) (migration-size *migration-size*))
   ;; adjustments needed to add fitfunc param here. 
   (setf *STOP* nil)
   ;;; Just putting this here temporarily:
@@ -1038,7 +991,7 @@ applying, say, mapcar or length to it, in most cases."
                (let ((isle (pop island-ring))) ;; island-ring is circular, so pop
                  ;; will cycle & not exhaust it
                  (funcall method isle) ;; this could be threaded
-                 (when (and (> migration-freq 0) (= 0 (mod i migration-freq)))
+                 (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
                    (format t ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
                    (migrate island-ring :emigrant-percent migration-size))
                  (when (= 0 (mod i stat-interval))
@@ -1047,72 +1000,10 @@ applying, say, mapcar or length to it, in most cases."
                    (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%" target i)
                    (return-from evolver))))))
   (format t "BEST:~%")
-  (print-creature (best-of-all island-ring)))
-
-
-(defun evolve (&key (method 'tournement!) (rounds 50000) (target 0.97)
-                 (dataset 'tictactoe) (ratio 8/10) (fitfunc-name 'binary-3))
-  "Do everything: initialize a population and hashtable, then run the
-breeder function, with specified method (roulette or tournmenent,
-e.g.) for a specified number of rounds or until a given fitness target
-is reached, whichever comes first."
-  (setup :dataset dataset
-         :int t :gray t
-         :fitfunc-name fitfunc-name
-         :ratio ratio)
-  (hrule)
-  ;; set default fitness functions
-  (format t "INITIAL POPULATION~%")
-  (hrule)
-  ;; (print *population*)
-  (format t "~%")
-  (hrule)
-  ;;  (print-params)
-  ;;  (print-statistics)
-  (partition-data *ht* ratio)
-  (run-breeder :dataset dataset :method method
-               :rounds rounds :target target)
-  (format t "~%FINAL POPULATION~%")
-  ;;(print *population*)
-  (format t "~%")
-  (hrule)
-  (format t "~%TRAINING COMPLETE. TESTING BEST SPECIMEN.~%" )
-  (hrule)
+  (print-creature (best-of-all island-ring))
   (classification-report *best* dataset)
-  (print-params)
-  (print-statistics)
-  (plot-fitness))
-
-(defun omnibus (&key (mutation-rate *mutation-rate*)
-                  (population-size *population-size*)
-                  (tournement-rounds 10000)
-                  (roulette-rounds 500))
-  (setf *population-size* population-size)
-  (setf *mutation-rate* mutation-rate)
-  (let* ((t-rounds tournement-rounds)
-         (r-rounds roulette-rounds)
-         (targ 1)
-         (params `((:method tournement! :dataset tictactoe
-                            :rounds ,t-rounds :target ,targ)
-                   (:method roulette! :dataset tictactoe
-                            :rounds ,r-rounds :target ,targ)
-                   (:method greedy-roulette! :dataset tictactoe
-                            :rounds ,r-rounds :target ,targ)
-                   (:method tournement! :dataset iris
-                            :rounds ,t-rounds :target ,targ)
-                   (:method roulette! :dataset iris
-                            :rounds ,r-rounds :target ,targ)
-                   (:method greedy-roulette! :dataset iris
-                            :rounds ,r-rounds :target ,targ))))
-    (hrule)
-    (loop for param-list in params do
-         (format t "METHOD: ~S; DATASET: ~S~%"
-                 (getf param-list :method)
-                 (getf param-list :dataset))              
-         (hrule)
-         (apply #'evolve param-list))))
-
-
+  (loop for isle in (de-ring island-ring) do
+       (plot-fitness isle)))
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Debugging functions and information output
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -1130,8 +1021,11 @@ is reached, whichever comes first."
   (format t "[+] PRIMITIVE OPERATIONS: ")
   (loop for i from 0 to (1- (expt 2 *opf*)) do
        (format t "~a " (func->string (aref *opcodes* i))))
-  (format t "~%[+] POPULATION SIZE:      ~d of ~d~%"
-          (length *population*) *population-size*)
+  (format t "~%[+] POPULATION SIZE:      ~d~%"
+          *population-size*)
+  (format t "[+] NUMBER OF ISLANDS:    ~d~%" (island-of (car +island-ring+)))
+  (format t "[+] MIGRATION RATE:       ONCE EVERY ~D CYCLES~%" *migration-rate*)
+  (format t "[+] MIGRATION SIZE:       ~D%~%" *migration-size*)
   (format t "[+] MUTATION RATE:        ~d%~%" *mutation-rate*)
   (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
   (format t "[+] MAX STARTING LENGTH:  ~d~%" *max-start-len*)
@@ -1238,11 +1132,15 @@ without incurring delays."
   (opcode-census (island-deme island)))
                   
 
-(defun plot-fitness ()
+(defun plot-fitness (island)
   (hrule)
-  (format t "                    PLOT OF BEST FITNESS OVER GENERATIONS~%")
+  (if (< 0 (island-id island))
+      (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ~@R~%"
+              (island-id island))
+      (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO~%")
+             
   (hrule)
-  (let* ((fitlog (funcall =logger=))
+  (let* ((fitlog (funcall (island-logger island)))
          (lastgen (caar fitlog))
          (row #\newline)
          (divisor 35)
@@ -1256,12 +1154,12 @@ without incurring delays."
                           (ceiling (* (- (cdr (assoc i fitlog)) .5)
                                       scale)) bar-char)))
       (when (= (mod i interval) 0)
-        (format t "~5d | ~a~%" i row)))
+        (format t "~5d || ~a~%" i row)))
     (hrule)
     (format t "        ")
     (let ((x-axis 50))
       (dotimes (i (floor (div scale 2)))
-        (if (= (pmd i (floor (div scale 10.6))) 0)
+        (if (= (pmd i (floor (div scale 11))) 0)
             (progn 
               (format t "~d" x-axis)
               (when (>= x-axis 100) (return))
@@ -1271,23 +1169,25 @@ without incurring delays."
     (hrule)))
 
 (defun print-creature (crt)
-  (format t "FIT: ~A~%SEQ: ~A~%EFF: ~A~%HOME: ISLAND #~A~%GEN: ~A~%"
-          (creature-fit crt)
-          (creature-seq crt)
-          (creature-eff crt)
-          (creature-home crt)
-          (creature-gen crt))
-  (when (creature-parents crt)
-    (format t "FITNESS OF PARENTS: ~F, ~F~%"
-            (creature-fit (car (creature-parents crt)))
-            (creature-fit (cadr (creature-parents crt))))
-    (format t "HOMES OF PARENTS: ISLAND ~D, ISLAND ~D~%"
-            (creature-home (car (creature-parents crt)))
-            (creature-home (car (creature-parents crt)))))
+  (flet ((nil0 (n)
+           (if (null n) 0 n)))
+    (format t "FIT: ~F~%SEQ: ~A~%EFF: ~A~%HOME: ISLAND #~D~%GEN: ~D~%"
+            (nil0 (creature-fit crt))
+            (creature-seq crt)
+            (creature-eff crt)
+            (nil0 (creature-home crt))
+            (nil0 (creature-gen crt)))
+    (when (creature-parents crt)
+      (format t "FITNESS OF PARENTS: ~F, ~F~%"
+              (creature-fit (car (creature-parents crt)))
+              (creature-fit (cadr (creature-parents crt))))
+      (format t "HOMES OF PARENTS: ISLAND ~D, ISLAND ~D~%"
+              (creature-home (car (creature-parents crt)))
+              (creature-home (car (creature-parents crt))))))
   
   (hrule)
   (format t "DISASSEMBLY OF EFFECTIVE CODE:~%")
-  (disassemble-sequence (creature-eff crt)))
+  (disassemble-sequence (creature-eff crt) :static t))
   
           
 (defun print-new-best-update (island)
