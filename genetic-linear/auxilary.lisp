@@ -68,6 +68,9 @@ must be disjoint."
     copy))
 
 
+(defun shuffle (seq)
+  (sort seq #'(lambda (x y) (= 0 (random 2)))))
+
 (defun n-rnd (low high &optional (r '()) (n 4))
   "Returns a list of n distinct random numbers between low and high."
   (declare (type fixnum low high n))
@@ -99,7 +102,7 @@ must be disjoint."
 (defun pospart (n)
   (if (< n 0) 0 n))
 
-(defun ! (n)s
+(defun ! (n)
   "Just like C's -- except that 0 will not be interpreted as false in CL."
   (if (= n 0) 1 0))
 
@@ -161,6 +164,7 @@ must be disjoint."
 
 
 (defun circular (list)
+  (setf *print-circle* t)
   (setf (cdr (last list)) list))
 
 (defun make-iter (list)
