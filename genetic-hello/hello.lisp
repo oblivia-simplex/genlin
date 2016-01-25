@@ -101,12 +101,12 @@
          (graves (mapcar #'cadr losers)))
     (map 'list #'(lambda (grave child) (setf (elt population grave) child))
          graves children)
-    (mapcar #'fitness children) ;; to update the *best* variable
+    (mapcar #'fitness children))) ;; to update the *best* variable
 ;;    (format t "LOSERS:~c~c~a~c~a~%WINNERS:~c~a~c~a~%OFFSPRING:~c~a~c~a~%~%"
 ;;            #\Tab #\Tab (caar losers) #\Tab (caadr losers)
 ;;            #\Tab (car parents)  #\Tab (cadr parents)
 ;;            #\Tab (car children) #\Tab (cadr children))
-    ))
+  
 
 
 
