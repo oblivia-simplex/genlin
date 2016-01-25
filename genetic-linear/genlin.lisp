@@ -219,8 +219,8 @@
 
 (defparameter *operations*
   (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    (2bit opcode)
-           #'XOR #'PMD #'CNJ #'MOV   ;; extended operations (3bit opcode)
-           #'JLE #'DIS)              ;; extras, unused by default.  
+           #'XOR #'PMD #'CNJ #'JLE   ;; extended operations (3bit opcode)
+           #'MOV #'DIS)              ;; extras, unused by default.  
 "Instruction set for the virtual machine. Only the first
      2^*opcode-bits* will be used." )
 
@@ -472,8 +472,11 @@ list parameter, output."
       ;; the input values will be stored in read-only regs
       (setf (subseq regs *input-start-idx*
                     (+ *input-start-idx* (length input))) input)
+;;      (PRINT INPUT)
+;;      (PRINT REGS)
       (unless (zerop seqlen)
         (loop do
+           ;; (format t "=== ~A ===~%" regs)
            ;; Fetch the next instruction
              (let* ((inst (aref seq (aref regs *pc-idx*)))
                     ;; Determine the target register
@@ -482,17 +485,17 @@ list parameter, output."
                (incf (aref regs *pc-idx*))
                ;; Perform the operation and store the result in [dst]
                (setf (aref regs D)
-                     (max (min (apply (op? inst)
-                                      (list (aref regs (src? inst))
-                                            (aref regs (dst? inst))
-                                            (aref regs *pc-idx*))) *maxval*)
-                          *minval*))
+                     (apply (op? inst)
+                            (list (aref regs (src? inst))
+                                  (aref regs (dst? inst))
+                                  (aref regs *pc-idx*))))
                ;; Save history for debugger
                (and debugger (save-state inst regs)
                     (disassemble-history :len 1 :all nil))
                
                (and (>= (aref regs *pc-idx*) seqlen)
                     (return)))))
+      (and *debug* (hrule))
       (mapcar #'(lambda (i) (aref regs i)) output))))
 
 ;; ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -825,10 +828,10 @@ fitness function."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun update-best-if-better (crt island)
-  (setf (island-best island) crt)
-    ;; log updates in the island's own logger
-  (funcall (island-logger island) `(,(island-age island) .
-                                     ,(creature-fit crt))))
+  (when (> (creature-fit crt) (creature-fit (island-best island)))
+    (setf (island-best island) crt)
+    (funcall (island-logger island) `(,(island-age island) .
+                                       ,(creature-fit crt)))))
 
 (defun tournement! (island &key (genealogy *track-genealogy*))
   "Tournement selction function: selects four combatants at random
@@ -1357,7 +1360,8 @@ without incurring delays."
          (interval (max 1 (floor (div lastgen divisor))))
          (scale 128)
          (bar-char #\X))
-;;         (end-char #\x))
+    ;;         (end-char #\x))
+    (print fitlog)
     (dotimes (i (+ lastgen interval))
       (when (assoc i fitlog)
         (setf row (format nil "~v@{~c~:*~}"
@@ -1468,13 +1472,7 @@ without incurring delays."
                  (if (< i (expt 2 *opcode-bits*)) used unused)))))
 
 (defun menu ()
-  ;; list parameters (special vars), with documentation strings
-  ;; offer user opportunity to change any of them
-  ;; also offer opportunity to change the operations vector
-  ;; then launch setup and evolve.
-  ;; ====
-  ;; options will be a list of command line options (parsed), unix style
-  ;; passed to menu from main (which still needs to be written). 
+  "The front end and user interface of the programme. Allows the user to tweak a number of dynamically scoped, special variables, and then launch setup and evolve."
   (in-package :genetic.linear)
   (flet ((validate (n)      
            (or (eq n :Q) 
