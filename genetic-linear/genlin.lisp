@@ -6,18 +6,14 @@
 ;;; TODO: create user interface. NCurses?
 
 
-(load "~/.sbclrc")
-
-(ql:quickload :bordeaux-threads)
-
 (defpackage :genetic.linear
-  (:use :common-lisp
-        :bordeaux-threads))
+  (:use :common-lisp)) ;; could add sb-thread here. 
 
 (in-package :genetic.linear)
 
 (defparameter *project-path*
-  "/home/oblivia/Projects/genetic-exercises/genetic-linear/")
+  "./")
+  ;;"~/Projects/genetic-exercises/genetic-linear/")
 
 (defparameter *tictactoe-path*
   (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe-balanced.data"))
@@ -28,14 +24,18 @@
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
 
-(loop for f in '("auxilary.lisp"
+(loop for f in '("auxiliary.lisp"
                  "tictactoe.lisp"
                  "iris.lisp") do
      (loadfile (concatenate 'string *project-path* f)))
 
 (defparameter *STOP* nil)
 
-(defparameter *DEBUG* nil)
+(defparameter *DEBUG* nil
+  "The debugging flag. If set to T, then you will be treated to a very
+     verbose, live disassembly of the instructions being excuted in the
+     virtual machine, along with a few other pieces of information. Do
+     not use in conjunction with *parallel.*")
 
   
 (defun dbg (&optional on-off)
@@ -44,11 +44,13 @@
     ((off) (setf *debug* nil))
     (otherwise (setf *debug* (not *debug*)))))
 
-(defparameter *parallel* nil)
+(defparameter *parallel* nil
+  "Enables multithreading when set to T, allotting the evolutionary
+     process on each island its own thread.")
 
-(defparameter -print-lock- (make-lock "PRINT LOCK"))
+(defparameter -print-lock- (sb-thread:make-mutex :name "print lock"))
 
-(defparameter -migration-lock- (make-lock "migration lock"))
+(defparameter -migration-lock- (sb-thread:make-mutex :name "migration lock"))
 
 (defparameter *VERBOSE* nil)
 
@@ -58,7 +60,10 @@
 
 (defparameter *testing-ht* (make-hash-table :test 'equalp))
 
-(defparameter *dataset* 'iris)
+(defparameter *dataset* :iris
+  "Currently accepts only two values: :tictactoe and :iris. This tells
+    the programme which dataset to load, and which related data
+    processing functions to use.")
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic Parameters
@@ -73,23 +78,33 @@
 
 (defparameter +ISLAND-RING+ '()) ;; make var later
 
-(defparameter *number-of-islands* 4)
+(defparameter *number-of-islands* 4
+  "Islands are relatively isolated pockets in the population, linked
+     in a ring structure and bridged by occasional migration. Can be set
+     to any integer > 0.")
 
-(defparameter *population-size* 800)
+(defparameter *population-size* 800
+  "Remains constant throughout the evolution. Should be > 40.")
 
 (defparameter *specimens* '())
 
-(defparameter *mutation-rate* 15)
+(defparameter *mutation-rate* 15
+  "Chance of mutation per spawning event, expressed as percentage.")
 
-(defparameter *migration-size* 10) ;; percent
+(defparameter *migration-size* 10
+  "Percentage of population that leaves one deme for the next, 
+     per migration event.") ;; percent
 
-(defparameter *migration-rate* 777)
+(defparameter *migration-rate* 777
+  "Frequency of migrations, measured in main loop cycles.")
 
-(defparameter *greedy-migration* t)
+(defparameter *greedy-migration* t
+  "If set to T, migrants are always the fittest in their deme.
+     Otherwise random.")
 
-(defparameter *track-genealogy* t)
-
-(defparameter *genealogical-fitness-statistics* t)
+(defparameter *track-genealogy* t
+  "If set to T, then genealogical lineage and statistics are computed
+     at runtime. Informative, but increases overhead.")
 
 (defparameter *records* '())
 
@@ -103,11 +118,14 @@
 
 ;; a migration is triggered every n loops through #'run-breeder
 
-(defparameter *min-len* 2) ;; we want to prevent seqs shrinking to nil
+(defparameter *min-len* 2
+  "The minimum creature length, measured in instructions.") ;; we want to prevent seqs shrinking to nil
 
-(defparameter *max-len* 256) ;; max instruction length
+(defparameter *max-len* 256
+  "The maximum creature length, measured in instructions.") ;; max instruction length
 
-(defparameter *max-start-len* 25) ;; max initial instruction length
+(defparameter *max-start-len* 25
+  "The maximum length of creatures in the initial population.") ;; max initial instruction length
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Logging
@@ -142,23 +160,38 @@
 
 ;; see if you can put the entire virtual machine in its own environment
 
-(defparameter *opf* 3)   ;; size of opcode field, in bits
+(defparameter *opcode-bits* 3
+  "The number of bits in an instruction used to determine the operation. 
+     Can be set to 1, 2, or 3.")   ;; size
 
-(defparameter *srcf* 3)  ;; size of source register field, in bits
 
-(defparameter *dstf* 2)  ;; size of destination register field, in bits
+(defparameter *source-register-bits* 3
+  "The number of bits used to calculate the source register in each
+     instruction. 2^n readable registers will be allocated where n is the
+     value of this parameter." )
+
+(defparameter *destination-register-bits* 2
+  "The number of bits used to calculate the destination register. If
+     left smaller than *source-register-bits* then there will be 2^(n-m)
+     read-only registers, where n is the value of *source-register-bits*
+     and m is the value of this parameter." )
 
 ;; --- Do not adjust the following five parameters manually ---
 
-(defparameter *wordsize* (+ *opf* *srcf* *dstf*))
+(defparameter *wordsize*
+  (+ *opcode-bits* *source-register-bits* *destination-register-bits*))
 
-(defparameter *max-inst* (expt 2 *wordsize*)) ;; upper bound on inst size
+(defparameter *max-inst*
+  (expt 2 *wordsize*)) ;; upper bound on inst size
 
-(defparameter *opbits* (byte *opf* 0))
+(defparameter *opbits*
+  (byte *opcode-bits* 0))
 
-(defparameter *srcbits* (byte *srcf* *opf*))
+(defparameter *srcbits*
+  (byte *source-register-bits* *opcode-bits*))
 
-(defparameter *dstbits* (byte *dstf* (+ *srcf* *opf*)))
+(defparameter *dstbits*
+  (byte *destination-register-bits* (+ *source-register-bits* *opcode-bits*)))
 
 
 (defun inst-schema-match (&rest instructions)
@@ -183,7 +216,7 @@ represents a clash."
 
 ;; --- Operations: these can be tweaked independently of the 
 ;; --- fields above, so long as their are at least (expt 2 *opf*)
-;; --- elements in the *opcodes* vector. 
+;; --- elements in the *operations* vector. 
 
 (declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
 
@@ -199,39 +232,52 @@ represents a clash."
         (error () 0))))
 
 (defun XOR (&rest args) ;; xor integer parts
+  "Performs a bitwise XOR on SRC and DST, storing the result in DST."
   (logxor (floor (car args)) (floor (cadr args))))
 
 (defun CNJ (&rest args)
+  "Performs a bitwise AND on SRC and DST, storing the result in DST."
   (logand (floor (car args)) (floor (cadr args))))
 
 (defun DIS (&rest args)
+  "Performs a bitwise OR on SRC and DST, storing the result in DST."
   ;;x  (declare (type (cons fixnum)) args)
   (lognot (logand  (lognot (floor (car args)))
                    (lognot (floor (cadr args))))))
 
 (defun PMD (&rest args)
-  "Protected MOD."
+  "Performs a protected SRC MOD DST, storing the result in DST."
   (if (some #'zerop args) (car args)
       (mod (car args) (cadr args))))
 
 (defun ADD (&rest args)
+  "Adds the real-valued contents of SRC and DST, storing result in DST."
   (+ (car args) (cadr args)))
 
 (defun SUB (&rest args)
+  "Subtracts DST from SRC, storing the value in DST."
   (- (car args) (cadr args)))
 
 (defun MUL (&rest args)
+  "Multiplies SRC and DST, storing the value in DST."
   (* (car args) (cadr args)))
 
 (defun JLE (&rest args) ;; CONDITIONAL JUMP OPERATOR
+  "Increments the programme counter iff X < Y."
   (if (<= (car args) (cadr args)) (1+ (caddr args))
       (caddr args)))
 
-(defparameter *opcodes*
+(defparameter *operations*
   (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    (2bit opcode)
-           #'XOR #'PMD #'CNJ #'MOV)) ;; extended operations (3bit opcode)
+           #'XOR #'PMD #'CNJ #'MOV   ;; extended operations (3bit opcode)
+           #'JLE #'DIS)              ;; extras, unused by default.  
+"Instruction set for the virtual machine. Only the first
+     2^*opcode-bits* will be used." )
 
-;; adding the extended opcodes seems to result in an immense boost in the
+
+(defun shuffle-operations ()
+  (setf *operations* (coerce (shuffle (coerce *operations* 'list)) 'vector)))
+;; adding the extended operations seems to result in an immense boost in the
 ;; population's fitness -- 0.905 is now achieved in the time it took to
 ;; reach 0.64 with the basic operation set. (For tic-tac-toe.)
 
@@ -248,11 +294,13 @@ represents a clash."
 
 (defparameter *default-input-reg*
   (concatenate 'vector
-               (loop for i from 1 to (- (expt 2 *srcf*) (expt 2 *dstf*))
+               (loop for i from 1 to (- (expt 2 *source-register-bits*)
+                                        (expt 2 *destination-register-bits*))
                   collect (expt -1 i))))
 
 (defparameter *default-registers*
-  (concatenate 'vector #(0) (loop for i from 2 to (expt 2 *dstf*)
+  (concatenate 'vector #(0) (loop for i from 2 to
+                                 (expt 2 *destination-register-bits*)
                                collect (expt -1 i))))
 
 (defparameter *pc-idx*
@@ -289,8 +337,8 @@ represents a clash."
 (defun op? (inst)
   (declare (type fixnum inst))
   (declare (type cons *opbits*))
-  (declare (type (simple-array function) *opcodes*))
-  (aref *opcodes* (ldb *opbits* inst)))
+  (declare (type (simple-array function) *operations*))
+  (aref *operations* (ldb *opbits* inst)))
 
 (defun jmp? (inst) ;; ad-hoc-ish...
   (equalp (op? inst) #'JLE))
@@ -336,14 +384,15 @@ represents a clash."
 
 
 ;; Almost certainly not threadsafe. 
+;; the problem is sidestepped, though, by restricting its use to
+;; either debugging mode (which should be single-threaded) or
+;; to print jobs that are wrapped in mutexes. 
 (defparameter =history=
   (let ((hist '()))
     (lambda (&optional (entry nil))
       (cond ((eq entry 'CLEAR) (setf hist '()))
             (entry (push entry hist))
             (t hist)))))
-
-;; is it my imagination, or did avg fitness drop after making these edits?
 
 (defun history-push-test (seq reg)
   (funcall =history= (cons seq reg)))
@@ -355,9 +404,7 @@ represents a clash."
   (let ((h (funcall =history=)))
     (print (subseq h 0 len))))
 
-;;; IS THE REGISTER STATE PERSISTING BETWEEN SEQUENCES?
 (defun disassemble-history (&key (len 0) (all t) (static nil))
-  
   "If passed a sequence in the static field, disassemble it without
 any reference to register states. If not, disassemble the last len
 entries in the history stack, tracking changes to the registers."
@@ -384,11 +431,14 @@ entries in the history stack, tracking changes to the registers."
 (defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*) (output nil)
                                (debug nil))
-  "Takes a sequence of instructions, seq, and an initial
-register state vector, registers, and then runs the virtual machine,
-returning the resulting value in R0."
+  "Takes a sequence of instructions, seq, and an initial register
+state vector, registers, and then runs the virtual machine, returning
+the resulting value in the registers indexed by the integers in the
+list parameter, output."
   (declare (type fixnum *input-start-idx*))
   (declare (inline src? dst? op?))
+  (declare (type cons output))
+  (declare (type simple-array input))
   (flet ((save-state (inst regs)
            (funcall =history= (cons inst regs))))
     (let ((regs (copy-seq registers))
@@ -732,22 +782,19 @@ fitness function."
                   (setf (creature-fit child) (creature-fit parent)
                         (getf *records* :same-eff-as-parents)
                         (1+ (getf *records* :same-eff-as-parents)))))
-         (when *genealogical-fitness-statistics* 
+         (when genealogy
            (setf (creature-fit child) (fitness child))
            (loop for parent in (list p0 p1) do
                 (cond ((> (creature-fit child) (creature-fit parent))
                        (incf (getf *records* :fitter-than-parents)))
                       ((< (creature-fit child) (creature-fit parent))
                        (incf (getf *records* :less-fit-than-parents)))
-                      (t (incf (getf *records* :as-fit-as-parents)))))))
-    ;; could test fitness from here, to easily measure to what extent the
-    ;; variation operators tend to produce more or less fit offspring.
-    
-    (when genealogy
-      (mapcar #'(lambda (x) (setf (creature-gen x)
+                      (t (incf (getf *records* :as-fit-as-parents))))))
+         (mapcar #'(lambda (x) (setf (creature-gen x) ;; update gen and parents
                              (1+ (max (creature-gen p0) (creature-gen p1)))
                              (creature-parents x)
-                             (list p0 p1))) children))
+                             (list p0 p1)))
+                 children))
     children))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -889,12 +936,12 @@ each island. Creatures dwelling on the same island share a list."
 (defun reorder-demes (island-ring &key (greedy t))
   "Shuffles the demes of each island in the ring."
   (loop for isle in (de-ring island-ring) do
-       (acquire-lock (island-lock isle))
+       (sb-thread:grab-mutex (island-lock isle))
        (setf (island-deme isle)
              (if greedy
                  (fitsort-deme (island-deme isle))
                  (shuffle (island-deme isle))))
-       (release-lock (island-lock isle))))
+       (sb-thread:release-mutex (island-lock isle))))
   
 ;; now chalk-full of locks. 
 (defun migrate (island-ring &key (emigrant-percent 10)
@@ -918,18 +965,18 @@ shuffled in the process."
       (loop
          for (isle-1 isle-2) on island-ring
          for i from 1 to (1- (island-of (car island-ring))) do
-           (acquire-lock (island-lock isle-1))
-           (acquire-lock (island-lock isle-2))
+           (sb-thread:grab-mutex (island-lock isle-1))
+           (sb-thread:grab-mutex (island-lock isle-2))
            (setf (subseq (island-deme isle-1) emigrant-idx)
                  (subseq (island-deme isle-2) emigrant-idx))
-           (release-lock (island-lock isle-1))
-           (release-lock (island-lock isle-2)))
-      (acquire-lock (island-lock
+           (sb-thread:release-mutex (island-lock isle-1))
+           (sb-thread:release-mutex (island-lock isle-2)))
+      (sb-thread:grab-mutex (island-lock
                      (elt island-ring (1- (island-of (car island-ring))))))
       (setf (subseq (island-deme
                      (elt island-ring (1- (island-of (car island-ring)))))
                     0 emigrant-count) buffer)
-      (release-lock (island-lock
+      (sb-thread:release-mutex (island-lock
                      (elt island-ring (1- (island-of (car island-ring))))))
       island-ring))    
 
@@ -954,7 +1001,7 @@ applying, say, mapcar or length to it, in most cases."
                                          ;; stave off <,> errors w null crt
                                          :best (make-creature :fit 0)
                                          :logger (make-logger)
-                                         :lock (make-lock
+                                         :lock (sb-thread:make-mutex :name
                                                 (format nil "isle-~d-lock"
                                                         i))))))
     (loop for creature in population do ;; allocate pop to the islands
@@ -1026,14 +1073,14 @@ applying, say, mapcar or length to it, in most cases."
           *greedy-migration* greedy-migration)
     (reset-records)
     (case dataset
-      ((tictactoe)
+      ((:tictactoe)
        (unless file (setf filename *tictactoe-path*))
-       (unless fitfunc-name (setf fitfunc-name 'binary-3))
+       (unless fitfunc-name (setf fitfunc-name 'binary-1))
        (setf hashtable (ttt-datafile->hashtable
                         :filename filename :int t :gray t)))
-      ((iris)
+      ((:iris)
        (unless file (setf filename *iris-path*))
-       (unless fitfunc-name (setf fitfunc-name 'ternary-1))
+       (unless fitfunc-name (setf fitfunc-name 'ternary-2))
        (setf hashtable (iris-datafile->hashtable :filename filename)))
       (otherwise (error "DATASET UNKNOWN (IN SETUP)")))
     (setf training+testing (partition-data hashtable ratio))
@@ -1067,9 +1114,9 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun release-all-locks (island-ring)
   "Mostly for running from the REPL after aborting the programme."
-  (release-lock -migration-lock-)
+  (sb-thread:release-mutex -migration-lock-)
   (loop for island in (de-ring island-ring) do
-       (release-lock (island-lock island))))
+       (sb-thread:release-mutex (island-lock island))))
 
 (defun evolve (&key (method #'tournement!) (dataset *dataset*)
                  (rounds 10000) (target 0.97)
@@ -1088,21 +1135,21 @@ applying, say, mapcar or length to it, in most cases."
                  ;; will cycle & not exhaust it
                  (labels ((dispatcher ()
                             ;; we don't want more than one thread per island.
-                            (acquire-lock (island-lock isle))
+                            (sb-thread:grab-mutex (island-lock isle))
                             (funcall method isle)
-                            (release-lock (island-lock isle)))
+                            (sb-thread:release-mutex (island-lock isle)))
                           (dispatch ()
                             (if parallelize
-                                (make-thread #'dispatcher)
+                                (sb-thread:make-thread #'dispatcher)
                                 (dispatcher))))
                    (dispatch)
                    (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
-                     (acquire-lock -migration-lock-)
+                     (sb-thread:grab-mutex -migration-lock-)
                      (princ ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                      (princ " MIGRATION EVENT ")
                      (format t "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
                      (migrate island-ring :emigrant-percent migration-size)
-                     (release-lock -migration-lock-))
+                     (sb-thread:release-mutex -migration-lock-))
                    (when (= 0 (mod i stat-interval))
                      (print-statistics island-ring))
                    (when (or (> (creature-fit (island-best isle)) target)
@@ -1115,7 +1162,7 @@ applying, say, mapcar or length to it, in most cases."
   (classification-report *best* dataset)
   (loop for isle in (de-ring island-ring) do
        (plot-fitness isle))
-  (when *genealogical-fitness-statistics* (genealogical-fitness-stats)))
+  (when *track-genealogy* (genealogical-fitness-stats)))
 
 (defun run-with-defaults ()
   (setup)
@@ -1129,11 +1176,11 @@ applying, say, mapcar or length to it, in most cases."
   "Prints major global parameters, and some statistics, too."
   (hrule)
   (format t "[+] INSTRUCTION SIZE:     ~d bits~%" *wordsize*)
-  (format t "[+] # of RW REGISTERS:    ~d~%" (expt 2 *dstf*))
-  (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *srcf*))
+  (format t "[+] # of RW REGISTERS:    ~d~%" (expt 2 *destination-register-bits*))
+  (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *source-register-bits*))
   (format t "[+] PRIMITIVE OPERATIONS: ")
-  (loop for i from 0 to (1- (expt 2 *opf*)) do
-       (format t "~a " (func->string (aref *opcodes* i))))
+  (loop for i from 0 to (1- (expt 2 *opcode-bits*)) do
+       (format t "~a " (func->string (aref *operations* i))))
   (format t "~%[+] POPULATION SIZE:      ~d~%"
           *population-size*)
   (format t "[+] NUMBER OF ISLANDS:    ~d~%" (island-of (car +island-ring+)))
@@ -1172,22 +1219,22 @@ without incurring delays."
                  (car e2) #\tab (.*. 100 (cdr e2)))))))
 
 (defun opcode-census (population)
-  (let* ((buckets (make-array (expt 2 *opf*)))
+  (let* ((buckets (make-array (expt 2 *opcode-bits*)))
          (instructions (reduce #'(lambda (x y) (concatenate 'list x y))
                                (mapcar #'creature-eff population)))
          (sum (length instructions)))
     (loop for inst in instructions do
-         (incf (aref buckets (ldb (byte *opf* 0) inst))))
+         (incf (aref buckets (ldb (byte *opcode-bits* 0) inst))))
     (loop repeat (/ (length buckets) 2)
        for x = 0 then (+ x 2)
        for y = 1 then (+ y 2) do
          (format t "~C~A: ~4D~C(~5,2f%)~C" #\tab
-                 (func->string (aref *opcodes* x))
+                 (func->string (aref *operations* x))
                  (aref buckets x)
                  #\tab
                  (* 100 (div (aref buckets x) sum)) #\tab)
          (format t "~C~A: ~4D~c(~5,2f%)~%" #\tab
-                 (func->string (aref *opcodes* y))
+                 (func->string (aref *operations* y))
                  (aref buckets y)
                  #\tab
                  (* 100 (div (aref buckets y) sum))))))
@@ -1319,8 +1366,100 @@ without incurring delays."
       (setf ht .testing-hashtable.)
       (setf ht .training-hashtable.))
   (case dataset
-    (tictactoe (ttt-classification-report :crt crt :ht ht :out .out-reg.))
-    (iris (iris-classification-report :crt crt :ht ht :out .out-reg.))
+    (:tictactoe (ttt-classification-report :crt crt :ht ht :out .out-reg.))
+    (:iris (iris-classification-report :crt crt :ht ht :out .out-reg.))
     (otherwise (error "Unknown dataset."))))
 
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; A pretty front-end
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter *tweakables*
+  '(*debug*
+    *parallel*
+    *dataset*
+    *number-of-islands*
+    *population-size*
+    *mutation-rate*
+    *migration-rate*
+    *migration-size*
+    *greedy-migration*
+    *track-genealogy*
+    *min-len*
+    *max-len*
+    *max-start-len*
+    *opcode-bits*
+    *source-register-bits*
+    *destination-register-bits*))    
+
+(defun print-tweakables ()
+  (loop
+     for symbol in *tweakables*
+     for i from 0 to (length *tweakables*) do
+       (format t "[~d] ~A: ~A~%     ~A~%" i symbol (symbol-value symbol)
+               (documentation symbol 'variable))))
+
+(defun print-operations ()
+  (let ((used #\*)
+        (unused #\space))
+    (loop
+       for op in (coerce *operations* 'list)
+       for i from 0 to (length *operations*) do
+         (format t "~A ~A~%"
+                 (func->string op)
+                 (if (< i (expt 2 *opcode-bits*)) used unused)))))
+    
+  
+(defun menu ()
+  ;; list parameters (special vars), with documentation strings
+  ;; offer user opportunity to change any of them
+  ;; also offer opportunity to change the operations vector
+  ;; then launch setup and evolve.
+  ;; ====
+  ;; options will be a list of command line options (parsed), unix style
+  ;; passed to menu from main (which still needs to be written). 
+  (in-package :genetic.linear)
+  (flet ((validate (n)      
+           (or (eq n :Q) 
+               (and (numberp n)
+                    (<= 0 n)
+                    (< n (length *tweakables*))))))
+    (let ((sel)
+          (target)
+          (cycles))
+      
+      (loop do
+           (hrule)
+           (print-tweakables)
+           (hrule)
+           (loop do 
+                (format t "~%Enter number of parameter to tweak, or :Q to proceed.~%")
+                (princ "~ ")
+                (clear-input)
+                (setf sel (read))
+                (when (validate sel) (return)))
+           (when (eq sel :Q) (return))
+           (format t "~%You selected ~d: ~A~%     ~A~%~%"
+                   sel (elt *tweakables* sel)
+                   (documentation (elt *tweakables* sel) 'variable))
+           (format t "Enter new value (be careful)~%~~ ")
+           (setf (symbol-value (elt *tweakables* sel)) (read))
+           (format t "~A is now set to ~A~%"
+                   (elt *tweakables* sel)
+                   (symbol-value (elt *tweakables* sel)))
+           (format t "Enter :Q to run with the chosen parameters, or :C to continue tweaking.~%~~ ")
+           (clear-input)
+           (when (eq (read) :Q) (return)))
+      (setup)
+      (format t "The evolution will run until either a target fitness is~%")
+      (format t "reached, or a maximum number of cycles has been exceeded.~%~%")
+      (format t "Enter target fitness (a float between 0 and 1).~%~~ ")
+      (clear-input)
+      (setf target (read))
+      (format t "~%Enter maximum number of cycles.~%~~ ")
+      (clear-input)
+      (setf cycles (read))
+      (evolve :target target :rounds cycles))))
+               
 
