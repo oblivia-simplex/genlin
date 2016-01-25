@@ -6,9 +6,17 @@
                                         
 
 GENLIN is an experimental linear genetic programming platform.
-It is currently set up to work with just two benchmark datasets, 
-but I plan on making it more flexible in the future, and perhaps
-into something that might be useful as a linear GP library. 
+The front-end only offers the opportunity to plug two, pre-supplied
+benchmark datasets into the thing -- tic-tac-toe endgames, and the 
+well-worn iris set -- but the code should be flexible enough to be
+put to work on other problem domains (not necessarily restricted to
+classification problems), if you don't mind hacking it a little. 
+
+The code base is entirely written in Common Lisp (for SBCL, but it
+wouldn't be too much work to port it to, say, CLISP, so that it can
+be run on Windows, should anyone want to do such a thing; really, 
+all that needs to be done to get this to happen is to replace calls
+to sb-thread with the Bordeaux thread library. 
 
 In a nutshell: GENLIN uses natural selection to develop programmes,
 written in a virtual machine code, to solve classification problems. 
