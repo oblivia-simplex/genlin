@@ -829,7 +829,7 @@ fitness function."
 
 (defun update-best-if-better (crt island)
   (when (> (creature-fit crt) (creature-fit (island-best island)))
-    (setf (island-best island) crt)
+    (setf (island-best island) crt) 
     (funcall (island-logger island) `(,(island-age island) .
                                        ,(creature-fit crt)))))
 
