@@ -1,0 +1,35 @@
+ ____  _____    _    ____  __  __ _____ 
+|  _ \| ____|  / \  |  _ \|  \/  | ____|
+| |_) |  _|   / _ \ | | | | |\/| |  _|  
+|  _ <| |___ / ___ \| |_| | |  | | |___ 
+|_| \_\_____/_/   \_\____/|_|  |_|_____|
+                                        
+
+GENLIN is an experimental linear genetic programming platform.
+It is currently set up to work with just two benchmark datasets, 
+but I plan on making it more flexible in the future, and perhaps
+into something that might be useful as a linear GP library. 
+
+In a nutshell: GENLIN uses natural selection to develop programmes,
+written in a virtual machine code, to solve classification problems. 
+The problems that the current version works with are not, in any
+sense, interesting problems, but tweaking and observing an evolving
+population of algorithms can be fun. 
+
+To compile a standalone binary (assuming you have SBCL installed
+somewhere on your system):
+
+sbcl --script compile.lisp
+
+This will generate a (large) binary file called "genlin". Run it, 
+and follow the prompts. 
+
+To run interactively, from the REPL:
+
+sbcl --load genlin.lisp
+
+Call (menu) to get a warm welcome, or just poke around and call 
+the configuration and evolution functions directly, starting with
+(setup). Setup takes many optional parameters. Consult the source
+code for details. 
+
