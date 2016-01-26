@@ -16,13 +16,23 @@
   ;;"~/Projects/genetic-exercises/genetic-linear/")
 
 (defparameter *tictactoe-path*
-  (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe-balanced.data"))
+  (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe.data"))
 
 (defparameter *iris-path*
   (concatenate 'string *project-path* "datasets/Iris/iris.data"))
 
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Declaim inline functions for speed
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(declaim (inline guard-val))
+
+(declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (loop for f in '("auxiliary.lisp"
                  "tictactoe.lisp"
@@ -31,13 +41,15 @@
 
 (defparameter *STOP* nil)
 
+(defparameter *best* nil)
+
 (defparameter *DEBUG* nil
   "The debugging flag. If set to T, then you will be treated to a very
      verbose, live disassembly of the instructions being excuted in the
      virtual machine, along with a few other pieces of information. Do
      not use in conjunction with *parallel.*")
-  
-(defparameter *parallel* nil
+
+(defparameter *parallel* t
   "Enables multithreading when set to T, allotting the evolutionary
      process on each island its own thread.")
 
@@ -46,10 +58,17 @@
 (defparameter *stat-interval* 1000
   "Number of cycles per verbose update on the evolutionary process.")
 
-(defparameter *dataset* :iris
+(defparameter *dataset* :tictactoe
   "Currently accepts only two values: :tictactoe and :iris. This tells
-    the programme which dataset to load, and which related data
-    processing functions to use.")
+     the programme which dataset to load, and which related data
+     processing functions to use.")
+
+ 
+(defparameter *data-path* (if (eq *dataset* :tictactoe)
+                              *tictactoe-path* *iris-path*)
+  "Path to the data file. Mismatching *data-path* and *dataset* will
+     almost certainly break something, at the moment.")
+
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic Parameters
@@ -59,7 +78,7 @@
 
 (defstruct creature fit seq eff gen home parents) 
 
-(defstruct island id of deme best age logger lock)
+(defstruct island id of deme best era logger lock)
 
 (defvar +ISLAND-RING+)
 
@@ -77,12 +96,12 @@
 ;; Tweakables
 ;; ......................................................................
 
-(defparameter *number-of-islands* 4
+(defparameter *number-of-islands* 12
   "Islands are relatively isolated pockets in the population, linked
      in a ring structure and bridged by occasional migration. Can be set
      to any integer > 0.")
 
-(defparameter *population-size* 800
+(defparameter *population-size* 1200
   "Remains constant throughout the evolution. Should be > 40.")
 
 (defparameter *specimens* '())
@@ -94,7 +113,7 @@
   "Percentage of population that leaves one deme for the next, 
      per migration event.") ;; percent
 
-(defparameter *migration-rate* 777
+(defparameter *migration-rate* 1111
   "Frequency of migrations, measured in main loop cycles.")
 
 (defparameter *greedy-migration* t
@@ -168,8 +187,6 @@
 ;; --- Operations: these can be tweaked independently of the 
 ;; --- fields above, so long as their are at least (expt 2 *opf*)
 ;; --- elements in the *operations* vector. 
-
-(declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
 
 (defun MOV (&rest args)
   "Copy the contents in SRC to register DST."
@@ -338,13 +355,14 @@
 (defun jmp? (inst) ;; ad-hoc-ish...
   (equalp (op? inst) #'JLE))
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 (defun enter-input (registers input)
   (let ((copy (copy-seq registers)))
     (setf (subseq copy *input-start-idx*
                   (+ *input-start-idx* (length input)))
           input)
     copy))
-
 
 (defun inst-schema-match (&rest instructions)
   "Returns a Holland-style schema that matches all of the instructions
@@ -406,6 +424,19 @@ represents a clash."
 ;; MESSY, and TOO SLOW. Try to delegate debugging output elsewhere. 
 
 
+;; Thoughts on how to add a stack:
+;; - the tricky part is getting the stack instructions (push, pop) and
+;; the stack structure to communicate. We don't want the stack to get
+;; corrupted by multithreaded activity, so we should enclose it in the
+;; execute-sequence environment, you'd think, but then our operations
+;; can't be defined where they are now. We'd have to find a way of treating
+;; the ops as macros --- macros that may inject a free stack variable
+;; into the execute-sequence environment -- but then we hae to change the
+;; that that they're currently called.
+;; another possibility is to let each "creature" maintain its own stack,
+;; as a field in its struct. This is actually pretty close to the idea of
+;; each process/thread having a stack of its own. 
+
 ;; Almost certainly not threadsafe. 
 ;; the problem is sidestepped, though, by restricting its use to
 ;; either debugging mode (which should be single-threaded) or
@@ -426,8 +457,6 @@ represents a clash."
 (defun history-print (&optional len)
   (let ((h (funcall =history=)))
     (print (subseq h 0 len))))
-
-
 
 (defun disassemble-history (&key (len 0) (all t) (static nil))
   "If passed a sequence in the static field, disassemble it without
@@ -485,10 +514,11 @@ list parameter, output."
                (incf (aref regs *pc-idx*))
                ;; Perform the operation and store the result in [dst]
                (setf (aref regs D)
-                     (apply (op? inst)
-                            (list (aref regs (src? inst))
-                                  (aref regs (dst? inst))
-                                  (aref regs *pc-idx*))))
+                     (guard-val (apply (op? inst)
+                                       (list (aref regs (src? inst))
+                                             (aref regs (dst? inst))
+                                             (aref regs *pc-idx*)))
+                     *minval* *maxval*))
                ;; Save history for debugger
                (and debugger (save-state inst regs)
                     (disassemble-history :len 1 :all nil))
@@ -830,7 +860,7 @@ fitness function."
 (defun update-best-if-better (crt island)
   (when (> (creature-fit crt) (creature-fit (island-best island)))
     (setf (island-best island) crt) 
-    (funcall (island-logger island) `(,(island-age island) .
+    (funcall (island-logger island) `(,(island-era island) .
                                        ,(creature-fit crt)))))
 
 (defun tournement! (island &key (genealogy *track-genealogy*))
@@ -859,7 +889,7 @@ genealogical record."
                             parents)))
           ;; (the-dead (subseq ranked 0 2)))
 ;;      (FORMAT T "RANKED: ~A~%BEST-IN-SHOW: ~A~%" ranked best-in-show)
-      (incf (island-age island))
+      (incf (island-era island))
       (update-best-if-better best-in-show island)
       ;; Now replace the dead with the children of the winners
       (mapcar #'(lambda (x) (setf (creature-home x) (island-id island))) children)
@@ -896,7 +926,7 @@ garbage-collected."
          (wheel (loop for creature in population
                    collect (progn
                              (let ((f (float (fitness creature))))
-                               (incf (island-age island))
+                               (incf (island-era island))
                                (update-best-if-better creature island)
                                (incf tally f)
                                (cons tally creature)))))
@@ -1019,7 +1049,7 @@ applying, say, mapcar or length to it, in most cases."
         (islands (loop for i from 0 to (1- number-of-islands)
                     collect (make-island :id i
                                          :of number-of-islands
-                                         :age 0
+                                         :era 0
                                          ;; stave off <,> errors w null crt
                                          :best (make-creature :fit 0)
                                          :logger (make-logger)
@@ -1110,7 +1140,7 @@ applying, say, mapcar or length to it, in most cases."
                 (migration-rate *migration-rate*)
                 (migration-size *migration-size*)
                 (greedy-migration *greedy-migration*)
-                (file))
+                (filename *data-path*))
   (let ((filename)
         (hashtable)
         (training+testing))
@@ -1123,12 +1153,12 @@ applying, say, mapcar or length to it, in most cases."
     (reset-records)
     (case dataset
       ((:tictactoe)
-       (unless file (setf filename *tictactoe-path*))
-       (unless fitfunc-name (setf fitfunc-name 'binary-3))
+       (unless filename (setf filename *tictactoe-path*))
+       (unless fitfunc-name (setf fitfunc-name 'binary-1))
        (setf hashtable (ttt-datafile->hashtable
                         :filename filename :int t :gray t)))
       ((:iris)
-       (unless file (setf filename *iris-path*))
+       (unless filename (setf filename *iris-path*))
        (unless fitfunc-name (setf fitfunc-name 'ternary-2))
        (setf hashtable (iris-datafile->hashtable :filename filename)))
       (otherwise (error "DATASET UNKNOWN (IN SETUP)")))
@@ -1201,7 +1231,11 @@ applying, say, mapcar or length to it, in most cases."
                      (sb-thread:release-mutex -migration-lock-))
                    (when (= 0 (mod i stat-interval))
                      (print-statistics island-ring)
-                     (format t "RUNNING ~A...~%" (func->string method))
+                     (best-of-all +island-ring+)
+                     (format t "BEST FITNESS: ~F ON ISLAND ~A     RUNNING ~A...~%"
+                             (creature-fit *best*)
+                             (roman (creature-home *best*))
+                             (func->string method))
                      (hrule))
                    
                    (when (or (> (creature-fit (island-best isle)) target)
@@ -1209,12 +1243,21 @@ applying, say, mapcar or length to it, in most cases."
                      (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
                              target i)
                      (return-from evolver)))))))
+  (print-statistics +island-ring+)
   (format t "BEST:~%")
   (print-creature (best-of-all island-ring))
   (classification-report *best* dataset)
   (loop for isle in (de-ring island-ring) do
        (plot-fitness isle))
-  (when *track-genealogy* (genealogical-fitness-stats)))
+  (when *track-genealogy* (genealogical-fitness-stats))
+  (hrule)
+  (format t "BEST FITNESS IS ~F~%ACHIEVED BY A GENERATION ~D CREATURE, FROM ISLAND ~A AT ERA ~D~%"
+          (creature-fit *best*)
+          (creature-gen *best*)
+          (roman (creature-home *best*))
+          (island-era (elt +island-ring+ (creature-home *best*))))
+  (hrule))
+          
 
 (defun run-with-defaults ()
   (setup)
@@ -1282,12 +1325,12 @@ without incurring delays."
     (loop repeat (/ (length buckets) 2)
        for x = 0 then (+ x 2)
        for y = 1 then (+ y 2) do
-         (format t "~C~A: ~4D~C(~5,2f%)~C" #\tab
+         (format t "~C~A: ~4D~C(~5,2f %)~C" #\tab
                  (func->string (aref *operations* x))
                  (aref buckets x)
                  #\tab
                  (* 100 (div (aref buckets x) sum)) #\tab)
-         (format t "~C~A: ~4D~c(~5,2f%)~%" #\tab
+         (format t "~C~A: ~4D~c(~5,2f %)~%" #\tab
                  (func->string (aref *operations* y))
                  (aref buckets y)
                  #\tab
@@ -1313,12 +1356,9 @@ without incurring delays."
   ;; eventually, we should change *best* to list of bests, per deme.
   ;; same goes for logger. 
   (hrule)
-  (if (zerop (island-id island))
-      (format t "              *** STATISTICS FOR ISLAND ZERO AT AGE ~D ***~%"
-              (island-age island))
-      (format t "              *** STATISTICS FOR ISLAND #~@R AT AGE ~D ***~%"
-              (island-id island)
-              (island-age island)))
+  (format t "              *** STATISTICS FOR ISLAND ~A AT ERA ~D ***~%"
+          (roman (island-id island))
+          (island-era island))
   (hrule)
   (format t "[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: ~5,4f %~%"
           (* 100 (creature-fit (island-best island))))
@@ -1347,11 +1387,8 @@ without incurring delays."
 
 (defun plot-fitness (island)
   (hrule)
-  (if (< 0 (island-id island))
-      (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ~@R~%"
-              (island-id island))
-      (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO~%"))
-             
+  (format t "           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ~A~%"
+          (roman (island-id island)))
   (hrule)
   (let* ((fitlog (funcall (island-logger island)))
          (lastgen (caar fitlog))
@@ -1373,7 +1410,7 @@ without incurring delays."
     (format t "        ")
     (let ((x-axis 50))
       (dotimes (i (floor (div scale 2)))
-        (if (= (pmd i (floor (div scale 11))) 0)
+        (if (= (pmd i (floor (div scale 10.5))) 0)
             (progn 
               (format t "~d" x-axis)
               (when (>= x-axis 100) (return))
@@ -1416,7 +1453,7 @@ without incurring delays."
   ;;  (hrule)
   (sb-thread:grab-mutex -print-lock-)
   (format t "****************** NEW BEST ON ISLAND #~d AT GENERATION ~d ******************~%"
-          (island-id island) (island-age island))
+          (island-id island) (island-era island))
   (print-creature (island-best island))
   (sb-thread:release-mutex -print-lock-))
   ;;(format t "*****************************************************************************~%"))
@@ -1440,6 +1477,7 @@ without incurring delays."
     *stat-interval*
     *parallel*
     *dataset*
+    *data-path*
     *number-of-islands*
     *population-size*
     *mutation-rate*
@@ -1458,7 +1496,7 @@ without incurring delays."
   (loop
      for symbol in *tweakables*
      for i from 0 to (length *tweakables*) do
-       (format t "[~d] ~A: ~A~%     ~A~%" i symbol (symbol-value symbol)
+       (format t "[~d] ~S: ~S~%     ~A~%" i symbol (symbol-value symbol)
                (documentation symbol 'variable))))
 
 (defun print-operations ()
@@ -1500,10 +1538,12 @@ without incurring delays."
                 (setf sel (read))
                 (when (validate sel) (return)))
            (when (eq sel :Q) (return))
-           (format t "~%You selected ~d: ~A~%     ~A~%~%"
-                   sel (elt *tweakables* sel)
+           (format t "~%You selected ~d: ~A~%Current value: ~S~%     ~A~%~%"
+                   sel
+                   (elt *tweakables* sel)
+                   (symbol-value (elt *tweakables* sel))
                    (documentation (elt *tweakables* sel) 'variable))
-           (format t "Enter new value (be careful)~%~~ ")
+           (format t "Enter new value (be careful, and mind the syntax)~%~~ ")
            (setf (symbol-value (elt *tweakables* sel)) (read))
            (format t "~A is now set to ~A~%"
                    (elt *tweakables* sel)
@@ -1511,6 +1551,7 @@ without incurring delays."
            (format t "Enter :Q to run with the chosen parameters, or :C to continue tweaking.~%~~ ")
 ;           (clear-input)
            (when (eq (read) :Q) (return)))
+      (setf +ISLAND-RING+ '())
       (update-dependent-machine-parameters)
       (setup)
       (format t "The evolution will run until either a target fitness is~%")

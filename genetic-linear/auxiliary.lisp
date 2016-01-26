@@ -15,6 +15,10 @@
     newtable))
 
 
+(defun roman (n)
+  (if (= 0 n) "ZERO" (format nil "~@R" n)))
+
+
 (defun guard-val (val minval maxval)
   (let ((sign (if (< val 0) -1 1)))
     (cond ((< (abs val) minval) (* sign minval))

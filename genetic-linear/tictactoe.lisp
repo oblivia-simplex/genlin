@@ -181,7 +181,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
             (format t "~c" n)))))
 
 
-  (defun deterministic-ttt-eval (xobstring)
+  (defun deterministic-ttt-eval (xobstring &key (winner 'o))
     "A deterministic, always-correct (barring bugs) tic-tac-toe evaluator,
 which can be used to provide more training cases for the GP."
     (let* ((grid (xobstring->numvec xobstring))
