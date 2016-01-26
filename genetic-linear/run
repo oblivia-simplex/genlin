@@ -1,0 +1,8 @@
+#! /bin/bash
+mkdir -r logs
+FILE="logs/genlin.`date +%s`.out"
+time echo -e ":q\n0.97\n:t\n100000"| ./genlin | tee $FILE
+echo "=== LOG SAVED IN $FILE ==="
+
+
+
