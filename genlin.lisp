@@ -738,7 +738,13 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 fitness function."
   (unless (creature-fit crt)  
     (setf (creature-fit crt)
-          (funcall .fitfunc. crt :ht ht)))
+          (funcall .fitfunc. crt :ht ht))
+    (loop for parent in (creature-parents crt) do
+         (cond ((> (creature-fit crt) (creature-fit parent))
+                (incf (getf *records* :fitter-than-parents)))
+               ((< (creature-fit crt) (creature-fit parent))
+                (incf (getf *records* :less-fit-than-parents)))
+               (t (incf (getf *records* :as-fit-as-parents))))))
   (creature-fit crt))
 
 ;; there needs to be an option to run the fitness functions with the testing hashtable. 
@@ -839,18 +845,12 @@ fitness function."
               (if (equalp (creature-eff child) (creature-eff parent))
                   (setf (creature-fit child) (creature-fit parent))))
          (when genealogy
-           (setf (creature-fit child) (fitness child))
-           (loop for parent in (list p0 p1) do
-                (cond ((> (creature-fit child) (creature-fit parent))
-                       (incf (getf *records* :fitter-than-parents)))
-                      ((< (creature-fit child) (creature-fit parent))
-                       (incf (getf *records* :less-fit-than-parents)))
-                      (t (incf (getf *records* :as-fit-as-parents))))))
-         (mapcar #'(lambda (x) (setf (creature-gen x) ;; update gen and parents
-                             (1+ (max (creature-gen p0) (creature-gen p1)))
-                             (creature-parents x)
-                             (list p0 p1)))
-                 children))
+          
+           (mapcar #'(lambda (x) (setf (creature-gen x) ;; update gen and parents
+                                  (1+ (max (creature-gen p0) (creature-gen p1)))
+                                  (creature-parents x)
+                                  (list p0 p1)))
+                   children)))
     children))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -889,7 +889,6 @@ genealogical record."
                             parents)))
           ;; (the-dead (subseq ranked 0 2)))
 ;;      (FORMAT T "RANKED: ~A~%BEST-IN-SHOW: ~A~%" ranked best-in-show)
-      (incf (island-era island))
       (update-best-if-better best-in-show island)
       ;; Now replace the dead with the children of the winners
       (mapcar #'(lambda (x) (setf (creature-home x) (island-id island))) children)
@@ -926,7 +925,6 @@ garbage-collected."
          (wheel (loop for creature in population
                    collect (progn
                              (let ((f (float (fitness creature))))
-                               (incf (island-era island))
                                (update-best-if-better creature island)
                                (incf tally f)
                                (cons tally creature)))))
@@ -1222,6 +1220,7 @@ applying, say, mapcar or length to it, in most cases."
                                 (sb-thread:make-thread #'dispatcher)
                                 (dispatcher))))
                    (dispatch)
+                   (incf (island-era isle))
                    (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
                      (sb-thread:grab-mutex -migration-lock-)
                      (princ ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
