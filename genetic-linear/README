@@ -41,3 +41,5 @@ the configuration and evolution functions directly, starting with
 (setup). Setup takes many optional parameters. Consult the source
 code for details. 
 
+
+Beware of cruft.

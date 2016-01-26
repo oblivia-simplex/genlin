@@ -130,7 +130,10 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
                  (> (* v (car o)) 0)))
         (loop for k being the hash-keys in ht using (hash-value v) do
              (let* ((i (elt k 0))
-                    (output (execute-sequence seq :input k :output out))
+                    (output (execute-sequence seq
+                                              :input k
+                                              :output out
+                                              :debug t))
                     (sum (reduce #'+ (mapcar #'deneg output)))
                     (certainties
                      (mapcar #'(lambda (x) (* (div x sum) 100)) output)))
