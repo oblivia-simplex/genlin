@@ -3,10 +3,10 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-(defpackage :genetic.linear
+(defpackage :genlin
   (:use :common-lisp))
 
-(in-package :genetic.linear)
+(in-package :genlin)
 
 
 ;; -- Tic-Tac-Toe Environment)
@@ -110,7 +110,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
 
 
   ;; this report function is turning into an awful piece of spaghetti code!
-  (defun ttt-classification-report (&key (crt *best*) (ht *ht*) (out '0))
+  (defun ttt-classification-report (&key (crt *best*) (ht) (out '0))
     (print-creature crt)
     (let ((seq (creature-eff crt))
           (correct 0)
@@ -181,7 +181,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
             (format t "~c" n)))))
 
 
-  (defun deterministic-ttt-eval (xobstring &key (winner 'o))
+  (defun deterministic-ttt-eval (xobstring &key (winfor #\o))
     "A deterministic, always-correct (barring bugs) tic-tac-toe evaluator,
 which can be used to provide more training cases for the GP."
     (let* ((grid (xobstring->numvec xobstring))
@@ -199,8 +199,8 @@ which can be used to provide more training cases for the GP."
                   (remove-duplicates (mapcar #'(lambda (x) (elt grid x)) streak)))
                  (xobstreak (mapcar #'(lambda (y) (cdr (assoc y .digits-xob.)))
                                     in-streak)))
-             (when (equal '(#\x) xobstreak)
-               (setf winner 'x)
+             (when (equal `(,winfor) xobstreak)
+               (setf winner winfor )
                (return))))
       winner))
              

@@ -2,10 +2,10 @@
 ;; General Mathematical Helper Functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defpackage :genetic.linear
+(defpackage :genlin
   (:use :common-lisp))
 
-(in-package :genetic.linear)
+(in-package :genlin)
 
 
 (defun reverse-hash-table (hash-table &key (test 'eql))
@@ -78,7 +78,7 @@ must be disjoint."
 
 
 (defun shuffle (seq)
-  (sort seq #'(lambda (x y) (= 0 (random 2)))))
+  (sort seq #'(lambda (x y) (declare (ignore x y))(= 0 (random 2)))))
 
 (defun n-rnd (low high &optional (r '()) (n 4))
   "Returns a list of n distinct random numbers between low and high."

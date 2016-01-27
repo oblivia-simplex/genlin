@@ -1,19 +1,15 @@
-;;#! /usr/bin/sbcl --script
-
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; Linear Genetic Algorithm
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;;; TODO: create user interface. NCurses?
 
 
-(defpackage :genetic.linear
+(defpackage :genlin
   (:use :common-lisp)) ;; could add sb-thread here. 
 
-(in-package :genetic.linear)
+(in-package :genlin)
 
 (defparameter *project-path*
   "./")
-  ;;"~/Projects/genetic-exercises/genetic-linear/")
 
 (defparameter *tictactoe-path*
   (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe.data"))
@@ -125,13 +121,16 @@
      at runtime. Informative, but increases overhead.")
   
 (defparameter *min-len* 2
-  "The minimum creature length, measured in instructions.") ;; we want to prevent seqs shrinking to nil
+  "The minimum creature length, measured in instructions.")
+;; we want to prevent seqs shrinking to nil
 
 (defparameter *max-len* 256
-  "The maximum creature length, measured in instructions.") ;; max instruction length
+  "The maximum creature length, measured in instructions.")
+;; max instruction length
 
 (defparameter *max-start-len* 25
-  "The maximum length of creatures in the initial population.") ;; max initial instruction length
+  "The maximum length of creatures in the initial population.")
+;; max initial instruction length
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Logging
@@ -804,8 +803,8 @@ fitness function."
       seq))
 
 (defun crossover (p0 p1)
-  ;;  (declare (type cons p0 p1))
-  ;;  (declare (optimize (speed 2)))
+  (declare (type creature p0 p1))
+;;  (declare (optimize (speed 2)))
   (let* ((p00 (creature-seq p0))
          (p01 (creature-seq p1))
          (parents (sort (list p00 p01) #'(lambda (x y) (< (length x) (length y)))))
@@ -1088,43 +1087,41 @@ applying, say, mapcar or length to it, in most cases."
 (defun partition-data (hashtable ratio)
   ;; need to modify this so that the distribution of values in the test
   ;; set is at least similar to the distribution of values in the training
-  (flet ((shuffle (l)
-           (sort l #'(lambda (x y) (= 0 (random 2))))))
-    (let* ((size (hash-table-count hashtable))
-           (training (make-hash-table :test 'equalp))
-           (testing (make-hash-table :test 'equalp))
-           (keys (shuffle (loop for k being the hash-keys in hashtable collect k)))
-           (vals)
+  (let* ((size (hash-table-count hashtable))
+         (training (make-hash-table :test 'equalp))
+         (testing (make-hash-table :test 'equalp))
+         (keys (shuffle (loop for k being the hash-keys in hashtable collect k)))
+         (vals)
            (keys-by-val)
-           (portions))
-      (setf vals (remove-duplicates (loop
-                                       for v being the hash-values
-                                       in hashtable collect v)))
-      (setf keys-by-val (loop for v in vals collect
-                             (remove-if-not
-                              #'(lambda (x) (equalp (gethash x hashtable) v))
-                              keys)))
-      (loop
-         for klist in keys-by-val do
+         (portions))
+    (setf vals (remove-duplicates (loop
+                                     for v being the hash-values
+                                     in hashtable collect v)))
+    (setf keys-by-val (loop for v in vals collect
+                           (remove-if-not
+                            #'(lambda (x) (equalp (gethash x hashtable) v))
+                            keys)))
+    (loop
+       for klist in keys-by-val do
            (push (round (* ratio  size  (/ (length klist)
-                                          size)))
+                                           size)))
                  portions))
-      (setf portions (reverse portions))
-      (and *debug* (format t "TOTAL COUNT OF SPECIMENS: ~D~%CLASS COUNTS: ~A~%PORTIONS FOR TESTING, BY CLASS: ~A~%"
-                           size (mapcar #'length keys-by-val) portions))
-      (loop
-         for keylist in keys-by-val
-         for portion in portions do
-           (if (some #'null keylist) (format t "FOUND NULL IN ~A~%" keylist))
-           (loop for i from 1 to portion do
-                (let ((k))
-                  (setf k (pop keylist))
-                  (setf (gethash k training)
-                        (gethash k hashtable))))
-           (loop for k in keylist do
-                (setf (gethash k testing)
+    (setf portions (reverse portions))
+    (and *debug* (format t "TOTAL COUNT OF SPECIMENS: ~D~%CLASS COUNTS: ~A~%PORTIONS FOR TESTING, BY CLASS: ~A~%"
+                         size (mapcar #'length keys-by-val) portions))
+    (loop
+       for keylist in keys-by-val
+       for portion in portions do
+         (if (some #'null keylist) (format t "FOUND NULL IN ~A~%" keylist))
+         (loop for i from 1 to portion do
+              (let ((k))
+                (setf k (pop keylist))
+                (setf (gethash k training)
                       (gethash k hashtable))))
-      (cons training testing))))
+         (loop for k in keylist do
+              (setf (gethash k testing)
+                    (gethash k hashtable))))
+    (cons training testing)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; User interface functions
@@ -1139,8 +1136,7 @@ applying, say, mapcar or length to it, in most cases."
                 (migration-size *migration-size*)
                 (greedy-migration *greedy-migration*)
                 (filename *data-path*))
-  (let ((filename)
-        (hashtable)
+  (let ((hashtable)
         (training+testing))
     (setf *number-of-islands* number-of-islands
           *population-size* popsize
@@ -1216,11 +1212,11 @@ applying, say, mapcar or length to it, in most cases."
                             (funcall method isle)
                             (sb-thread:release-mutex (island-lock isle)))
                           (dispatch ()
+                            (incf (island-era isle))
                             (if parallelize
                                 (sb-thread:make-thread #'dispatcher)
                                 (dispatcher))))
                    (dispatch)
-                   (incf (island-era isle))
                    (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
                      (sb-thread:grab-mutex -migration-lock-)
                      (princ ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
@@ -1231,12 +1227,12 @@ applying, say, mapcar or length to it, in most cases."
                    (when (= 0 (mod i stat-interval))
                      (print-statistics island-ring)
                      (best-of-all +island-ring+)
-                     (format t "BEST FITNESS: ~F ON ISLAND ~A     RUNNING ~A...~%"
+                     (format t "BEST FIT: ~F ON ISLAND ~A   |   RUNNING ~A ON ~A...~%"
                              (creature-fit *best*)
                              (roman (creature-home *best*))
-                             (func->string method))
+                             (func->string method)
+                             *dataset*)
                      (hrule))
-                   
                    (when (or (> (creature-fit (island-best isle)) target)
                              *STOP*)
                      (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
@@ -1510,7 +1506,7 @@ without incurring delays."
 
 (defun menu ()
   "The front end and user interface of the programme. Allows the user to tweak a number of dynamically scoped, special variables, and then launch setup and evolve."
-  (in-package :genetic.linear)
+  (in-package :genlin)
   (flet ((validate (n)      
            (or (eq n :Q) 
                (and (numberp n)
@@ -1577,4 +1573,5 @@ COUNT).~%~~ ")
       (format t "~%COMMENCING EVOLUTIONARY PROCESS. PLEASE STANDBY.~%~%")
       (evolve :target target :rounds rounds :method method))))
                
+
 

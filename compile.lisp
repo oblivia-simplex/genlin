@@ -1,3 +1,3 @@
 (load "genlin.lisp")
-(in-package :genetic.linear)
+(in-package :genlin)
 (sb-ext:save-lisp-and-die "GENLIN" :executable t :toplevel #'menu)
