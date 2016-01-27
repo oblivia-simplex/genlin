@@ -1,0 +1,815 @@
+[----------------------------------------------------------------------]
+[---------------------------| ON GENLIN |------------------------------]
+[---------------| A LINEAR GENETIC PROGRAMMING ENGINE------------------]
+[----------------------------------------------------------------------]
+[----------------------| Olivia Lucca Fraser |-------------------------]
+[----------------------------------------------------------------------]
+[------------| https://github.com/ObliviaSimplex/genlin |--------------]
+[----------------------------------------------------------------------]
+
+
+1. Execution and Fitness
+2. Reproduction and Variation
+3. Selection and Population Dynamics
+4. Performance Review
+5. Interesting Error Cases
+6. Other Observations
+7. Exemplary Graphs
+
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                        Execution and Fitness
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+At the nucleus of each of the individuals in the population -- its
+"genome" -- is a set of instructions for a virtual register machine,
+written in Lisp. The machine is set up to be very parameterizable: the
+user is able adjust the size and contents of the basic instruction
+set, the number of registers, and the partitioning of the register set
+into read/write and read-only registers easily, just by changing the
+values of a few dynamic variables (this can be done through a crude
+but fairly straightforward menu system that can be reached by calling
+(menu) from the REPL, or by compiling and running the genlin binary).
+
+The parameters used for the trials considered here are as follows:
+
+* each instruction is 8 bits long. This includes
+
+  ~ 3-bit opcode, enumerating 8 basic operations:
+    - protected division (division by zero equals zero)
+    - multiplication
+    - subtraction
+    - addition
+    - bitwise-xor
+    - protected mod (mod zero equals zero)
+    - bitwise-and
+    - conditional jump: increment programme counter when X < Y
+
+  ~ 3-bit source (primary operand) register address
+    - yielding 8 possible source registers, R0 - R7.
+
+  ~ 2-bit destination (secondary operand) register address
+    - yielding 4 possible destination registers R0 - R3.
+    - this leaves 4 registers (R4 - R7) as read-only. These, or a subset
+      of these, were used for loading input data. 
+
+* the number of registers is controlled directly by the size of the
+  register address fields in the instruction template (being equal to
+  max(source-field, destinaton-field), plus one, to make room for a
+  programme counter register (analogous to the RIP register on an
+  AMD64 architecture)).
+
+* no stack or VM process memory space, beyond the registers, has been
+  implemented as of yet, but this could be added fairly easily.
+
+The engine of the VM is the #'execute-sequence function, in
+genlin.lisp. This function takes parameters that specify an input, a
+sequence of instructions, and one or more output registers. It
+iterates over the sequence of instructions (represented as a series of
+integers), incrementing the programme counter, decoding the
+instructions by masking out the fields and indexing into register and
+operation arrays, and then excutes the instructio and updates the
+destination register, and repeats. The function then returns a list of
+the values stored in the output register(s), and these are then taken
+as input by the fitness functions (the typically callers of #'execute
+sequence). 
+
+GENLIN currently maintains two groups of fitness functions, which have
+been tailored to the two benchmark datasets with varying rates
+success. The two most successful -- the two for which the population
+converges most quickly, and succeeds in an accurate classification of
+the data -- are called #'fitness-binary-classifier-1 and
+#'fitness-ternary-classifier-2. The binary classifier works by passing
+an effective (intron-stripped) instruction sequence to the VM, and
+feeding an integer representation of the exemplar and then inspecting
+the value in R0. It maps this value onto the interval [-1, 1] using
+the sigmoid function (tanh (/ x 8)). The function then adds
+sigmoid(output) to the value mapped to the exemplar in the training
+hashtable, which encodes "positive" as +1 and "negative" as -1, and
+divides the result by 2. The idea is that if the output of the VM had
+the same sign as its input's label, then the function would return a
+result between 0.5 and 1, but a result between 0 and 0.5 otherwise.
+The sigmoid introduces a gradient into this otherwise abrupt
+distinction, and helps to nudge the course of evolution in the right
+direction. The divisor in the sigmoid function helps to keep a certain
+window of relevance open -- if the correct answer is "positive", then
+it's better to have a large positive output than a small one, but past
+a certain point size doesn't matter (the window of relevance, here,
+lies between -80 and +80). 
+
+The other fitness function, #'fitness-ternary-classifier-2, used for
+the iris dataset, works like a simple ballot box. The function passes
+a representation of the exemplar to the VM as input (this time as a
+four-element vector of floats, representing petal and sepal
+measurements, with virtually no pre-processing), and the individual's
+effective instruction sequence, and requests the values of R0, R1, and
+R2 in return. It looks at the absolute value of each output register,
+and considers the largest to be a vote in favour of the corresponding
+class (Setosa, Versicolour, Virginica, encoded in the training
+hashtable as 0, 1, and 2). It then takes the average of two functions
+applied to this result: a "first past the post" function, which simply
+awards 1 point for a correct 'vote', and 0 points for an incorrect
+vote, and a "proportional representation" function, which awards a
+float between 0 and 1 which represents the proportion of the absolute
+value in the correct register (the one corresponding to the correct
+class label) to the sum of absolute values in all three output
+registers. This results in a float between 0 and 1, with 0.33 as a
+baseline.
+
+Whichever fitness function is used, the fitness of an individual is
+taken to be the average of the image of that function over the entire
+training set (approximately 80% of the initial dataset).
+
+To speed things along, only the *effective instructions* of each
+individual -- the instructions that have a material impact on the
+output register(s) -- are passed to the VM for execution. These are
+filtered out using the #'remove-introns function, which implements a
+simple O(n) algorithm:
+
+LET R BE A REVERSAL OF THE INSTRUCTION SEQUENCE
+LET ER BE AN EMPTY LIST
+LET EFF BE AN EMPTY STACK
+INSERT OUTPUT REGISTER INDEX(ES) INTO ER
+FOR INSTRUCTION IN R:
+  IF DESTINATION-REGISTER(INSTRUCTION) IS IN ER, THEN:
+    PUSH INSTRUCTION ONTO EFF
+    INSERT SOURCE-REGISTER(INSTRUCTION) INTO ER
+RETURN EFF
+
+with only slight modifications needed to handle jump instructions. The
+resulting sequence EFF is stored in a field in the structure
+repesenting the individual, for quick access. Having this information
+on hand also comes in handy during the breeding process: when a child
+has an effective sequence that exactly matches one of their parents,
+then it is possible to simply copy over the matching parent's fitness
+score into the child's fitness field, potentially saving ourselves the
+trouble, later. 
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                      Reproduction and Variation
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The form of crossover used, in this programme, is two-point crossover.
+A clone P0' and P1' is made of each parent P0, P1, and then a
+subsequence in P0' of length n is replaced with a subsequence of
+length n in P1, and vice versa, yielding two offspring. There is then
+a fixed (but user-parameterizable) chance (currently set to 15%) that
+the child will mutate. Three kinds of mutation are currently possible,
+with 5% likelihood each:
+
+* an instruction-level mutation, whereby a single bit in the
+  instruction is flipped, changing either destination, source, or
+  operation;
+
+* a sequence-level mutation, whereby two randomly selected
+  instructions in a sequence are permuted;
+
+* another sequence-level mutation, whereby a new, randomly generated
+  instruction is appended to the end of the sequence.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                  Selection and Population Dynamics
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Three modes of selection are made available by GENLIN: tournement
+(steady-state), roulette (generational), and greedy roulette
+(mixed). Tournement works by randomly selecting four individuals from
+the population, and measuring their fitness. The two least-fit
+individuals are destroyed, while the two fittest go on to sexually
+reproduce, using the crossover function just described. The victorious
+parents and their children are then returned to the population,
+leaving the size of the population unchanged.
+
+Roulette works by assigning to each individual a probability
+proportionate to their fitness, as compared to the fitness of their
+peers. These probabilities can be thought of as regions in a roulette
+wheel. The wheel is "spun" n times, where n = the size of the
+population, and the winners are paired off to mate, with each mating
+pair producing exactly two children. Up to this point, the roulette
+and greedy roulette algorithms are identical. Roulette proceeds to
+replace the *entire* population with the new generation, while greedy
+roulette concatenates the new population to the old, sorts by fitness,
+and populates the next generation with the top n candidates, again
+leaving the total size of the population unchanged.
+
+Each of these techniques carries with it the risk of eroding diversity
+in the population, with the attendant danger of trapping the
+evolutionary process in a local optimum (for example: when dealing
+with the unbalanced tic-tac-toe dataset, where X wins two out of three
+games, it is common for the population to converge on a fitness of
+0.666, which, of course, represents a ZeroR-like solution to the
+problem: just label every exemplar as positive!). One counter-measure
+to this, which I've found useful, is to subdivide the population into
+a collection of demes or "islands" (as recommended by Brameier and
+Banzhaf in Linear Genetic Programming). These islands are arranged in
+a ring, or circularly linked list, and are bridged only by periodic
+migration events. In the current set of experiments, twelve islands
+were used, with a population of 100 on each. The frequency and size of
+migrations is adjustable, and GENLIN supports both stochastic and
+elitist migrations. For the benchmark cases, I have migration set to
+occur every 1000 rounds of tournement selection, or every 100 rounds
+of roulette, with the 10% fittest individuals on any given island
+migrating to the next island in the ring. 
+
+This way, if a ZeroR-style genotype gains ascendance on one island,
+the other islands have time to produce a competing strain before their
+own diverse populations are wiped out by an invasive ZeroR species,
+which will take 12000 (or 1200) generations to creep around the entire
+island ring. The elitist character of both greedy roulette and
+tournement selection will stop the spread of ZeroR (at .666 fitness)
+the moment something better is available. 
+
+Until I had implemented the island architecture, the tic-tac-toe
+dataset was nearly unmanageable in its initial, unbalanced form, and
+so I had created a balanced, but abridged, version of it for
+development and testing purposes. The situation improved immensely
+upon dividing the population into separate islands, each with
+relatively small populations (100 denizens each, as compared to the
+500-individual population that I was using earlier on). Even now,
+there is a tendency of the evolution to gravitate towards the low
+hanging fruit of ZeroR -- something which could perhaps be mitigated
+by adding more islands, or by strongarming the fitness function in
+such a way as to penalize false positives more severely. 
+
+Since the three selection techniques differ so dramatically in
+structure, ensuring that each receives the same "computational budget"
+is somewhat tricky. It is easier to do the reverse: set a common
+target, and then gauge the computational resources that each technique
+needs to reach that target. I set the target at 0.97 fitness, across
+the board, for all datasets and selection methods. While by no means a
+statistically significant sample (which there has not yet been time to
+gather), the figures below, collected from a recent run, seem to be
+more or less typical of my experience with the programme:
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                        Performance Review
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Here are the performance statistics for all six trial, measuring the
+time and computational resources necessary to reach a fitness of 0.90
+-- which experience with the data and GENLIN has shown to be
+sufficient for as good classification accuracy as currently seems
+possible (or within easy reach of the existing setup). In the case of
+the iris dataset, this often entailed a perfect classification of the
+testing set. In the case of tictactoe, this entailed a perfect
+classification of the cases in which the game had a definite winner --
+the algorithm, however, hit an impasse when it came to draws, as we'll
+see below.
+
+----------------------------------------------------------------------
+
+DATASET: IRIS,  SELECTION: TOURNEMENT
+
+TARGET OF 0.9 REACHED AFTER 6826 ROUNDS
+TOTAL CORRECT: 30
+TOTAL INCORRECT: 0
+
+Evaluation took:
+  2.505 seconds of real time
+  14.788000 seconds of total run time (14.260000
+  user, 0.528000 system)
+  [ Run times consist of 0.092 seconds GC time, and
+  14.696 seconds non-GC time.     ]
+  590.34% CPU
+  8,495,722,471 processor cycles
+  1,379,667,232 bytes consed
+
+----------------------------------------------------------------------
+
+DATASET: TIC-TAC-TOE,  SELECTION: TOURNEMENT
+
+TARGET OF 0.9 REACHED AFTER 7974 ROUNDS
+TOTAL CORRECT: 191
+TOTAL INCORRECT: 0
+
+Evaluation took:
+ 9.972 seconds of real time
+ 63.876000 seconds of total run time (62.724000
+ user, 1.152000 system)
+ [ Run times consist of 0.420 seconds GC time, and
+ 63.456 seconds non-GC time. ]
+ 640.55% CPU
+ 33,827,798,085 processor cycles
+ 5,065,116,128 bytes consed
+
+----------------------------------------------------------------------
+
+DATASET: IRIS,  SELECTION: GREEDY-ROULETTE
+
+TARGET OF 0.9 REACHED AFTER 1000 ROUNDS
+TOTAL CORRECT:   28
+TOTAL INCORRECT: 2
+
+Evaluation took:
+ 16.089 seconds of real time
+ 97.288000 seconds of total run time (95.908000
+ user, 1.380000 system)
+ [ Run times consist of 1.608 seconds GC time, and
+ 95.680 seconds non-GC time. ]
+ 604.69% CPU
+ 54,577,642,378 processor cycles
+ 7,884,631,536 bytes consed
+
+----------------------------------------------------------------------
+
+DATASET: TIC-TAC-TOE,  SELECTION: GREEDY-ROULETTE
+
+TARGET OF 0.9 REACHED AFTER 1009 ROUNDS
+TOTAL CORRECT:   191
+TOTAL INCORRECT: 0
+
+Evaluation took:
+  62.833 seconds of real time
+  416.568000 seconds of total run time (412.032000
+  user, 4.536000 system)
+  [ Run times consist of 5.800 seconds GC time, and
+  410.768 seconds non-GC time. ]
+  662.98% CPU
+  213,148,948,059 processor cycles
+  29,852,844,000 bytes consed
+
+----------------------------------------------------------------------
+
+DATASET: IRIS,  SELECTION: ROULETTE
+
+TARGET OF 0.9 REACHED AFTER 1005 ROUNDS
+TOTAL CORRECT:   27
+TOTAL INCORRECT: 3
+
+Evaluation took:
+  22.057 seconds of real time
+  142.520000 seconds of total run time (140.744000
+  user, 1.776000 system)
+  [ Run times consist of 2.032 seconds GC time, and
+  140.488 seconds non-GC time. ]
+  646.14% CPU
+  74,823,582,597 processor cycles
+  12,514,149,280 bytes consed
+
+----------------------------------------------------------------------
+
+DATASET: TIC-TAC-TOE,  SELECTION: ROULETTE
+
+TARGET OF 0.90 REACHED AFTER 4000 ROUNDS
+TOTAL CORRECT: 191
+TOTAL INCORRECT: 0
+
+Evaluation took:
+  261.964 seconds of real time
+  1497.508000 seconds of total run time (1477.004000
+  user, 20.504000 system)
+  [ Run times consist of 25.424 seconds GC time, and
+  1472.084 seconds non-GC time. ]
+  571.65% CPU
+  888,657,360,123 processor cycles
+  135,797,169,392 bytes consed
+
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                     Interesting Error Cases
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+These accuracy results on tic-tac-toe, however, may be misleading.
+They are the (lucky?) result of sixteen persistently difficult cases
+having landed in the randomly sorted training partition for these
+trials. At the beginning of each trial, I shuffle the labelled
+dataset, divide it into classes, and ensure that the proportions of
+each class are invariant between training and testing sets -- this
+does not, however, preclude an imbalance in *unlabelled*
+characteristics between the two. The most notable when it comes to the
+tic-tac-toe set is the difference between "negative"-labelled games in
+which O has won, and "negative"-labelled games that represent a
+stalemate. The stalemates -- 16 in all -- have consistently scuttled
+my algorithms.
+
+                                                         
+CODE #(14873)   CODE #(14792)  CODE #(16961)  CODE #(15035)
+ o | x | o       o | x | o      o | o | x      o | x | o 
+---+---+---     ---+---+---    ---+---+---    ---+---+---
+ o | x | x       x | x | o      x | x | o      x | o | x 
+---+---+---     ---+---+---    ---+---+---    ---+---+---
+ x | o | x       x | o | x      o | x | x      x | o | x 
+                             
+                            
+CODE #(14441)  CODE #(14684)   CODE #(8309)   CODE #(16871)
+ o | x | x      o | x | x       x | o | o      o | x | x   
+---+---+---    ---+---+---     ---+---+---    ---+---+---  
+ x | x | o      x | o | o       o | x | x      x | o | o   
+---+---+---    ---+---+---     ---+---+---    ---+---+---  
+ o | o | x      x | o | x       x | x | o      o | x | x
+
+
+CODE #(7391)   CODE #(7877)    CODE #(7472)   CODE #(14996)
+ x | o | x      x | o | x       x | o | x      x | x | o   
+---+---+---    ---+---+---     ---+---+---    ---+---+---  
+ x | o | x      x | x | o       o | x | x      o | o | x   
+---+---+---    ---+---+---     ---+---+---    ---+---+---  
+ o | x | o      o | x | o       o | x | o      x | o | x
+ 
+
+CODE #(16868)  CODE #(8444)    CODE #(8435)   CODE #(11837)
+ x | o | x      x | o | x       x | x | o      x | x | o   
+---+---+---    ---+---+---     ---+---+---    ---+---+---  
+ x | o | o      o | o | x       o | o | x      o | x | x   
+---+---+---    ---+---+---     ---+---+---    ---+---+---  
+ o | x | x      x | x | o       x | x | o      x | o | o   
+
+
+Besides being vaguely reminiscent of War Games, this is interesting in
+that it suggests that GENLIN may be recognizing losses as boards in
+which O has won. It would be interesting to repeat the trials while
+switching the encodings for O and X. Currently, O is represented by a
+ternary Gray code 1-bit, and X by a 2-bit (while 0-bits represent
+blank).
+
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                        Other Observations
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+It is interesting to observe the effects of the various selection and
+breeding methods on the diversity of the population, and the relative,
+immediate impact of the variation operators on fitness. I have
+compiled a summary of the average relations between a child's fitness
+and that of its parents, with respect to the different fitness
+functions, datasets, and selection techniques. The results are shown
+below. 
+
+                  FITTER       LESS-FIT     EQUALLY FIT
+
+IRIS TOURNEMENT   16.46%         76.44%           7.10%
+TTT  TOURNEMENT    3.48%         61.49%          35.03%
+
+IRIS G-ROULETTE   24.80%         69.49%           5.41%
+TTT  G-ROULETTE    3.71%         54.64%          41.65%
+
+IRIS   ROULETTE   47.23%         47.53%           5.24%
+TTT    ROULETTE   31.47%         31.04%          37.49%
+
+As selection methods go, Roulette has the greatest likelihood of
+engendering children with a greater fitness than their parents. This
+is, perhaps, in part due to its anti-elitism -- even an abysmally
+unfit parent has a fair chance of breeding, at least in the early
+iterations of the algorithm, and there's no where for the child to go
+but up. Regarding datasets, it's interesting to note that it is with
+tic-tac-toe that we find the greatest number of children whose fitness
+is exactly equal to their parents. This is probably due to the fact
+that only one output register is consulted in the tic-tac-toe fitness
+function, and this means that a much higher proportion of the raw
+instruction sequence is comprised of introns -- and so the variation
+operations often have no direct impact on fitness at all. (Though they
+can, and do, indirectly influence the course of evolution, and prepare
+the sort of sudden leaps that we see much more frequently in the
+tic-tac-toe trials than we do in the more gradual domain of iris
+classification.)
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+                        Exemplary Fitness Graphs
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Below are a handful of representative graphs, from the same trials
+whose time and genealogy statistics are reported above. Note the
+difference in shape between the IRIS graphs (i.e. the graphs plotting
+#'ternary-fitness-2) and the TICTACTOE graphs (the graphs plotting
+#'binary-fitness-1). 
+
+
+IRIS, TOURNEMENT
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND XI
+-----------------------------------------------------------------------------
+
+((500 . 0.89979213) (498 . 0.89801) (489 . 0.87885296) (427 . 0.87814784)
+ (423 . 0.8752985) (413 . 0.8678558) (231 . 0.8568257) (221 . 0.8202301)
+ (114 . 0.81280696) (52 . 0.8030079) (35 . 0.79057074) (15 . 0.7663554)
+ (4 . 0.76119184) (2 . 0.72895753) (1 . 0.60490257))
+
+    0 || 
+   14 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   28 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   42 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   56 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   70 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   84 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   98 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  112 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  126 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  140 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  154 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  168 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  182 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  196 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  210 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  224 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  238 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  252 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  266 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  280 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  294 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  308 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  322 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  336 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  350 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  364 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  378 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  392 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  406 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  420 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  434 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  448 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  462 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  476 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  490 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  504 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+
+TIC-TAC-TOE, TOURNEMENT
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND XI
+-----------------------------------------------------------------------------
+
+((6625 . 0.97868073) (6583 . 0.83308256) (6502 . 0.8291711) (6439 . 0.80972785)
+ (6438 . 0.75215924) (6416 . 0.74858195) (6361 . 0.74311876)
+ (6359 . 0.74100983) (6333 . 0.7385919) (6260 . 0.7377491) (6253 . 0.7338259)
+ (6184 . 0.68592095) (5738 . 0.68584967) (5693 . 0.68581873) (5677 . 0.6845532)
+ (5631 . 0.68312865) (5598 . 0.6830487) (5562 . 0.68302) (5516 . 0.68298775)
+ (5497 . 0.68214667) (5414 . 0.68197024) (4778 . 0.6815167) (4674 . 0.68104947)
+ (4597 . 0.67976546) (4585 . 0.6794204) (3591 . 0.6793032) (3415 . 0.6792699)
+ (2922 . 0.6714472) (2850 . 0.67090076) (2836 . 0.6636134) (2672 . 0.66143274)
+ (2585 . 0.66136533) (2505 . 0.6597133) (1268 . 0.65580183) (1242 . 0.6549652)
+ (1171 . 0.6548174) (861 . 0.65449804) (672 . 0.654417) (587 . 0.65350527)
+ (501 . 0.65347415) (3 . 0.65319425) (2 . 0.51905495))
+
+    0 || 
+  189 || XXXXXXXXXXXXXXXXXXXX
+  378 || XXXXXXXXXXXXXXXXXXXX
+  567 || XXXXXXXXXXXXXXXXXXXX
+  756 || XXXXXXXXXXXXXXXXXXXX
+  945 || XXXXXXXXXXXXXXXXXXXX
+ 1134 || XXXXXXXXXXXXXXXXXXXX
+ 1323 || XXXXXXXXXXXXXXXXXXXX
+ 1512 || XXXXXXXXXXXXXXXXXXXX
+ 1701 || XXXXXXXXXXXXXXXXXXXX
+ 1890 || XXXXXXXXXXXXXXXXXXXX
+ 2079 || XXXXXXXXXXXXXXXXXXXX
+ 2268 || XXXXXXXXXXXXXXXXXXXX
+ 2457 || XXXXXXXXXXXXXXXXXXXX
+ 2646 || XXXXXXXXXXXXXXXXXXXXX
+ 2835 || XXXXXXXXXXXXXXXXXXXXX
+ 3024 || XXXXXXXXXXXXXXXXXXXXXX
+ 3213 || XXXXXXXXXXXXXXXXXXXXXX
+ 3402 || XXXXXXXXXXXXXXXXXXXXXX
+ 3591 || XXXXXXXXXXXXXXXXXXXXXXX
+ 3780 || XXXXXXXXXXXXXXXXXXXXXXX
+ 3969 || XXXXXXXXXXXXXXXXXXXXXXX
+ 4158 || XXXXXXXXXXXXXXXXXXXXXXX
+ 4347 || XXXXXXXXXXXXXXXXXXXXXXX
+ 4536 || XXXXXXXXXXXXXXXXXXXXXXX
+ 4725 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 4914 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 5103 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 5292 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 5481 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 5670 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 5859 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 6048 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 6237 || XXXXXXXXXXXXXXXXXXXXXXXX
+ 6426 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+ 6615 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+ 6804 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+
+IRIS, GREEDY ROULETTE
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO
+-----------------------------------------------------------------------------
+
+((45 . 0.87768435) (44 . 0.8540002) (34 . 0.84184325) (10 . 0.8417474)
+ (9 . 0.7747663) (2 . 0.76024526) (2 . 0.7367224) (1 . 0.7355932)
+ (1 . 0.727303) (1 . 0.3131666))     0 || 
+
+    1 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    2 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    3 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    4 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    5 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    6 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    7 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    8 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    9 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   10 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   11 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   12 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   13 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   14 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   15 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   16 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   17 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   18 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   19 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   20 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   21 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   22 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   23 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   24 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   25 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   26 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   27 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   28 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   29 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   30 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   31 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   32 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   33 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   34 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   35 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   36 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   37 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   38 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   39 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   40 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   41 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   42 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   43 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   44 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   45 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+
+TICTACTOE, GREEDY ROULETTE
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO
+-----------------------------------------------------------------------------
+
+((84 . 0.9791395) (84 . 0.85614055) (84 . 0.68239343) (84 . 0.65449804)
+ (84 . 0.65426445) (84 . 0.65368646) (1 . 0.65319425) (1 . 0.5190538) (1 . 0.5))     0 || 
+
+    2 || XXXXXXXXXXXXXXXXXXXX
+    4 || XXXXXXXXXXXXXXXXXXXX
+    6 || XXXXXXXXXXXXXXXXXXXX
+    8 || XXXXXXXXXXXXXXXXXXXX
+   10 || XXXXXXXXXXXXXXXXXXXX
+   12 || XXXXXXXXXXXXXXXXXXXX
+   14 || XXXXXXXXXXXXXXXXXXXX
+   16 || XXXXXXXXXXXXXXXXXXXX
+   18 || XXXXXXXXXXXXXXXXXXXX
+   20 || XXXXXXXXXXXXXXXXXXXX
+   22 || XXXXXXXXXXXXXXXXXXXX
+   24 || XXXXXXXXXXXXXXXXXXXX
+   26 || XXXXXXXXXXXXXXXXXXXX
+   28 || XXXXXXXXXXXXXXXXXXXX
+   30 || XXXXXXXXXXXXXXXXXXXX
+   32 || XXXXXXXXXXXXXXXXXXXX
+   34 || XXXXXXXXXXXXXXXXXXXX
+   36 || XXXXXXXXXXXXXXXXXXXX
+   38 || XXXXXXXXXXXXXXXXXXXX
+   40 || XXXXXXXXXXXXXXXXXXXX
+   42 || XXXXXXXXXXXXXXXXXXXX
+   44 || XXXXXXXXXXXXXXXXXXXX
+   46 || XXXXXXXXXXXXXXXXXXXX
+   48 || XXXXXXXXXXXXXXXXXXXX
+   50 || XXXXXXXXXXXXXXXXXXXX
+   52 || XXXXXXXXXXXXXXXXXXXX
+   54 || XXXXXXXXXXXXXXXXXXXX
+   56 || XXXXXXXXXXXXXXXXXXXX
+   58 || XXXXXXXXXXXXXXXXXXXX
+   60 || XXXXXXXXXXXXXXXXXXXX
+   62 || XXXXXXXXXXXXXXXXXXXX
+   64 || XXXXXXXXXXXXXXXXXXXX
+   66 || XXXXXXXXXXXXXXXXXXXX
+   68 || XXXXXXXXXXXXXXXXXXXX
+   70 || XXXXXXXXXXXXXXXXXXXX
+   72 || XXXXXXXXXXXXXXXXXXXX
+   74 || XXXXXXXXXXXXXXXXXXXX
+   76 || XXXXXXXXXXXXXXXXXXXX
+   78 || XXXXXXXXXXXXXXXXXXXX
+   80 || XXXXXXXXXXXXXXXXXXXX
+   82 || XXXXXXXXXXXXXXXXXXXX
+   84 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+ 
+IRIS, ROULETTE
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND VIII
+-----------------------------------------------------------------------------
+
+((83 . 0.9083929) (23 . 0.87105525) (6 . 0.80118287) (6 . 0.7899321)
+ (5 . 0.7550938) (1 . 0.75132275) (1 . 0.73559326) (1 . 0.7322034)
+ (1 . 0.719905) (1 . 0.63591385) (1 . 0.61330146) (1 . 0.3243614))     0 || 
+
+    2 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    4 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    6 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    8 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   10 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   12 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   14 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   16 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   18 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   20 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   22 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   24 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   26 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   28 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   30 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   32 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   34 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   36 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   38 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   40 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   42 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   44 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   46 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   48 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   50 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   52 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   54 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   56 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   58 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   60 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   62 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   64 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   66 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   68 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   70 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   72 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   74 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   76 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   78 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   80 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   82 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+   84 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+
+TICTACTOE, ROULETTE
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND III
+-----------------------------------------------------------------------------
+
+((667 . 0.9791395) (500 . 0.65449804) (250 . 0.654417) (83 . 0.65384614)
+ (72 . 0.65350217) (20 . 0.65347415) (1 . 0.65319425) (1 . 0.50000006))     0 || 
+
+   19 || XXXXXXXXXXXXXXXXXXXX
+   38 || XXXXXXXXXXXXXXXXXXXX
+   57 || XXXXXXXXXXXXXXXXXXXX
+   76 || XXXXXXXXXXXXXXXXXXXX
+   95 || XXXXXXXXXXXXXXXXXXXX
+  114 || XXXXXXXXXXXXXXXXXXXX
+  133 || XXXXXXXXXXXXXXXXXXXX
+  152 || XXXXXXXXXXXXXXXXXXXX
+  171 || XXXXXXXXXXXXXXXXXXXX
+  190 || XXXXXXXXXXXXXXXXXXXX
+  209 || XXXXXXXXXXXXXXXXXXXX
+  228 || XXXXXXXXXXXXXXXXXXXX
+  247 || XXXXXXXXXXXXXXXXXXXX
+  266 || XXXXXXXXXXXXXXXXXXXX
+  285 || XXXXXXXXXXXXXXXXXXXX
+  304 || XXXXXXXXXXXXXXXXXXXX
+  323 || XXXXXXXXXXXXXXXXXXXX
+  342 || XXXXXXXXXXXXXXXXXXXX
+  361 || XXXXXXXXXXXXXXXXXXXX
+  380 || XXXXXXXXXXXXXXXXXXXX
+  399 || XXXXXXXXXXXXXXXXXXXX
+  418 || XXXXXXXXXXXXXXXXXXXX
+  437 || XXXXXXXXXXXXXXXXXXXX
+  456 || XXXXXXXXXXXXXXXXXXXX
+  475 || XXXXXXXXXXXXXXXXXXXX
+  494 || XXXXXXXXXXXXXXXXXXXX
+  513 || XXXXXXXXXXXXXXXXXXXX
+  532 || XXXXXXXXXXXXXXXXXXXX
+  551 || XXXXXXXXXXXXXXXXXXXX
+  570 || XXXXXXXXXXXXXXXXXXXX
+  589 || XXXXXXXXXXXXXXXXXXXX
+  608 || XXXXXXXXXXXXXXXXXXXX
+  627 || XXXXXXXXXXXXXXXXXXXX
+  646 || XXXXXXXXXXXXXXXXXXXX
+  665 || XXXXXXXXXXXXXXXXXXXX
+  684 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+
+
