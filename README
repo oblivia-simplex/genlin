@@ -27,7 +27,7 @@ population of algorithms can be fun.
 To compile a standalone binary (assuming you have SBCL installed
 somewhere on your system):
 
-sbcl --script compile.lisp
+make
 
 This will generate a (large) binary file called "genlin". Run it, 
 and follow the prompts. 
