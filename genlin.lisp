@@ -11,12 +11,6 @@
 (defparameter *project-path*
   "./")
 
-(defparameter *tictactoe-path*
-  (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe.data"))
-
-(defparameter *iris-path*
-  (concatenate 'string *project-path* "datasets/Iris/iris.data"))
-
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
 
@@ -28,109 +22,14 @@
 
 (declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
 
+
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(loop for f in '("auxiliary.lisp"
+(loop for f in '("params.lisp"
+                 "auxiliary.lisp"
                  "tictactoe.lisp"
                  "iris.lisp") do
      (loadfile (concatenate 'string *project-path* f)))
-
-(defparameter *STOP* nil)
-
-(defparameter *best* nil)
-
-(defparameter *DEBUG* nil
-  "The debugging flag. If set to T, then you will be treated to a very
-     verbose, live disassembly of the instructions being excuted in the
-     virtual machine, along with a few other pieces of information. Do
-     not use in conjunction with *parallel.*")
-
-(defparameter *parallel* t
-  "Enables multithreading when set to T, allotting the evolutionary
-     process on each island its own thread.")
-
-(defparameter *VERBOSE* nil)
-
-(defparameter *stat-interval* 1000
-  "Number of cycles per verbose update on the evolutionary process.")
-
-(defparameter *dataset* :tictactoe
-  "Currently accepts only two values: :tictactoe and :iris. This tells
-     the programme which dataset to load, and which related data
-     processing functions to use.")
-
- 
-(defparameter *data-path* (if (eq *dataset* :tictactoe)
-                              *tictactoe-path* *iris-path*)
-  "Path to the data file. Mismatching *data-path* and *dataset* will
-     almost certainly break something, at the moment.")
-
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; Genetic Parameters
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-;; Vars and types:
-
-(defstruct creature fit seq eff gen home parents) 
-
-(defstruct island id of deme best era logger lock)
-
-(defvar +ISLAND-RING+)
-
-(setf +ISLAND-RING+ '())
-
-(defvar *training-ht* (make-hash-table :test 'equalp))
-
-(defvar *testing-ht* (make-hash-table :test 'equalp))
-
-(defvar -print-lock- (sb-thread:make-mutex :name "print lock"))
-
-(defvar -migration-lock- (sb-thread:make-mutex :name "migration lock"))
-
-;; ......................................................................
-;; Tweakables
-;; ......................................................................
-
-(defparameter *number-of-islands* 12
-  "Islands are relatively isolated pockets in the population, linked
-     in a ring structure and bridged by occasional migration. Can be set
-     to any integer > 0.")
-
-(defparameter *population-size* 1200
-  "Remains constant throughout the evolution. Should be > 40.")
-
-(defparameter *specimens* '())
-
-(defparameter *mutation-rate* 15
-  "Chance of mutation per spawning event, expressed as percentage.")
-
-(defparameter *migration-size* 10
-  "Percentage of population that leaves one deme for the next, 
-     per migration event.") ;; percent
-
-(defparameter *migration-rate* 1000
-  "Frequency of migrations, measured in main loop cycles.")
-
-(defparameter *greedy-migration* t
-  "If set to T, migrants are always the fittest in their deme.
-     Otherwise random.")
-
-(defparameter *track-genealogy* t
-  "If set to T, then genealogical lineage and statistics are computed
-     at runtime. Informative, but increases overhead.")
-  
-(defparameter *min-len* 2
-  "The minimum creature length, measured in instructions.")
-;; we want to prevent seqs shrinking to nil
-
-(defparameter *max-len* 256
-  "The maximum creature length, measured in instructions.")
-;; max instruction length
-
-(defparameter *max-start-len* 25
-  "The maximum length of creatures in the initial population.")
-;; max initial instruction length
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Logging
@@ -189,48 +88,68 @@
 
 (defun MOV (&rest args)
   "Copy the contents in SRC to register DST."
-  (car args))
+  (declare (type (or null (cons rational)) args))
+  (the rational (coerce (car args) 'rational)))
 
 (defun DIV (&rest args)
   "A divide-by-zero-proof division operator."
-  (if (some #'zerop args) 0
-      (handler-case (/ (car args) (cadr args))
-        (error () 0))))
+  (declare (type (or null (cons rational)) args))
+  (the rational (if (some #'zerop args) 0
+                (/ (car args) (cadr args)))))
+                          
 
 (defun XOR (&rest args) ;; xor integer parts
   "Performs a bitwise XOR on SRC and DST, storing the result in DST."
-  (logxor (floor (car args)) (floor (cadr args))))
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
+  (the rational (coerce (logxor (floor (car args)) (floor (cadr args))) 'rational)))
 
 (defun CNJ (&rest args)
   "Performs a bitwise AND on SRC and DST, storing the result in DST."
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
   (logand (floor (car args)) (floor (cadr args))))
 
 (defun DIS (&rest args)
   "Performs a bitwise OR on SRC and DST, storing the result in DST."
-  ;;x  (declare (type (cons fixnum)) args)
-  (lognot (logand  (lognot (floor (car args)))
-                   (lognot (floor (cadr args))))))
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
+  (the rational (lognot (logand  (lognot (floor (car args)))
+                               (lognot (floor (cadr args)))))))
 
 (defun PMD (&rest args)
   "Performs a protected SRC MOD DST, storing the result in DST."
-  (if (some #'zerop args) (car args)
-      (mod (car args) (cadr args))))
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
+  (the rational (if (some #'zerop args)
+                (car args)
+                (mod (car args) (cadr args)))))
 
 (defun ADD (&rest args)
-  "Adds the real-valued contents of SRC and DST, storing result in DST."
-  (+ (car args) (cadr args)))
+  "Adds the rational-valued contents of SRC and DST, storing result in DST."
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
+  (the rational (+ (car args)
+               (cadr args))))
 
 (defun SUB (&rest args)
   "Subtracts DST from SRC, storing the value in DST."
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
   (- (car args) (cadr args)))
 
 (defun MUL (&rest args)
   "Multiplies SRC and DST, storing the value in DST."
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
   (* (car args) (cadr args)))
 
 (defun JLE (&rest args) ;; CONDITIONAL JUMP OPERATOR
   "Increments the programme counter iff X < Y."
-  (if (<= (car args) (cadr args)) (1+ (caddr args))
+  (declare (type (or null (cons rational)) args))
+  (check-type args (cons rational))
+  (if (<= (car args) (cadr args))
+      (1+ (caddr args))
       (caddr args)))
 
 (defparameter *operations*
@@ -337,22 +256,23 @@
 
 (defun src? (inst)
   (declare (type fixnum inst))
-  (declare (type cons *srcbits*))
-  (ldb *srcbits* inst))
+  (declare (type (cons integer) *srcbits*))
+  (the unsigned-byte (ldb *srcbits* inst)))
 
 (defun dst? (inst)
   (declare (type fixnum inst))
-  (declare (type cons *dstbits*))
-  (ldb *dstbits* inst))
+  (declare (type (cons integer) *dstbits*))
+  (the unsigned-byte (ldb *dstbits* inst)))
 
 (defun op? (inst)
   (declare (type fixnum inst))
-  (declare (type cons *opbits*))
+  (declare (type (cons integer) *opbits*))
   (declare (type (simple-array function) *operations*))
-  (aref *operations* (ldb *opbits* inst)))
+  (the function (aref *operations* (ldb *opbits* inst))))
 
 (defun jmp? (inst) ;; ad-hoc-ish...
-  (equalp (op? inst) #'JLE))
+  (declare (type fixnum inst))
+  (the boolean (equalp (op? inst) #'JLE)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -380,8 +300,8 @@ represents a clash."
   (mapcar #'allonesp (seq-schema-match seq1 seq2)))
 
 (defun likeness (seq1 seq2)
-  (div (length (remove-if #'null (boolean-seq-schema-match seq1 seq2)))
-       (max (length seq1) (length seq2))))
+  (divide (length (remove-if #'null (boolean-seq-schema-match seq1 seq2)))
+     (max (length seq1) (length seq2))))
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -481,6 +401,15 @@ entries in the history stack, tracking changes to the registers."
                  (format t "~%")))))
   (if static (hrule)))
 
+(defun guard-val (val minval maxval)
+  "Formats values for registers: guards against overflow, and type casts."
+  (declare (type rational val minval maxval))
+  (let ((sign (if (< val 0) -1 1)))
+    (declare (type fixnum sign))
+    (the rational (coerce (cond ((< (abs val) minval) (* sign minval))
+                             ((> (abs val) maxval) (* sign maxval))
+                             (t val)) 'rational))))
+
 (defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*) (output nil)
                                (debug nil))
@@ -488,15 +417,22 @@ entries in the history stack, tracking changes to the registers."
 state vector, registers, and then runs the virtual machine, returning
 the resulting value in the registers indexed by the integers in the
 list parameter, output."
-  (declare (type fixnum *input-start-idx*))
+  (declare (type fixnum *input-start-idx* *pc-idx*))
   (declare (inline src? dst? op?))
-  (declare (type cons output))
-  (declare (type simple-array input))
+  (declare (type (cons integer) output))
+  (declare (type (simple-array rational 1) input registers seq))
+  (declare (optimize (speed 2)))
   (flet ((save-state (inst regs)
+           (declare (type (simple-array *) regs))
+           (declare (type integer inst))
+           (declare (type function =history=))
            (funcall =history= (cons inst regs))))
     (let ((regs (copy-seq registers))
           (seqlen (length seq))
           (debugger (or debug *debug*)))
+      (declare (type (simple-array rational 1) regs))
+      (declare (type fixnum seqlen))
+      (declare (type boolean debugger))
       ;; the input values will be stored in read-only regs
       (setf (subseq regs *input-start-idx*
                     (+ *input-start-idx* (length input))) input)
@@ -513,7 +449,7 @@ list parameter, output."
                (incf (aref regs *pc-idx*))
                ;; Perform the operation and store the result in [dst]
                (setf (aref regs D)
-                     (guard-val (apply (op? inst)
+                     (guard-val (apply (op? inst) 
                                        (list (aref regs (src? inst))
                                              (aref regs (dst? inst))
                                              (aref regs *pc-idx*)))
@@ -678,7 +614,7 @@ positive (+1)."
              ;; measure proportion of correct vote to total votes
              ;; compare r0 to sum if val < 0
              ;; compare r1 to sum if val >= 0
-             (incf acc1 (DIV (deneg (nth (to-idx val) output))
+             (incf acc1 (divide (deneg (nth (to-idx val) output))
                              (reduce #'+ (mapcar #'deneg output))))
              (incf acc2 (check output (to-idx val)))))
 
@@ -704,7 +640,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
          (let ((output (execute-sequence seq
                                          :input pattern
                                          :output .out-reg.)))
-           (incf acc (DIV (abs (nth i output))
+           (incf acc (divide (abs (nth i output))
                           (reduce #'+ (mapcar #'abs output))))))
     (/ acc (hash-table-count .training-hashtable.))))
 
@@ -725,7 +661,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
          (let ((output (execute-sequence seq
                                          :input pattern
                                          :output .out-reg.)))
-           (incf acc1 (DIV (abs (nth i output))
+           (incf acc1 (divide (abs (nth i output))
                            (reduce #'+ (mapcar #'abs output))))
            (incf acc2 (if (> (* (abs (nth i output)) 3) (reduce #'+ output))
                           1 0))))
@@ -804,7 +740,8 @@ fitness function."
 
 (defun crossover (p0 p1)
   (declare (type creature p0 p1))
-;;  (declare (optimize (speed 2)))
+  (declare (optimize (speed 1)))
+
   (let* ((p00 (creature-seq p0))
          (p01 (creature-seq p1))
          (parents (sort (list p00 p01) #'(lambda (x y) (< (length x) (length y)))))
@@ -819,9 +756,7 @@ fitness function."
          (minidx (min idx0 idx1))
          (maxidx (max idx0 idx1))
          (children))
-    ;;    (declare (type cons mother father daughter son))
-    ;;    (declare (type fixnum idx0 idx1 minidx maxidx offset r-align))
-                                        ;(format t "minidx: ~d  maxidx: ~d  offset: ~d~%" minidx maxidx offset)
+ 
     (setf (subseq daughter (+ offset minidx) (+ offset maxidx))
           (subseq father minidx maxidx))
     (setf (subseq son minidx maxidx)
@@ -1289,7 +1224,7 @@ applying, say, mapcar or length to it, in most cases."
   "A weak, but often informative, likeness gauge. Assumes gene alignment,
 for the sake of a quick algorithm that can be dispatched at runtime
 without incurring delays."
-  (float (div (reduce #'+
+  (float (divide (reduce #'+
                       (mapcar #'(lambda (x) (likeness (creature-eff specimen)
                                                  (creature-eff x)))
                               (remove-if
@@ -1324,12 +1259,12 @@ without incurring delays."
                  (func->string (aref *operations* x))
                  (aref buckets x)
                  #\tab
-                 (* 100 (div (aref buckets x) sum)) #\tab)
+                 (* 100 (divide (aref buckets x) sum)) #\tab)
          (format t "~C~A: ~4D~c(~5,2f %)~%" #\tab
                  (func->string (aref *operations* y))
                  (aref buckets y)
                  #\tab
-                 (* 100 (div (aref buckets y) sum))))))
+                 (* 100 (divide (aref buckets y) sum))))))
 
 (defun percent-effective (crt &key (out *output-reg*))
   (when (equalp #() (creature-eff crt))
@@ -1389,11 +1324,11 @@ without incurring delays."
          (lastgen (caar fitlog))
          (row #\newline)
          (divisor 35)
-         (interval (max 1 (floor (div lastgen divisor))))
+         (interval (max 1 (floor (divide lastgen divisor))))
          (scale 128)
          (bar-char #\X))
     ;;         (end-char #\x))
-    (print fitlog)
+    (format t "~A~%" fitlog)
     (dotimes (i (+ lastgen interval))
       (when (assoc i fitlog)
         (setf row (format nil "~v@{~c~:*~}"
@@ -1404,8 +1339,8 @@ without incurring delays."
     (hrule)
     (format t "        ")
     (let ((x-axis 50))
-      (dotimes (i (floor (div scale 2)))
-        (if (= (pmd i (floor (div scale 10.5))) 0)
+      (dotimes (i (floor (divide scale 2)))
+        (if (= (pmd i (floor (divide scale 10.5))) 0)
             (progn 
               (format t "~d" x-axis)
               (when (>= x-axis 100) (return))

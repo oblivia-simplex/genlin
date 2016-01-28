@@ -19,11 +19,9 @@
   (if (= 0 n) "ZERO" (format nil "~@R" n)))
 
 
-(defun guard-val (val minval maxval)
-  (let ((sign (if (< val 0) -1 1)))
-    (cond ((< (abs val) minval) (* sign minval))
-          ((> (abs val) maxval) (* sign maxval))
-          (t val))))
+(defun divide (&rest args)
+  (if (some #'zerop args) 0
+      (reduce #'/ args)))
 
 (defun to-gray-vec (base digits value)
   ;; adapted from C programme found in Wikipedia's Gray Code entry
