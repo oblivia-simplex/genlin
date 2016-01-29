@@ -6,6 +6,35 @@
 
 (defparameter *machine* :slomachine)
 
+;;; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+;;; SLOMACHINE (Store/LOad-machine) is an alternative architecture to be
+;;; used for the genetic programming engine in GENLIN. The most signficant
+;;; difference between SLOMACHINE and R-MACHINE (its predecessor) is that
+;;; SLOMACHINE introduces support for STO and LOD instructions, allowing
+;;; a creature to inspect its own source code and load bytes of source
+;;; into its registers with LOD (giving it a nutrious, autophagic diet of
+;;; fresh constants) and to rewrite its own code segment with STO. This can
+;;; be used either as a simple means of storing data for later, when writing
+;;; to past instructions (instructions at indicies prior to the current
+;;; programme counter) or as a control structure, when it is used to write
+;;; to its own future.
+;;;
+;;; Preliminary trials have shown GPs running on SLOMACHINE --
+;;; particularly with the tic-tac-toe data set -- to converge up to 40
+;;; times faster than they did on R-MACHINE, and result in much
+;;; simpler and more compact code. (On ttt, this meant a convergence by
+;;; generation 200 or so, rather than generation 5000, when running in
+;;; tournement mode.)
+;;;
+;;; On a smaller scale, it is somewhat slower than R-MACHINE, however,
+;;; and REMOVE-INTRONS is unable to streamline the code before
+;;; execution, since we may need to know what the input is before we
+;;; can calculate the effective registers. This isn't a totally
+;;; insurmountable obstacle, however, but an improved remove-introns
+;;; algorithm remains to be written.
+;;; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -117,14 +146,11 @@
       (1+ (caddr args))
       (caddr args)))
 
-
-
 (defun LOD (&rest args) ;; CONDITIONAL JUMP OPERATOR
   "Stub. Really just here for consistent pretty printing."
   (declare (ignore args))
   (print "You shouldn't be seeing this.")
   0)
-
 
 (defun STO (&rest args) ;; CONDITIONAL JUMP OPERATOR
   "Stub. Really just here for consistent pretty printing."
@@ -132,32 +158,6 @@
   (print "You shouldn't be seeing this.")
   0)
 
-
-  ;; (declare (type (or null (cons rational)) args))
-  ;; (check-type args (cons rational))
-  ;; (if (<= (car args) (cadr args))
-  ;;     (1+ (caddr args))
-  ;;     (caddr args)))
-
-;; we need to add a flag bit or two: one for jump instructions, one for
-;; memory oriented instructions (as opposed to register-based). Two more
-;; bits to the opcode, then.
-
-;; let's aim for a 16-bit instruction as the standard.
-
-;; load and stor are effectively MOV, with some type coercion.
-
-;; (defun LOD (&rest args)
-;;   "Copy the contents in MEM[src] to REG[dst]."
-;;   (declare (type (or null (cons rational)) args))
-;;   (check-type args (cons rational))
-;;   (the integer (floor (car args))))
-
-;; (defun STO (&rest args)
-;;   "Copy the contents in REG[src] to MEM[dst]."
-;;   (declare (type (or null (cons rational)) args))
-;;   (check-type args (cons rational))
-;;   (the integer (floor (car args))))
 
 (defun shuffle-operations ()
   (setf *operations* (coerce (shuffle (coerce *operations* 'list)) 'vector)))
@@ -288,55 +288,12 @@ the form of a function."
   (declare (type (cons (signed-byte 16)) *opbits*))
   (the signed-byte (ldb *opbits* inst)))
 
-;; ;; can i pass vecs by ref?
-;; (defun flg? (inst)
-;;   (declare (type fixnum inst))
-;;   (declare (type (cons integer) *flgbits*))
-;;   (the signed-byte (ldb *flgbits* inst)))
-
-    
-
-    
  (defun jmp? (inst) ;; ad-hoc-ish...
    (declare (type fixnum inst))
    (the boolean (equalp (op? inst) #'JLE)))
 
-;; ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-;; (defun enter-input (registers input)
-;;   (let ((copy (copy-seq registers)))
-;;     (setf (subseq copy *input-start-idx*
-;;                   (+ *input-start-idx* (length input)))
-;;           input)
-;;     copy))
-
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; Execution procedure
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-;; encapsulate in its own let environment?
-
-;; MESSY, and TOO SLOW. Try to delegate debugging output elsewhere. 
-
-
-;; Thoughts on how to add a stack:
-;; - the tricky part is getting the stack instructions (push, pop) and
-;; the stack structure to communicate. We don't want the stack to get
-;; corrupted by multithreaded activity, so we should enclose it in the
-;; execute-sequence environment, you'd think, but then our operations
-;; can't be defined where they are now. We'd have to find a way of treating
-;; the ops as macros --- macros that may inject a free stack variable
-;; into the execute-sequence environment -- but then we hae to change the
-;; that that they're currently called.
-;; another possibility is to let each "creature" maintain its own stack,
-;; as a field in its struct. This is actually pretty close to the idea of
-;; each process/thread having a stack of its own. 
-
-;; Almost certainly not threadsafe. 
-;; the problem is sidestepped, though, by restricting its use to
-;; either debugging mode (which should be single-threaded) or
-;; to print jobs that are wrapped in mutexes. 
 (defparameter =history=
   (let ((hist '()))
     (lambda (&optional (entry nil))
@@ -413,6 +370,10 @@ entries in the history stack, tracking changes to the registers."
                (format t "~%"))))
   (if static (hrule))))
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; The engine room
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 (defun guard-val (val minval maxval)
   "Formats values for registers: guards against overflow, and type casts."
   (declare (type rational val minval maxval))
@@ -422,9 +383,6 @@ entries in the history stack, tracking changes to the registers."
                              ((> (abs val) maxval) (mod val maxval))
                              (t val))
                           'rational))))
-
-
-
 
 (defparameter *operations*
   (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    
@@ -447,7 +405,13 @@ entries in the history stack, tracking changes to the registers."
 
 ;; Some anaphoric macros for quickly dispatching instructions
 ;; and clarifying code, without costly stack operations
+;;
+;; NB: variables prefixed with the % sigil are free, and should be bound
+;; +++ in the environment into which these macros are injected (presumably,
+;;     just execute-sequence).
+
 (defmacro exec-reg-inst (inst)
+  "Executes a register-manipulation instruction."
   `(setf (aref %reg (dst? ,inst))
          (guard-val (apply (op? ,inst) 
                            (list (aref %reg (src? ,inst))
@@ -455,6 +419,8 @@ entries in the history stack, tracking changes to the registers."
                     *minval* *maxval*)))
 
 (defmacro exec-jmp-inst (inst)
+  "Executes a jump-type instruction (anaphorically modifies %pc,
+according to operation (op? inst)."
   `(setf %pc
          (guard-val (apply (op? ,inst)
                            (list (aref %reg (src? ,inst))
@@ -465,10 +431,6 @@ entries in the history stack, tracking changes to the registers."
 (defmacro exec-load-inst (inst)
   "Loads contents of memory at address indexed by SRC register into
 DST register."
-  ;; Note: if we use the flag bits to signal REG, JUMP, LOAD, STOR
-  ;; then we still have the opcode bits free for use here. Do we want
-  ;; to use flag bits at all? Should we have store and load perform
-  ;; operations on their arguments, too -- with MOV as the neutral op?
   `(setf (aref %reg (dst? ,inst))
          (aref %seq (mod (floor (aref %reg (src? ,inst))) (length %seq)))))
 
@@ -535,9 +497,9 @@ list parameter, output."
       (mapcar #'(lambda (i) (aref %reg i)) output))))
 
 
-  ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-  ;; debugging functions
-  ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; debugging functions
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
   
 (defun print-registers (registers)
   (loop for i from 0 to (1- (length registers)) do
