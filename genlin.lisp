@@ -6,7 +6,7 @@
 (in-package :genlin)
 
 (defparameter *project-path*
-  "~/Projects/genlin/")
+  "./")
 
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
@@ -43,9 +43,6 @@
           :less-fit-than-parents 0
           :as-fit-as-parents 0)))
 
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;;                            Virtual machine
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun inst-schema-match (&rest instructions)
   "Returns a Holland-style schema that matches all of the instructions
