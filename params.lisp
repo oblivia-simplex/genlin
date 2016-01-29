@@ -104,3 +104,6 @@
   "The maximum length of creatures in the initial population.")
 ;; max initial instruction length
 
+(defparameter *training-ratio* 4/5
+  "The ratio of training cases to total cases (the remainder being
+    reserved for testing.")

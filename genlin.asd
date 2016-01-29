@@ -1,9 +1,12 @@
+;;;; genlin.asd
+
 (asdf:defsystem #:genlin
-  :depends-on (#:common-lisp)
-  :components ((:file "auxiliary")
-               (:file "tictactoe")
-               (:file "iris")
-               (:file "genlin"
-                      :depends-on ("tictactoe"))))
+  :description "A linear genetic programming engine"
+  :author "Olivia Lucca Fraser <lucca.fraser@gmail.com>"
+  :license "GNU GPL"
+  :depends-on (#:sb-thread)
                
-                 
+  :serial t
+  :components ((:file "package")
+               (:file "genlin")))
+

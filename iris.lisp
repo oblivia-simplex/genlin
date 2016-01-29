@@ -9,8 +9,11 @@
 
 
 (defun parse-iris-key (k)
-  (read-from-string (concatenate 'string "#("
-                                 (substitute #\space #\, k) ")")))
+  (coerce (mapcar #'rational
+                  (read-from-string
+                   (concatenate 'string "("
+                                (substitute #\space #\, k) ")")))
+          'vector))
 
 (defun iris-hash (line ht)
   (let* ((kv (split-at-label line))
