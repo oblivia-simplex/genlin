@@ -28,13 +28,6 @@
     *rounds*
     *target*))    
 
-(defun print-tweakables ()
-  (loop
-     for symbol in *tweakables*
-     for i from 0 to (length *tweakables*) do
-       (format t "[~d] ~A: ~S~%     ~A~%" i (symbol-name symbol) (symbol-value symbol)
-               (documentation symbol 'variable))))
-
 (defun print-operations ()
   (let ((used #\*)
         (unused #\space))
@@ -53,6 +46,20 @@
   (let ((string (remove #\* (symbol-name symbol))))
     string))
 
+(defun tweakable->posixopt (symbol)
+  (concatenate 'string "--"
+               (string-downcase
+                (earmuff->string symbol))))
+
+(defun print-tweakables ()
+  (loop
+     for symbol in *tweakables*
+     for i from 0 to (length *tweakables*) do
+       (format t "[~d] ~A  ~S~%     ~A~%" i (tweakable->posixopt symbol)
+               (symbol-value symbol)
+               (documentation symbol 'variable))))
+
+
 (defun get-opt-arg (list key)
   (let ((anything-there (member key list :test #'equalp)))
     (when anything-there
@@ -61,13 +68,13 @@
 (defun print-help ()
   (format t "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%")
   (format t "                                 GENLIN~%")
-  (format t "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%")
-  (format t "~%Many of the dynamic (global) parameters in GENLIN can be set using~%")
-  (format t "familiar POSIX-style command line argument syntax. The option name~%")
-  (format t "is written as a double-hyphen, followed by the (case-insensitive)~%")
-  (format t "symbol-name of the variable you want to tweak. After the option comes~%")
-  (format t "the value. Quotation marks must be escaped for string arguments, but~%")
-  (format t "keywords (prefixed by a colon) need no quotes.~%~%")
+  (format t "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%~%")
+  (format t
+"Many of the dynamic (global) parameters in GENLIN can be set using
+familiar POSIX-style command line argument syntax. Valid options and
+the default values of the parameters they modify are printed below.
+Note that quotation marks must be escaped for string arguments, but
+keywords (prefixed by a colon) need no quotes.~%~%")
   (print-tweakables)
   nil)
 
@@ -78,16 +85,14 @@
                (member "-h" args :test #'equalp))
            (print-help))
           (t (loop for param in *tweakables* do
-                  (let ((key (concatenate 'string "--"
-                                          (string-downcase
-                                           (earmuff->string param)))))
+                  (let ((key (tweakable->posixopt param)))
                     (when (member key args :test #'equalp)
                       ;; (FORMAT T "FOUND OPT: ~S = ~S~%"
                       ;; key (get-opt-arg args key))
                       (setf (symbol-value param)
                    (read-from-string (get-opt-arg args key)))
                       (format t "Setting ~A to ~A...~%"
-                              param (symbol-value param)))))) T)))
+                              param (symbol-value param))))) T))))
 
     ;;           (format t "~S = ~S~%" param (symbol-value param))))))
     
