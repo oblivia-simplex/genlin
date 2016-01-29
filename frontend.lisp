@@ -58,23 +58,41 @@
     (when anything-there
       (cadr anything-there))))
 
+(defun print-help ()
+  (format t "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%")
+  (format t "                                 GENLIN~%")
+  (format t "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=~%")
+  (format t "~%Many of the dynamic (global) parameters in GENLIN can be set using~%")
+  (format t "familiar POSIX-style command line argument syntax. The option name~%")
+  (format t "is written as a double-hyphen, followed by the (case-insensitive)~%")
+  (format t "symbol-name of the variable you want to tweak. After the option comes~%")
+  (format t "the value. Quotation marks must be escaped for string arguments, but~%")
+  (format t "keywords (prefixed by a colon) need no quotes.~%~%")
+  (print-tweakables)
+  nil)
+
 (defun parse-command-line-args ()
   (let ((args (cdr sb-ext:*posix-argv*)))
 ;;    (FORMAT T "ARGV = ~S~%" args)
-    (loop for param in *tweakables* do
-         (let ((key (concatenate 'string "--"
-                                 (string-downcase (earmuff->string param)))))
-
-           (when (member key args :test #'equalp)
-;;             (FORMAT T "FOUND OPT: ~S = ~S~%" key (get-opt-arg args key))
-             (setf (symbol-value param)
+    (cond ((or (member "--help" args :test #'equalp)
+               (member "-h" args :test #'equalp))
+           (print-help))
+          (t (loop for param in *tweakables* do
+                  (let ((key (concatenate 'string "--"
+                                          (string-downcase
+                                           (earmuff->string param)))))
+                    (when (member key args :test #'equalp)
+                      ;; (FORMAT T "FOUND OPT: ~S = ~S~%"
+                      ;; key (get-opt-arg args key))
+                      (setf (symbol-value param)
                    (read-from-string (get-opt-arg args key)))
-             (format t "Setting ~A to ~A...~%"
-                     param (symbol-value param)))))))
-;;           (format t "~S = ~S~%" param (symbol-value param))))))
+                      (format t "Setting ~A to ~A...~%"
+                              param (symbol-value param)))))) T)))
 
-(defun menu ()
-  "The front end and user interface of the programme. Allows the user
+    ;;           (format t "~S = ~S~%" param (symbol-value param))))))
+    
+  (defun menu ()
+    "The front end and user interface of the programme. Allows the user
 to tweak a number of dynamically scoped, special variables, and then
 launch setup and evolve."
   (flet ((validate (n)      
@@ -140,15 +158,15 @@ and eventually, sanitize the input."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun main ()
-  (parse-command-line-args)
-  (when *menu* (menu))
-  (sanity-check)
-  (update-dependent-machine-parameters)
-  (setf +ISLAND-RING+ '())
-  (setup)
-  (format t "COMMENCING EVOLUTIONARY PROCESS. PLEASE STANDBY.~%")
-  (evolve :target *target* :rounds *rounds*))
-
+  (when (parse-command-line-args)
+    (when *menu* (menu))
+    (sanity-check)
+    (update-dependent-machine-parameters)
+    (setf +ISLAND-RING+ '())
+    (setup)
+    (format t "COMMENCING EVOLUTIONARY PROCESS. PLEASE STANDBY.~%")
+    (evolve :target *target* :rounds *rounds*)))
+  
 
 ;; todo: write a generic csv datafile->hashtable loader, for
 ;; deployment on arbitrary datasets. 
