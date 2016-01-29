@@ -41,5 +41,87 @@ the configuration and evolution functions directly, starting with
 (setup). Setup takes many optional parameters. Consult the source
 code for details. 
 
-
 Beware of cruft.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+                             HELP MESSAGE
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Many of the dynamic (global) parameters in GENLIN can be set using
+familiar POSIX-style command line argument syntax. Valid options and
+the default values of the parameters they modify are printed below.
+Note that quotation marks must be escaped for string arguments, but
+keywords (prefixed by a colon) need no quotes.
+
+[0] --menu  NIL
+     Set to t if you would like to see a menu, from which the parameters
+     can be set.
+[1] --debug  NIL
+     The debugging flag. If set to T, then you will be treated to a very
+     verbose, live disassembly of the instructions being excuted in the
+     virtual machine, along with a few other pieces of information. Do
+     not use in conjunction with *parallel.*
+[2] --stat-interval  1000
+     Number of cycles per verbose update on the evolutionary process.
+[3] --parallel  T
+     Enables multithreading when set to T, allotting the evolutionary
+     process on each island its own thread.
+[4] --dataset  :TICTACTOE
+     Currently accepts only two values: :tictactoe and :iris. This tells
+     the programme which dataset to load, and which related data
+     processing functions to use.
+[5] --data-path  "./datasets/TicTacToe/tic-tac-toe.data"
+     Path to the data file. Mismatching *data-path* and *dataset* will
+     almost certainly break something, at the moment.
+[6] --training-ratio  4/5
+     The ratio of training cases to total cases (the remainder being
+     reserved for testing.
+[7] --method-key  :TOURNEMENT
+     Determines which selection method will be used to select the parents 
+    of each subsequent generation. Accepts as values the keywords: 
+    :tournement, :roulette, or :greedy-roulette.
+[8] --number-of-islands  12
+     Islands are relatively isolated pockets in the population, linked
+     in a ring structure and bridged by occasional migration. Can be set
+     to any integer > 0.
+[9] --population-size  1200
+     Remains constant throughout the evolution. Should be > 40.
+[10] --mutation-rate  15
+     Chance of mutation per spawning event, expressed as percentage.
+[11] --migration-rate  1000
+     Frequency of migrations, measured in main loop cycles.
+[12] --migration-size  10
+     Percentage of population that leaves one deme for the next, 
+     per migration event.
+[13] --greedy-migration  T
+     If set to T, migrants are always the fittest in their deme.
+     Otherwise random.
+[14] --track-genealogy  T
+     If set to T, then genealogical lineage and statistics are computed
+     at runtime. Informative, but increases overhead.
+[15] --min-len  2
+     The minimum creature length, measured in instructions.
+[16] --max-len  256
+     The maximum creature length, measured in instructions.
+[17] --max-start-len  25
+     The maximum length of creatures in the initial population.
+[18] --opcode-bits  3
+     The number of bits in an instruction used to determine the operation. 
+     Can be set to 1, 2, or 3.
+[19] --source-register-bits  3
+     The number of bits used to calculate the source register in each
+     instruction. 2^n readable registers will be allocated where n is the
+     value of this parameter.
+[20] --destination-register-bits  2
+     The number of bits used to calculate the destination register. If
+     left smaller than *source-register-bits* then there will be 2^(n-m)
+     read-only registers, where n is the value of *source-register-bits*
+     and m is the value of this parameter.
+[21] --rounds  10000
+     The evolution will run until either a total number of mating events
+     have elapsed on each island, or a pre-established fitness target
+     has been reached. This determines the former.
+[22] --target  0.95
+     The evolution will run until either a total number of mating events
+     have elapsed on each island, or a pre-established fitness target
+     has been reached. This determines the latter.
