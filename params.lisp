@@ -106,4 +106,27 @@
 
 (defparameter *training-ratio* 4/5
   "The ratio of training cases to total cases (the remainder being
-    reserved for testing.")
+     reserved for testing.")
+
+(defparameter *rounds* 10000
+  "The evolution will run until either a total number of mating events
+     have elapsed on each island, or a pre-established fitness target
+     has been reached. This determines the former.")
+
+(defparameter *target* 0.95
+  "The evolution will run until either a total number of mating events
+     have elapsed on each island, or a pre-established fitness target
+     has been reached. This determines the latter.")
+
+(defparameter *method-key* :tournement
+  "Determines which selection method will be used to select the parents 
+    of each subsequent generation. Accepts as values the keywords: 
+    :tournement, :roulette, or :greedy-roulette.")
+
+(defparameter *method* nil);; #'tournement!)
+
+(defparameter *menu* nil
+  "Set to t if you would like to see a menu, from which the parameters
+    can be set.")
+
+

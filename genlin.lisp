@@ -13,7 +13,12 @@
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter *machine-file* "slomachine.lisp")
+(defparameter *machine* :slomachine)
+
+(defparameter *machine-file*
+  (case *machine*
+    ((:slomachine) "slomachine.lisp")
+    ((:r-machine) "r-machine.lisp")))
 ;; slomachine is an unstable VM for self-modifying code
   
 (loop for f in `(,*machine-file*
@@ -42,7 +47,6 @@
         '(:fitter-than-parents 0
           :less-fit-than-parents 0
           :as-fit-as-parents 0)))
-
 
 (defun inst-schema-match (&rest instructions)
   "Returns a Holland-style schema that matches all of the instructions
@@ -691,6 +695,7 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun setup (&key (ratio *training-ratio*)
                 (dataset *dataset*)
+                (method-key *method-key*)
                 (fitfunc-name)
                 (popsize *population-size*)
                 (number-of-islands *number-of-islands*)
@@ -700,6 +705,13 @@ applying, say, mapcar or length to it, in most cases."
                 (filename *data-path*))
   (let ((hashtable)
         (training+testing))
+    (setf *method* (case method-key
+                     ((:tournement) #'tournement!)
+                     ((:roulette) #'roulette!)
+                     ((:greedy-roulette) #'greedy-roulette!)
+                     (otherwise (progn
+                                  (format t "WARNING: METHOD NAME NOT REGOGNIZED. USING #'TOURNEMENT!.~%")
+                                  #'tournement!))))
     (setf *number-of-islands* number-of-islands
           *population-size* popsize
           *dataset* dataset
@@ -753,8 +765,8 @@ applying, say, mapcar or length to it, in most cases."
   (loop for island in (de-ring island-ring) do
        (sb-thread:release-mutex (island-lock island))))
 
-(defun evolve (&key (method #'tournement!) (dataset *dataset*)
-                 (rounds 10000) (target 0.97)
+(defun evolve (&key (method *method*) (dataset *dataset*)
+                 (rounds *rounds*) (target *target*)
                  (stat-interval *stat-interval*) (island-ring +island-ring+) 
                  (migration-rate *migration-rate*)
                  (migration-size *migration-size*)
@@ -827,6 +839,7 @@ applying, say, mapcar or length to it, in most cases."
 (defun print-params ()
   "Prints major global parameters, and some statistics, too."
   (hrule)
+  (format t "[+] VIRTUAL MACHINE:      ~A~%" *machine*)
   (format t "[+] INSTRUCTION SIZE:     ~d bits~%" *wordsize*)
   (format t "[+] # of RW REGISTERS:    ~d~%" (expt 2 *destination-register-bits*))
   (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *source-register-bits*))
@@ -845,6 +858,7 @@ applying, say, mapcar or length to it, in most cases."
           (hash-table-count *training-ht*))
   (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
   (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
+  (format t "[+] SELECTION FUNCTION:   ~s~%" *method*)
   (hrule))
 
 (defun likeness-to-specimen (population specimen)
@@ -1015,7 +1029,8 @@ without incurring delays."
   (sb-thread:release-mutex -print-lock-))
   ;;(format t "*****************************************************************************~%"))
           
-(defun classification-report (crt dataset &key (testing t) (ht .testing-hashtable.))
+(defun classification-report (crt dataset &key (testing t)
+                                            (ht .testing-hashtable.))
   (if testing
       (setf ht .testing-hashtable.)
       (setf ht .training-hashtable.))

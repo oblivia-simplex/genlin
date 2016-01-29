@@ -447,13 +447,14 @@ SRC register -- potentially corrupting code."
 state vector, registers, and then runs the virtual machine, returning
 the resulting value in the registers indexed by the integers in the
 list parameter, output."
-  (declare (type fixnum *input-start-idx* *pc-idx*))
-  (declare (inline src? dst? op?))
-  (declare (type (cons integer) output))
-  (declare (type (signed-byte 16) *regiops* *jumpops*
-                 *loadops* *storops*))
-  (declare (type (simple-array rational 1) input registers seq))
-  (declare (optimize (speed 2)))
+  (declare (type fixnum *input-start-idx* *pc-idx*)
+           (inline src? dst? op?)
+           (type (cons integer) output)
+           (type (signed-byte 16)
+                 *regiops* *jumpops*
+                 *loadops* *storops*)
+           (type (simple-array rational 1) input registers seq)
+           (optimize (speed 2)))
   (flet ((save-state (inst reg seq pc)
            (declare (type (simple-array rational 1) reg))
            (declare (type fixnum inst pc))
