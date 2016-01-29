@@ -125,3 +125,6 @@ keywords (prefixed by a colon) need no quotes.
      The evolution will run until either a total number of mating events
      have elapsed on each island, or a pre-established fitness target
      has been reached. This determines the latter.
+
+To see this help menu, use the "-h" option. "--help" will bring up
+SBCL's help menu. 
