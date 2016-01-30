@@ -202,8 +202,50 @@
 
 (defvar *machine-fmt*)
 
+(defun how-many-input-registers? ()
+  (let ((num 0))
+    (loop
+       for k being the hash-keys in .training-hashtable.
+       do
+         (setf num (length k))
+         (return))
+    num))
+
+(defun how-many-output-registers? ()
+  (length (funcall =label-scanner= 'get)))
+
+
 (defun update-dependent-machine-parameters ()
 
+  (let ((input-needed (how-many-input-registers?))
+        (output-needed (how-many-output-registers?)))
+    ;; call the how-many-registers funcs here.
+    (when (> output-needed
+             (expt 2 *destination-register-bits*))
+      (hrule)
+      (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO DESTINATION 
+REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
+MAKING ADJUSTMENTS.~%")
+      (hrule)
+      (loop for x from *destination-register-bits*
+         while (< (expt 2 x) output-needed)
+         do (incf *destination-register-bits*)))
+    (when (> input-needed
+             (- (expt 2 *source-register-bits*)
+                (expt 2 *destination-register-bits*)))
+      (hrule)
+      (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO SOURCE 
+REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
+MAKING ADJUSTMENTS.~%")
+      (hrule)
+      (loop for x from *source-register-bits*
+         while (< (- (expt 2 x)
+                     (expt 2 *destination-register-bits*))
+                  input-needed)
+         do (incf *source-register-bits*))))
+
+  
+  
   (setf *wordsize*
         (+ *opcode-bits* *source-register-bits*
            *destination-register-bits* ))
@@ -264,28 +306,28 @@
 
 (defun src? (inst)
   "Returns the source address."
-  (declare (type (signed-byte 16) inst))
-  (declare (type (cons (signed-byte 16)) *srcbits*))
+  (declare (type (signed-byte 32) inst))
+  (declare (type (cons (signed-byte 32)) *srcbits*))
   (the signed-byte (ldb *srcbits* inst)))
 
 (defun dst? (inst)
   "Returns the destination address."
-  (declare (type (signed-byte 16) inst))
-  (declare (type (cons (signed-byte 16)) *dstbits*))
+  (declare (type (signed-byte 32) inst))
+  (declare (type (cons (signed-byte 32)) *dstbits*))
   (the signed-byte (ldb *dstbits* inst)))
 
 (defun op? (inst)
   "Returns the actual operation, in the case of register ops, in 
 the form of a function."
-  (declare (type (signed-byte 16) inst))
-  (declare (type (cons (signed-byte 16)) *opbits*))
+  (declare (type (signed-byte 32) inst))
+  (declare (type (cons (signed-byte 32)) *opbits*))
   (declare (type (simple-array function) *operations*))
   (the function (aref *operations* (ldb *opbits* inst))))
 
 (defun opc? (inst)
   "Returns the numerical opcode."
-  (declare (type (signed-byte 16) inst))
-  (declare (type (cons (signed-byte 16)) *opbits*))
+  (declare (type (signed-byte 32) inst))
+  (declare (type (cons (signed-byte 32)) *opbits*))
   (the signed-byte (ldb *opbits* inst)))
 
  (defun jmp? (inst) ;; ad-hoc-ish...
@@ -385,13 +427,16 @@ entries in the history stack, tracking changes to the registers."
                           'rational))))
 
 (defparameter *operations*
-  (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    
-           #'PMD ;;                  ;; end of register ops
-           ;; --------------------
-           #'JLE #'LOD #'STO         ;; PLACEHOLDERS FOR JLE LOD STO
-           ;; -------------------- 
-           #'XOR #'CNJ #'MOV         ;; extended operations 
-           #'MOV #'DIS)              ;; extras, unused by default.  
+  (concatenate 'vector
+               (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    
+                        #'PMD ;;                  ;; end of register ops
+                        ;; --------------------
+                        #'JLE #'LOD #'STO         ;; placeholders
+                        ;; -------------------- 
+                        #'XOR #'CNJ #'DIS #'MOV)   ;; extended operations 
+               (loop repeat (expt 2 *opcode-bits*)
+                  collect #'MOV))
+
 "Instruction set for the virtual machine. Only the first
      2^*opcode-bits* will be used." )
 
@@ -450,15 +495,15 @@ list parameter, output."
   (declare (type fixnum *input-start-idx* *pc-idx*)
            (inline src? dst? op?)
            (type (cons integer) output)
-           (type (signed-byte 16)
+           (type (signed-byte 32)
                  *regiops* *jumpops*
                  *loadops* *storops*)
            (type (simple-array rational 1) input registers seq)
            (optimize (speed 2)))
   (flet ((save-state (inst reg seq pc)
-           (declare (type (simple-array rational 1) reg))
-           (declare (type fixnum inst pc))
-           (declare (type function =history=))
+           (declare (type (simple-array rational 1) reg)
+                    (type fixnum inst pc)
+                    (type function =history=))
            (funcall =history= (list :inst inst
                                     :reg reg
                                     :seq seq
@@ -468,9 +513,9 @@ list parameter, output."
           (%pc 0) ;; why bother putting the PC in the registers?
           (seqlen (length seq))
           (debugger (or debug *debug*)))
-      (declare (type (simple-array rational 1) %reg))
-      (declare (type fixnum seqlen %pc))
-      (declare (type boolean debugger))
+      (declare (type (simple-array rational 1) %reg)
+               (type fixnum seqlen %pc)
+               (type boolean debugger))
       ;; the input values will be stored in read-only %reg
       (setf (subseq %reg *input-start-idx*
                     (+ *input-start-idx* (length input))) input)
@@ -479,7 +524,7 @@ list parameter, output."
            ;; (format t "=== ~A ===~%" %reg)
            ;; Fetch the next instruction
              (let ((inst (aref %seq %pc)))
-               (declare (type (signed-byte 16) inst))
+               (declare (type (signed-byte 32) inst))
                ;; Increment the programme counter
                (incf %pc)
                ;; Perform the operation and store the result in [dst]
@@ -487,7 +532,7 @@ list parameter, output."
                      ((< (opc? inst) *JUMPOPS*) (exec-jmp-inst inst))
                      ((< (opc? inst) *LOADOPS*) (exec-load-inst inst))
                      ((< (opc? inst) *STOROPS*) (exec-store-inst inst))
-                     (t (error "UNRECOGNIZED OPCODE IN EXECUTE-SEQUENCE")))
+                     (t (exec-reg-inst inst))) ;; NOP or MOV
                ;; Save history for debugger
                (and debugger (save-state inst %reg %seq %pc)
                     (disassemble-history))

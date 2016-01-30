@@ -1,0 +1,1 @@
+small chance of unhandled memory faults -- these should be checked for, and handled properly, if that can be done efficiently. probably thread-related.

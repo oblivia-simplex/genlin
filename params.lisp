@@ -127,6 +127,23 @@
 
 (defparameter *menu* nil
   "Set to t if you would like to see a menu, from which the parameters
-    can be set.")
+     can be set.")
 
+;; Things whose presence here reflects a want of refactoring. 
 
+(defvar .fitfunc. nil)
+
+(defvar .training-hashtable. (make-hash-table :test #'equalp))
+
+(defvar .testing-hashtable.  (make-hash-table :test #'equalp))
+
+(defvar *out-reg* '())
+
+(defparameter =label-scanner=
+  ;; Enumerates labels, keeping track of labels it's already seen. 
+  (let ((seen '()))
+    (lambda (lbl)
+      (cond ((eq lbl 'flush) (setf seen '()))
+            ((not (member lbl seen :test #'equalp)) (push lbl seen)))         
+      (cond ((eq lbl 'get) (pop seen) (reverse seen))
+            (t (position lbl (reverse seen) :test #'equalp :from-end t))))))

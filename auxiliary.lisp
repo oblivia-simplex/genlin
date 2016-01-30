@@ -175,6 +175,32 @@ must be disjoint."
     (rec x nil)))
 
 
+(defun circularp (list)
+  "Checks to see if a list is circular."
+  ;; from stackoverflow
+  (loop for tortoise on list
+     for hare on (cdr list) by #'cddr
+     thereis (eq tortoise hare)))
+
+(defun de-ring (ring)
+  (let ((idx 0))
+    (loop for cell on (cdr ring) do
+         (incf idx)
+         (when (eq cell ring) (return)))
+    (subseq ring 0 idx)))
+
+(defun copy-circ (circle)
+  (circular (copy-seq (de-ring circle))))
+
+(defun circlen (circ)
+  (length (de-ring circ)))
+
+(defun subcirc (circ i j)
+  (values (subseq circ i (if (< j i) (+ j (circlen circ)) j))
+          (subseq circ j (if (< i j) (+ i (circlen circ)) i))))
+  
+
+
 (defun circular (list)
   (setf *print-circle* t)
   (setf (cdr (last list)) list))

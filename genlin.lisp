@@ -20,14 +20,18 @@
     ((:slomachine) "slomachine.lisp")
     ((:r-machine) "r-machine.lisp")))
 ;; slomachine is an unstable VM for self-modifying code
-  
-(loop for f in `(,*machine-file*
-                 "params.lisp"
-                 "auxiliary.lisp"
-                 "frontend.lisp"
-                 "tictactoe.lisp"
-                 "iris.lisp") do
-     (loadfile (concatenate 'string *project-path* f)))
+
+(defun load-other-files ()
+  (loop for f in `("params.lisp"
+                   "auxiliary.lisp"
+                   ,*machine-file*
+                   "datafiler.lisp"
+                   "frontend.lisp"
+                   "tictactoe.lisp"
+                   "iris.lisp") do
+       (loadfile (concatenate 'string *project-path* f))))
+
+(load-other-files)
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Logging
@@ -121,35 +125,27 @@ register(s)."
 ;; Functions related to fitness measurement
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter .fitfunc. nil)
-
-(defparameter .training-hashtable. nil)
-
-(defparameter .testing-hashtable. nil)
-
-(defparameter .out-reg. nil)
-
 (defun get-fitfunc ()
   .fitfunc.)
 
 (defun get-out-reg ()
-  .out-reg.)
+  *out-reg*)
 
 (defun peek-fitness-environment ()
-  (format t ".fitfunc. = ~a~%.training-hashtable. = ~a~%.testing-hashtable. = ~a~%.out-reg. = ~a~%" .fitfunc. .training-hashtable. .testing-hashtable. .out-reg.))
+  (format t ".fitfunc. = ~a~%.training-hashtable. = ~a~%.testing-hashtable. = ~a~%*out-reg* = ~a~%" .fitfunc. .training-hashtable. .testing-hashtable. *out-reg*))
 
 (defun set-fitfunc (name)
   (case name
     ((binary-1) (setf .fitfunc. #'fitness-binary-classifier-1)
-     (setf .out-reg. '(0)))
+     (setf *out-reg* '(0)))
     ((binary-2) (setf .fitfunc. #'fitness-binary-classifier-2)
-     (setf .out-reg. '(0)))
+     (setf *out-reg* '(0)))
     ((binary-3) (setf .fitfunc. #'fitness-binary-classifier-3)
-     (setf .out-reg. '(0 1)))
+     (setf *out-reg* '(0 1)))
     ((ternary-1) (setf .fitfunc. #'fitness-ternary-classifier-1)
-     (setf .out-reg. '(0 1 2)))
-    ((ternary-2) (setf .fitfunc. #'fitness-ternary-classifier-2)
-     (setf .out-reg. '(0 1 2)))   
+     (setf *out-reg* '(0 1 2)))
+    ((n-ary) (setf .fitfunc. #'fitness-n-ary-classifier)
+     (set-out-reg)) ;; sets the out-reg wrt the label-scanner   
     (otherwise (error "FITFUNC NICKNAME NOT RECOGNIZED. MUST BE ONE OF THE FOLLOWING: BINARY-1, BINARY-2, BINARY-3, TERNARY-1."))))
 
 (defun init-fitness-env (&key fitfunc-name training-hashtable testing-hashtable)
@@ -178,7 +174,7 @@ environment."
     "Fitness is gauged as the output of a sigmoid function over the
 output in register 0 times the labelled value of the input (+1 for
 positive, -1 for negative."
-  (if (null .out-reg.) (setf .out-reg. '(0)))
+  (if (null *out-reg*) (setf *out-reg* '(0)))
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
           (remove-introns (creature-seq crt) :output '(0))))
@@ -197,10 +193,10 @@ positive, -1 for negative."
       (/ (reduce #'+ results) (length results)))))
 
 (defun fitness-binary-classifier-2 (crt &key (ht .training-hashtable.))
-  (if (null .out-reg.) (setf .out-reg. '(0)))
+  (if (null *out-reg*) (setf *out-reg* '(0)))
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
-          (remove-introns (creature-seq crt) :output .out-reg.)))
+          (remove-introns (creature-seq crt) :output *out-reg*)))
   (let ((hit 0)
         (miss 0)
         (seq (creature-eff crt)))
@@ -208,7 +204,7 @@ positive, -1 for negative."
        using (hash-value v) do
          (let ((f ;; shooting in the dark, here. 
                 (tanh (/ (car (execute-sequence seq :input pattern
-                                                :output .out-reg.)) 300))))
+                                                :output *out-reg*)) 300))))
            (if (> (* f v) .5) (incf hit) (incf miss))))
     (if (zerop miss) 1
         (/ hit (+ hit miss)))))
@@ -218,7 +214,7 @@ positive, -1 for negative."
 contained in the 'correct' register to the sum of the values in
 registers 0 and 1. Setting R0 for negative (-1) and R1 for
 positive (+1)."
-  (if (null .out-reg.) (setf .out-reg. '(0 1)))
+  (if (null *out-reg*) (setf *out-reg* '(0 1)))
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
           (remove-introns (creature-seq crt) :output '(0 1 2))))
@@ -260,7 +256,7 @@ positive (+1)."
 (defun fitness-ternary-classifier-1 (crt &key (ht .training-hashtable.))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
-  (if (null .out-reg.) (setf .out-reg. '(0 1 2)))
+  (if (null *out-reg*) (setf *out-reg* '(0 1 2)))
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
           (remove-introns (creature-seq crt) :output '(0 1 2))))
@@ -270,15 +266,15 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
        using (hash-value i) do
          (let ((output (execute-sequence seq
                                          :input pattern
-                                         :output .out-reg.)))
+                                         :output *out-reg*)))
            (incf acc (divide (abs (nth i output))
                           (reduce #'+ (mapcar #'abs output))))))
     (/ acc (hash-table-count .training-hashtable.))))
 
-(defun fitness-ternary-classifier-2 (crt &key (ht .training-hashtable.))
+(defun fitness-n-ary-classifier (crt &key (ht .training-hashtable.))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
-  (if (null .out-reg.) (setf .out-reg. '(0 1 2)))
+
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
           (remove-introns (creature-seq crt) :output '(0 1 2))))
@@ -291,10 +287,10 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
        using (hash-value i) do
          (let ((output (execute-sequence seq
                                          :input pattern
-                                         :output .out-reg.)))
+                                         :output *out-reg*)))
            (incf acc1 (divide (abs (nth i output))
                            (reduce #'+ (mapcar #'abs output))))
-           (incf acc2 (if (> (* (abs (nth i output)) 3) (reduce #'+ output))
+           (incf acc2 (if (> (* (abs (nth i output)) (length output)) (reduce #'+ output))
                           1 0))))
     (+ (* w1 (/ acc1 (hash-table-count ht)))
        (* w2 (/ acc2 (hash-table-count ht))))))
@@ -341,12 +337,26 @@ fitness function."
     (setf (elt seq j) tmp))
   seq)
 
+(defun smutate-insert (seq)
+  "Doubles a random element of seq."
+  (declare (type simple-array seq))
+  (let ((idx (random (length seq))))
+  (and *debug* (print "smutate-append"))
+  (setf seq (concatenate 'vector
+                         (subseq seq 0 idx)
+                         (vector (aref seq idx))
+                         (subseq seq idx (length seq))))
+  seq))
+
 (defun smutate-grow (seq)
-  "Adds another (random) instruction to the end of the sequence."
+  "Doubles a random element of seq."
   (declare (type simple-array seq))
   (and *debug* (print "smutate-append"))
-  (setf seq (concatenate 'vector seq `(,(random #x100))))
+  (setf seq (concatenate 'vector
+                         seq
+                         (vector (random (expt 2 *wordsize*)))));;(aref seq idx))
   seq)
+
 
 (defun smutate-imutate (seq)
   "Applies imutate-flip to a random instruction in the sequence."
@@ -357,7 +367,7 @@ fitness function."
   seq)
 
 (defparameter *mutations*
-  (vector #'smutate-grow #'smutate-imutate #'smutate-swap))
+  (vector #'smutate-insert #'smutate-grow #'smutate-imutate #'smutate-swap))
 
 (defun random-mutation (seq)
   (declare (type simple-array seq))
@@ -398,7 +408,7 @@ fitness function."
                          (make-creature :seq daughter)))))
 
 (defun mate (p0 p1 &key (genealogy *track-genealogy*)
-                               (output-registers .out-reg.))
+                               (output-registers *out-reg*))
   (let ((children (crossover p0 p1)))
     ;; mutation
     (loop for child in children do
@@ -649,46 +659,6 @@ applying, say, mapcar or length to it, in most cases."
                             (spawn-creature (+ *min-len*
                                                (random slen))))
                        number-of-islands)))
-
-(defun partition-data (hashtable ratio)
-  ;; need to modify this so that the distribution of values in the test
-  ;; set is at least similar to the distribution of values in the training
-  (let* ((size (hash-table-count hashtable))
-         (training (make-hash-table :test 'equalp))
-         (testing (make-hash-table :test 'equalp))
-         (keys (shuffle (loop for k being the hash-keys in hashtable collect k)))
-         (vals)
-           (keys-by-val)
-         (portions))
-    (setf vals (remove-duplicates (loop
-                                     for v being the hash-values
-                                     in hashtable collect v)))
-    (setf keys-by-val (loop for v in vals collect
-                           (remove-if-not
-                            #'(lambda (x) (equalp (gethash x hashtable) v))
-                            keys)))
-    (loop
-       for klist in keys-by-val do
-           (push (round (* ratio  size  (/ (length klist)
-                                           size)))
-                 portions))
-    (setf portions (reverse portions))
-    (and *debug* (format t "TOTAL COUNT OF SPECIMENS: ~D~%CLASS COUNTS: ~A~%PORTIONS FOR TESTING, BY CLASS: ~A~%"
-                         size (mapcar #'length keys-by-val) portions))
-    (loop
-       for keylist in keys-by-val
-       for portion in portions do
-         (if (some #'null keylist) (format t "FOUND NULL IN ~A~%" keylist))
-         (loop for i from 1 to portion do
-              (let ((k))
-                (setf k (pop keylist))
-                (setf (gethash k training)
-                      (gethash k hashtable))))
-         (loop for k in keylist do
-              (setf (gethash k testing)
-                    (gethash k hashtable))))
-    (cons training testing)))
-
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; User interface functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -710,7 +680,8 @@ applying, say, mapcar or length to it, in most cases."
                      ((:roulette) #'roulette!)
                      ((:greedy-roulette) #'greedy-roulette!)
                      (otherwise (progn
-                                  (format t "WARNING: METHOD NAME NOT REGOGNIZED. USING #'TOURNEMENT!.~%")
+                                  (format t "WARNING: METHOD NAME NOT RECO")
+                                  (format t "GNIZED. USING #'TOURNEMENT!.~%")
                                   #'tournement!))))
     (setf *number-of-islands* number-of-islands
           *population-size* popsize
@@ -719,27 +690,33 @@ applying, say, mapcar or length to it, in most cases."
           *migration-size* migration-size
           *greedy-migration* greedy-migration)
     (reset-records)
+    (funcall =label-scanner= 'flush)
     (case dataset
       ((:tictactoe)
        (unless filename (setf filename *tictactoe-path*))
        (unless fitfunc-name (setf fitfunc-name 'binary-1))
        (setf hashtable (ttt-datafile->hashtable
                         :filename filename :int t :gray t)))
-      ((:iris)
+      (otherwise
        (unless filename (setf filename *iris-path*))
-       (unless fitfunc-name (setf fitfunc-name 'ternary-2))
-       (setf hashtable (iris-datafile->hashtable :filename filename)))
-      (otherwise (error "DATASET UNKNOWN (IN SETUP)")))
+       (unless fitfunc-name (setf fitfunc-name 'n-ary))
+       (setf hashtable (datafile->hashtable :filename filename))))
+    ;;(setf hashtable (iris-datafile->hashtable :filename filename)))
+    ;;      (otherwise (error "DATASET UNKNOWN (IN SETUP)")))
     (setf training+testing (partition-data hashtable ratio))
     (init-fitness-env :training-hashtable (car training+testing)
                       :testing-hashtable  (cdr training+testing)
                       :fitfunc-name fitfunc-name)
     ;; (setf *best* (make-creature :fit 0))
+    (update-dependent-machine-parameters)
     (setf +ISLAND-RING+ (init-population popsize *max-start-len*
                                    :number-of-islands number-of-islands))
     (format t "~%")
     (hrule)
-    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES~%[!] POPULATION OF ~d INITIALIZED~%[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED~%[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize number-of-islands)
+    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES
+[!] POPULATION OF ~d INITIALIZED
+[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED
+[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize number-of-islands)
     (hrule)
     (peek-fitness-environment)
     (hrule)
@@ -782,22 +759,26 @@ applying, say, mapcar or length to it, in most cases."
                  ;; will cycle & not exhaust it
                  (labels ((dispatcher ()
                             ;; we don't want more than one thread per island.
-                            (sb-thread:grab-mutex (island-lock isle))
+                            (when *parallel*
+                              (sb-thread:grab-mutex (island-lock isle)))
                             (funcall method isle)
-                            (sb-thread:release-mutex (island-lock isle)))
+                            (when *parallel*
+                              (sb-thread:release-mutex (island-lock isle))))
                           (dispatch ()
                             (incf (island-era isle))
-                            (if parallelize
+                            (if *parallel*
                                 (sb-thread:make-thread #'dispatcher)
                                 (dispatcher))))
                    (dispatch)
-                   (when (and (> migration-rate 0) (= 0 (mod i migration-rate)))
-                     (sb-thread:grab-mutex -migration-lock-)
+                   (when (= 0 (mod i migration-rate))
+                     (when *parallel*
+                       (sb-thread:grab-mutex -migration-lock-))
                      (princ ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                      (princ " MIGRATION EVENT ")
                      (format t "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
                      (migrate island-ring :emigrant-percent migration-size)
-                     (sb-thread:release-mutex -migration-lock-))
+                     (when *parallel*
+                       (sb-thread:release-mutex -migration-lock-)))
                    (when (= 0 (mod i stat-interval))
                      (print-statistics island-ring)
                      (best-of-all +island-ring+)
@@ -827,11 +808,6 @@ applying, say, mapcar or length to it, in most cases."
           (island-era (elt +island-ring+ (creature-home *best*))))
   (hrule))
           
-
-(defun run-with-defaults ()
-  (setup)
-  (evolve))
-
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Debugging functions and information output
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -965,7 +941,7 @@ without incurring delays."
          (lastgen (caar fitlog))
          (row #\newline)
          (divisor 35)
-         (interval (max 1 (floor (divide lastgen divisor))))
+         (interval (max 1 (floor (divide (nil0 lastgen) divisor))))
          (scale 128)
          (bar-char #\X))
     ;;         (end-char #\x))
@@ -1035,6 +1011,26 @@ without incurring delays."
       (setf ht .testing-hashtable.)
       (setf ht .training-hashtable.))
   (case dataset
-    (:tictactoe (ttt-classification-report :crt crt :ht ht :out .out-reg.))
-    (:iris (iris-classification-report :crt crt :ht ht :out .out-reg.))
-    (otherwise (error "Unknown dataset."))))
+    (:tictactoe (ttt-classification-report :crt crt :ht ht :out *out-reg*))
+    (otherwise (data-classification-report :crt crt :ht ht :out *out-reg*))))
+;;; the new generic report form should handle any iris-like data -- any with
+;;; numerical fields, and string labels. 
+
+
+;; for testing in the REPL:
+(defun grab-specimen ()
+  (let* ((isle (elt +island-ring+ (random *number-of-islands*)))
+        (crt (elt (island-deme isle) (random (length (island-deme isle))))))
+    crt))
+
+(defun params-for-shuttle ()
+  (setf *parallel* nil)
+  (setf *rounds* 10)
+  (setf *dataset* :other)
+  (setf *data-path* #p"~/Projects/genlin/datasets/shuttle/shuttle.csv")
+  (setf *destination-register-bits* 4)
+  (setf *source-register-bits* 5)
+  (update-dependent-machine-parameters))
+
+(dbg)
+(setf *stop* t)

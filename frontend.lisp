@@ -22,6 +22,7 @@
     *min-len*
     *max-len*
     *max-start-len*
+    *maxval*
     *opcode-bits*
     *source-register-bits*
     *destination-register-bits*
@@ -166,7 +167,6 @@ and eventually, sanitize the input."
   (when (parse-command-line-args)
     (when *menu* (menu))
     (sanity-check)
-    (update-dependent-machine-parameters)
     (setf +ISLAND-RING+ '())
     (setup)
     (format t "COMMENCING EVOLUTIONARY PROCESS. PLEASE STANDBY.~%")
