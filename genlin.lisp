@@ -131,9 +131,6 @@ register(s)."
 (defun get-out-reg ()
   *out-reg*)
 
-(defun peek-fitness-environment ()
-  (format t ".fitfunc. = ~a~%.training-hashtable. = ~a~%.testing-hashtable. = ~a~%*out-reg* = ~a~%" .fitfunc. .training-hashtable. .testing-hashtable. *out-reg*))
-
 (defun set-fitfunc (name)
   (case name
     ((binary-1) (setf .fitfunc. #'fitness-binary-classifier-1)
@@ -152,8 +149,8 @@ register(s)."
   "Works sort of like a constructor, to initialize the fitness 
 environment."
   (set-fitfunc fitfunc-name)
-  (setf .training-hashtable. training-hashtable)
-  (setf .testing-hashtable. testing-hashtable))
+  (setf *training-hashtable* training-hashtable)
+  (setf *testing-hashtable* testing-hashtable))
 
 ;; DO NOT TINKER WITH THIS ANY MORE. 
 (defun sigmoid-error(raw goal)
@@ -170,7 +167,7 @@ environment."
       (/ (abs (+ (sigmoid raw) goal)) 2))))
 
 ;; design a meta-gp to evolve the sigmoid function?
-(defun fitness-binary-classifier-1 (crt &key (ht .training-hashtable.))
+(defun fitness-binary-classifier-1 (crt &key (ht *training-hashtable*))
     "Fitness is gauged as the output of a sigmoid function over the
 output in register 0 times the labelled value of the input (+1 for
 positive, -1 for negative."
@@ -192,7 +189,7 @@ positive, -1 for negative."
            (format t "SEQUENCE:~a~%RESULTS:~%~a~%" seq results))
       (/ (reduce #'+ results) (length results)))))
 
-(defun fitness-binary-classifier-2 (crt &key (ht .training-hashtable.))
+(defun fitness-binary-classifier-2 (crt &key (ht *training-hashtable*))
   (if (null *out-reg*) (setf *out-reg* '(0)))
   (unless (> 0 (length (creature-eff crt)))
     (setf (creature-eff crt) ;; assuming eff is not set, if fit is not.
@@ -209,7 +206,7 @@ positive, -1 for negative."
     (if (zerop miss) 1
         (/ hit (+ hit miss)))))
 
-(defun fitness-binary-classifier-3 (crt &key (ht .training-hashtable.))
+(defun fitness-binary-classifier-3 (crt &key (ht *training-hashtable*))
   "Measures fitness as the proportion of the absolute value
 contained in the 'correct' register to the sum of the values in
 registers 0 and 1. Setting R0 for negative (-1) and R1 for
@@ -253,7 +250,7 @@ positive (+1)."
 ;; sum of two fitness measures as the fitness: 
 
 ;; This classifier needs a little bit of tweaking. 
-(defun fitness-ternary-classifier-1 (crt &key (ht .training-hashtable.))
+(defun fitness-ternary-classifier-1 (crt &key (ht *training-hashtable*))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
   (if (null *out-reg*) (setf *out-reg* '(0 1 2)))
@@ -269,9 +266,9 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                                          :output *out-reg*)))
            (incf acc (divide (abs (nth i output))
                           (reduce #'+ (mapcar #'abs output))))))
-    (/ acc (hash-table-count .training-hashtable.))))
+    (/ acc (hash-table-count *training-hashtable*))))
 
-(defun fitness-n-ary-classifier (crt &key (ht .training-hashtable.))
+(defun fitness-n-ary-classifier (crt &key (ht *training-hashtable*))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
@@ -295,7 +292,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
     (+ (* w1 (/ acc1 (hash-table-count ht)))
        (* w2 (/ acc2 (hash-table-count ht))))))
 
-(defun fitness (crt &key (ht .training-hashtable.))
+(defun fitness (crt &key (ht *training-hashtable*))
   "Measures the fitness of a specimen, according to a specified
 fitness function."
   (unless (creature-fit crt)  
@@ -496,7 +493,8 @@ on memory use, as it will prevent the dead from being
 garbage-collected."
   (let* ((population (island-deme island))
          (tally 0)
-         (popsize (length population))
+         (popsize *population-size*)
+         ;;(popsize (length population))
          (wheel (loop for creature in population
                    collect (progn
                              (let ((f (float (fitness creature))))
@@ -642,7 +640,7 @@ applying, say, mapcar or length to it, in most cases."
 (defun islands->population (island-ring)
   (apply #'concatenate 'list (mapcar #'(lambda (x) (island-deme x))
                                      (de-ring island-ring))))
-  
+
 (defun spawn-sequence (len)
   (concatenate 'vector (loop repeat len collect (random *max-inst*))))
 
@@ -663,16 +661,16 @@ applying, say, mapcar or length to it, in most cases."
 ;; User interface functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun setup (&key (ratio *training-ratio*)
-                (dataset *dataset*)
-                (method-key *method-key*)
-                (fitfunc-name)
-                (popsize *population-size*)
-                (number-of-islands *number-of-islands*)
-                (migration-rate *migration-rate*)
-                (migration-size *migration-size*)
-                (greedy-migration *greedy-migration*)
-                (filename *data-path*))
+(defun setup-data (&key (ratio *training-ratio*)
+                     (dataset *dataset*)
+                     (method-key *method-key*)
+                     (fitfunc-name)
+;;                     (popsize *population-size*)
+;;                     (number-of-islands *number-of-islands*)
+;;                     (migration-rate *migration-rate*)
+;;                     (migration-size *migration-size*)
+;;                     (greedy-migration *greedy-migration*)
+                     (filename *data-path*))
   (let ((hashtable)
         (training+testing))
     (setf *method* (case method-key
@@ -683,12 +681,12 @@ applying, say, mapcar or length to it, in most cases."
                                   (format t "WARNING: METHOD NAME NOT RECO")
                                   (format t "GNIZED. USING #'TOURNEMENT!.~%")
                                   #'tournement!))))
-    (setf *number-of-islands* number-of-islands
-          *population-size* popsize
-          *dataset* dataset
-          *migration-rate* migration-rate
-          *migration-size* migration-size
-          *greedy-migration* greedy-migration)
+    (setf ;;*number-of-islands* number-of-islands
+          ;;*population-size* popsize
+          *dataset* dataset)
+          ;;*migration-rate* migration-rate
+          ;;*migration-size* migration-size
+          ;;*greedy-migration* greedy-migration)
     (reset-records)
     (funcall =label-scanner= 'flush)
     (case dataset
@@ -708,20 +706,18 @@ applying, say, mapcar or length to it, in most cases."
                       :testing-hashtable  (cdr training+testing)
                       :fitfunc-name fitfunc-name)
     ;; (setf *best* (make-creature :fit 0))
-    (update-dependent-machine-parameters)
-    (setf +ISLAND-RING+ (init-population popsize *max-start-len*
-                                   :number-of-islands number-of-islands))
-    (format t "~%")
-    (hrule)
-    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES
-[!] POPULATION OF ~d INITIALIZED
-[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED
-[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize number-of-islands)
-    (hrule)
-    (peek-fitness-environment)
-    (hrule)
-    (print-params)
-    hashtable))
+    ;; (update-dependent-machine-parameters)
+;;    (format t "~%")
+;;    (hrule)
+;;    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES
+;;[!] POPULATION OF ~d INITIALIZED
+;;[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED
+;;[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize number-of-islands)
+ ;;   (hrule)
+ ;;   (peek-fitness-environment)
+ ;;   (hrule)
+ ;;  (print-params)
+    training+testing))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Runners
@@ -730,7 +726,8 @@ applying, say, mapcar or length to it, in most cases."
 (defun best-of-all (island-ring)
   (let ((best-so-far (make-creature :fit 0)))
     (loop for isle in (de-ring island-ring) do
-         (if (> (creature-fit (island-best isle)) (creature-fit best-so-far))
+         (if (> (nil0 (creature-fit (island-best isle)))
+                (creature-fit best-so-far))
              (setf best-so-far (island-best isle))))
     ;; you could insert a validation routine here
     (setf *best* best-so-far)
@@ -831,10 +828,12 @@ applying, say, mapcar or length to it, in most cases."
   (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
   (format t "[+] MAX STARTING LENGTH:  ~d~%" *max-start-len*)
   (format t "[+] # of TRAINING CASES:  ~d~%"
-          (hash-table-count *training-ht*))
-  (format t "[+] # of TEST CASES:      ~d~%" (hash-table-count *testing-ht*))
+          (hash-table-count *training-hashtable*))
+  (format t "[+] # of TEST CASES:      ~d~%"
+          (hash-table-count *testing-hashtable*))
   (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
   (format t "[+] SELECTION FUNCTION:   ~s~%" *method*)
+  (format t "[+] OUTPUT REGISTERS:     ~a~%" *out-reg*)
   (hrule))
 
 (defun likeness-to-specimen (population specimen)
@@ -1006,10 +1005,10 @@ without incurring delays."
   ;;(format t "*****************************************************************************~%"))
           
 (defun classification-report (crt dataset &key (testing t)
-                                            (ht .testing-hashtable.))
+                                            (ht *testing-hashtable*))
   (if testing
-      (setf ht .testing-hashtable.)
-      (setf ht .training-hashtable.))
+      (setf ht *testing-hashtable*)
+      (setf ht *training-hashtable*))
   (case dataset
     (:tictactoe (ttt-classification-report :crt crt :ht ht :out *out-reg*))
     (otherwise (data-classification-report :crt crt :ht ht :out *out-reg*))))

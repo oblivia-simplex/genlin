@@ -16,7 +16,9 @@
 
 
 (defun roman (n)
-  (if (= 0 n) "ZERO" (format nil "~@R" n)))
+  (cond ((null n) "NULL")
+        ((= 0 n) "ZERO")
+        (t (format nil "~@R" n))))
 
 
 (defun divide (&rest args)

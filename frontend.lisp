@@ -166,10 +166,15 @@ and eventually, sanitize the input."
 (defun main ()
   (when (parse-command-line-args)
     (when *menu* (menu))
-    (sanity-check)
-    (setf +ISLAND-RING+ '())
-    (setup)
-    (format t "COMMENCING EVOLUTIONARY PROCESS. PLEASE STANDBY.~%")
+    (setup-data)   ;; load the dataset, build the hashtables
+    (update-dependent-machine-parameters)
+    (sanity-check) ;; makes things slightly less likely to explode
+    (setf +ISLAND-RING+
+          (init-population *population-size* *max-start-len*
+                           :number-of-islands *number-of-islands*))
+    (print-params)
+    (format t "          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-~%")
+    (hrule)
     (evolve :target *target* :rounds *rounds*)))
   
 

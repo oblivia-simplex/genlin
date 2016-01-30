@@ -147,3 +147,100 @@
             ((not (member lbl seen :test #'equalp)) (push lbl seen)))         
       (cond ((eq lbl 'get) (pop seen) (reverse seen))
             (t (position lbl (reverse seen) :test #'equalp :from-end t))))))
+
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Virtual Machine Parameters (Generic)
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;;                           INSTRUCTION FIELDS
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; --- Adjust these 3 parameters to tweak the instruction set. ---
+;; --- The rest of the parameters will respond automatically   ---
+;; --- but due to use of inlining for optimization, it may     ---
+;; --- be necessary to recompile the rest of the programme.    ---
+
+;; see if you can put the entire virtual machine in its own environment
+
+(defparameter *opcode-bits* 3
+  "The number of bits in an instruction used to determine the operation. 
+     Can be set to 1, 2, or 3.")   ;; size
+
+(defparameter *source-register-bits* 3
+  "The number of bits used to calculate the source register in each
+     instruction. 2^n readable registers will be allocated where n is the
+     value of this parameter." )
+
+(defparameter *destination-register-bits* 2
+  "The number of bits used to calculate the destination register. If
+     left smaller than *source-register-bits* then there will be 2^(n-m)
+     read-only registers, where n is the value of *source-register-bits*
+     and m is the value of this parameter." )
+
+;;(defparameter *flag-bits* 2)
+
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Parameters for register configuration.
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter *output-reg* '())
+
+(defparameter *maxval* (expt 2 16)) ;; max val that can be stored in reg
+
+(defparameter *minval* (expt 2 -16)) ;; floor this to 0
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Dependent Virtual Machine Vars
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defvar *default-input-reg*)
+  
+(defvar *default-registers*)
+
+(defvar *pc-idx*)
+
+(defvar *initial-register-state*)
+
+(defvar *input-start-idx*)
+
+(defvar *input-stop-idx*)
+
+(defvar *wordsize*)
+
+(defvar *max-inst*)
+
+(defvar *opbits*)
+
+(defvar *srcbits*)
+
+(defvar *dstbits*)
+
+(defvar *flgbits*)
+
+(defvar *machine-fmt*)
+
+
+
+;; where should these functions live? With data? With params?
+
+(defun how-many-input-registers? ()
+  (let ((num 0))
+    (loop
+       for k being the hash-keys in *training-hashtable*
+       do
+         (setf num (length k))
+         (return))
+    num))
+
+(defun how-many-output-registers? ()
+  ;; a bit hackish, but the idea here is that if an n-ary dataset is used
+  ;; then label-scanner will have a list to return; if it's a binary set
+  ;; then label-scanner will have a null list
+  (let ((s (funcall =label-scanner= 'get)))
+    (if s (length (funcall =label-scanner= 'get)) 1)))
+;; =label-scanner= lives in data-filer
+
+        

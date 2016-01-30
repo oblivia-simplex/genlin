@@ -35,36 +35,6 @@
 ;;; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;;                           INSTRUCTION FIELDS
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-;; --- Adjust these 3 parameters to tweak the instruction set. ---
-;; --- The rest of the parameters will respond automatically   ---
-;; --- but due to use of inlining for optimization, it may     ---
-;; --- be necessary to recompile the rest of the programme.    ---
-
-;; see if you can put the entire virtual machine in its own environment
-
-(defparameter *opcode-bits* 3
-  "The number of bits in an instruction used to determine the operation. 
-     Can be set to 1, 2, or 3.")   ;; size
-
-(defparameter *source-register-bits* 3
-  "The number of bits used to calculate the source register in each
-     instruction. 2^n readable registers will be allocated where n is the
-     value of this parameter." )
-
-(defparameter *destination-register-bits* 2
-  "The number of bits used to calculate the destination register. If
-     left smaller than *source-register-bits* then there will be 2^(n-m)
-     read-only registers, where n is the value of *source-register-bits*
-     and m is the value of this parameter." )
-
-;;(defparameter *flag-bits* 2)
-
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Declaim inline functions for speed
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -162,87 +132,46 @@
 (defun shuffle-operations ()
   (setf *operations* (coerce (shuffle (coerce *operations* 'list)) 'vector)))
 
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; Parameters for register configuration.
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-(defparameter *output-reg* '())
-
-(defparameter *maxval* (expt 2 16)) ;; max val that can be stored in reg
-
-(defparameter *minval* (expt 2 -16)) ;; floor this to 0
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;; Dependent Virtual Machine Vars
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-(defvar *default-input-reg*)
-  
-(defvar *default-registers*)
-
-(defvar *pc-idx*)
-
-(defvar *initial-register-state*)
-
-(defvar *input-start-idx*)
-
-(defvar *input-stop-idx*)
-
-(defvar *wordsize*)
-
-(defvar *max-inst*)
-
-(defvar *opbits*)
-
-(defvar *srcbits*)
-
-(defvar *dstbits*)
-
-(defvar *flgbits*)
-
-(defvar *machine-fmt*)
-
-(defun how-many-input-registers? ()
-  (let ((num 0))
-    (loop
-       for k being the hash-keys in .training-hashtable.
-       do
-         (setf num (length k))
-         (return))
-    num))
-
-(defun how-many-output-registers? ()
-  (length (funcall =label-scanner= 'get)))
 
 
 (defun update-dependent-machine-parameters ()
 
-  (let ((input-needed (how-many-input-registers?))
-        (output-needed (how-many-output-registers?)))
+   (setf *destination-register-bits*
+         (max (ceiling (log (how-many-output-registers?) 2))
+              *destination-register-bits*))
+
+   (setf *source-register-bits*
+         (max (ceiling (log (+ (how-many-input-registers?)
+                               (how-many-output-registers?)) 2))
+              *source-register-bits*))
+  
     ;; call the how-many-registers funcs here.
-    (when (> output-needed
-             (expt 2 *destination-register-bits*))
-      (hrule)
-      (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO DESTINATION 
-REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
-MAKING ADJUSTMENTS.~%")
-      (hrule)
-      (loop for x from *destination-register-bits*
-         while (< (expt 2 x) output-needed)
-         do (incf *destination-register-bits*)))
-    (when (> input-needed
-             (- (expt 2 *source-register-bits*)
-                (expt 2 *destination-register-bits*)))
-      (hrule)
-      (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO SOURCE 
-REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
-MAKING ADJUSTMENTS.~%")
-      (hrule)
-      (loop for x from *source-register-bits*
-         while (< (- (expt 2 x)
-                     (expt 2 *destination-register-bits*))
-                  input-needed)
-         do (incf *source-register-bits*))))
+    ;; simpler:
+
+       
+;;     (when (> output-needed
+;;              (expt 2 *destination-register-bits*))
+;;       (hrule)
+;;       (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO DESTINATION 
+;; REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
+;; MAKING ADJUSTMENTS.~%")
+;;       (hrule)
+;;       (loop for x from *destination-register-bits*
+;;          while (< (expt 2 x) output-needed)
+;;          do (incf *destination-register-bits*)))
+;;     (when (> input-needed
+;;              (- (expt 2 *source-register-bits*)
+;;                 (expt 2 *destination-register-bits*)))
+;;       (hrule)
+;;       (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO SOURCE 
+;; REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
+;; MAKING ADJUSTMENTS.~%")
+;;       (hrule)
+;;       (loop for x from *source-register-bits*
+;;          while (< (- (expt 2 x)
+;;                      (expt 2 *destination-register-bits*))
+;;                   input-needed)
+;;          do (incf *source-register-bits*))))
 
   
   
@@ -295,7 +224,7 @@ MAKING ADJUSTMENTS.~%")
   (setf *input-stop-idx*
       (+ *input-start-idx* (length *default-input-reg*))))
 
-(update-dependent-machine-parameters)
+;;(update-dependent-machine-parameters)
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Functions for extracting fields from the instructions
