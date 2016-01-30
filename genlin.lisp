@@ -1032,5 +1032,5 @@ without incurring delays."
   (setf *source-register-bits* 5)
   (update-dependent-machine-parameters))
 
-(dbg)
-(setf *stop* t)
+;;(dbg)
+;;(setf *stop* t)
