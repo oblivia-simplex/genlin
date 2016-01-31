@@ -121,7 +121,7 @@
 (defparameter *method-key* :tournement
   "Determines which selection method will be used to select the parents 
     of each subsequent generation. Accepts as values the keywords: 
-    :tournement, :roulette, or :greedy-roulette.")
+    :tournement, :roulette, :greedy-roulette, or :lexicase.")
 
 (defparameter *method* nil);; #'tournement!)
 
@@ -244,3 +244,8 @@
 ;; =label-scanner= lives in data-filer
 
         
+(defvar *ops* '(:DIV :MUL :SUB :ADD :PMD :JLE :LOD :STO)
+  "The user may supply a list of opcode mnemonics if to reconfigure
+     the virtual machine's primitive instruction set.")
+
+(defvar *opstring* nil)

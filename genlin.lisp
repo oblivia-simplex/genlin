@@ -181,7 +181,7 @@ positive, -1 for negative."
               being the hash-keys in ht collect
                 (sigmoid-error
                  (car (execute-sequence seq
-                               ;;         :registers *initial-register-state*
+                                        :registers *initial-register-state*
                                         :input pattern
                                         :output '(0) )) ;; raw
                  (gethash pattern ht))))) ;; goal
@@ -429,11 +429,113 @@ fitness function."
 ;; Selection functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+;; move this up to the fitness section:
+
+;; if lexicase individuals aren't assigned a "fitness score", this may
+;; break some parts of the programme -- which should be easy enough to
+;; patch, once we see what they are. 
+(defun per-case-n-ary (crt case-kv)
+  (unless (creature-eff crt)
+    (setf (creature-eff crt) (remove-introns (creature-seq crt)
+                                             :output *out-reg*)))
+  (let ((output (execute-sequence (creature-eff crt)
+                                  :output *out-reg*
+                                  :input (car case-kv))))
+    ;; simply: award one point if classified correctly. zero otherwise. 
+;;    (setf (creature-fit crt)
+          (if (every #'(lambda (x) (<= x (nth (cdr case-kv) output))) output)
+              1
+              0)))
+  ;;  (creature-fit crt)))
+
+(defun gauge-accuracy (crt &key (ht *training-hashtable*))
+  (let ((results (loop for k being the hash-keys in ht
+                    using (hash-value v)
+                    collect (per-case-n-ary crt (cons k v)))))
+    (/ (reduce #'+ results) (length results))))
+
+                                                    
+(defun per-case-n-ary-proportional-abs (crt case-kv)
+  (unless (creature-eff crt)
+    (setf (creature-eff crt) (remove-introns (creature-seq crt)
+                                             :output *out-reg*)))
+  (let ((output (execute-sequence (creature-eff crt)
+                                  :output *out-reg*
+                                  :input (car case-kv))))
+    ;; award the proportion of rightness. 
+    (setf (creature-fit crt)
+          (divide (abs (nth (cdr case-kv) output))
+                  (reduce #'+ (mapcar #'abs output))))
+    (creature-fit crt))) ;; doesn't mean much as a stable value,
+;; but it's handy to have a place to store this data, labile or not
+  
+;;(setf *stop* T)
+
+(defun f-lexicase (island &key (ht *training-hashtable*)
+                            (per-case #'per-case-n-ary) (epsilon 0))
+  (let* ((cases (shuffle (loop for k being the hash-keys in ht
+                            using (hash-value v) collect (cons k v))))
+         (candidates (copy-seq (island-deme island)))
+         (total (length cases))
+         (worst)
+         (scores (make-hash-table :test #'equalp)))
+    (flet ((fitter-for (crt-x crt-y case-kv)
+             (> (setf (gethash crt-x scores)
+                      (funcall per-case crt-x case-kv))
+                (setf (gethash crt-y scores)
+                      (funcall per-case crt-y case-kv))))
+           (near (x y) ;; when epsilon is 0, near is #'=
+             (<= (abs (- x y)) epsilon)))
+      (loop while (and (> (length candidates) 1) (> (length cases) 1)) do
+           (let ((top)
+                 (the-case))
+             (setf the-case (pop cases))
+             ;; (FORMAT T "TESTING CASE ~A~%~D REMAIN~%~%"
+             ;;         THE-CASE (LENGTH CANDIDATES))
+             (setf candidates
+                   (sort candidates
+                         #'(lambda (x y) (fitter-for x y the-case))))
+             ;; then take top n candidates with identical fitness.
+             (unless worst (setf worst (last candidates)))
+             (setf top (gethash (car candidates) scores))
+             (setf candidates
+                   (loop ;; could soften the '=' here, i imagine. 
+                      for creature in candidates
+                      while (near (gethash creature scores) top)
+                      collect creature)))))
+    ;; (FORMAT T "PASSED ~D of ~D (~4,2F%) OF TESTS.~%"
+    ;;         (- total (length cases))
+    ;;         total
+    ;;         (* 100 (/ (- total (length cases)) total)))
+    (mapcar #'(lambda (x) (setf (creature-fit x)
+                           (/ (- total (length cases)) total)))
+            candidates)
+    (values (car candidates)
+            (car worst)))) ;; return just one parent
+;; do this again for the other? so the parents are not trained on the same
+;; lexicographic ordering of cases?
+
+(defun lexicase! (island &key (per-case #'per-case-n-ary))
+  "Selects parents by lexicase selection." ;; stub, expand
+  (multiple-value-bind (best-one worst-one)
+      (f-lexicase island :per-case #'per-case-n-ary)
+    (multiple-value-bind (best-two worst-two)
+        (f-lexicase island :per-case #'per-case-n-ary)
+      (update-best-if-better best-one island)
+      (update-best-if-better best-two island)
+      (let ((children (mate best-one best-two)))
+        (nsubst (car children) worst-one (island-deme island))
+        (nsubst (car children) worst-two (island-deme island))))))
+        
+
 (defun update-best-if-better (crt island)
   (when (> (creature-fit crt) (creature-fit (island-best island)))
     (setf (island-best island) crt) 
     (funcall (island-logger island) `(,(island-era island) .
                                        ,(creature-fit crt)))))
+
+
+
 
 (defun tournement! (island &key (genealogy *track-genealogy*))
   "Tournement selction function: selects four combatants at random
@@ -677,6 +779,7 @@ applying, say, mapcar or length to it, in most cases."
                      ((:tournement) #'tournement!)
                      ((:roulette) #'roulette!)
                      ((:greedy-roulette) #'greedy-roulette!)
+                     ((:lexicase) #'lexicase!)
                      (otherwise (progn
                                   (format t "WARNING: METHOD NAME NOT RECO")
                                   (format t "GNIZED. USING #'TOURNEMENT!.~%")
@@ -1024,12 +1127,14 @@ without incurring delays."
 
 (defun params-for-shuttle ()
   (setf *parallel* nil)
-  (setf *rounds* 10)
-  (setf *dataset* :other)
+  (setf *rounds* 10000)
+  (setf *target* 1)
+  (setf *stat-interval* 100)
+  (setf *dataset* :shuttle)
   (setf *data-path* #p"~/Projects/genlin/datasets/shuttle/shuttle.csv")
-  (setf *destination-register-bits* 4)
-  (setf *source-register-bits* 5)
-  (update-dependent-machine-parameters))
+  (setf *destination-register-bits* 3)
+  (setf *source-register-bits* 4)
+  (setf *method-key* :lexicase))
 
 ;;(dbg)
 ;;(setf *stop* t)

@@ -129,14 +129,90 @@
   0)
 
 
+
+(defparameter *operations*
+  (concatenate 'vector
+               (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    
+                        #'PMD ;;                  ;; end of register ops
+                        ;; --------------------
+                        #'JLE #'LOD #'STO         ;; placeholders
+                        ;; -------------------- 
+                        #'XOR #'CNJ #'DIS #'MOV)   ;; extended operations 
+               (loop repeat (expt 2 *opcode-bits*)
+                  collect #'MOV))
+
+"Instruction set for the virtual machine. Only the first
+     2^*opcode-bits* will be used." )
+
+(defparameter *reg-op-keys*
+  '(:DIV :MUL :SUB :ADD :PMD :XOR :CNJ :DIS :MOV))
+
+(defparameter *jmp-op-keys*
+  '(:JLE))
+
+(defparameter *store-op-keys*
+  '(:STO))
+
+(defparameter *load-op-keys*
+  '(:LOD))
+
+(defvar *operation-keys*)
+
 (defun shuffle-operations ()
   (setf *operations* (coerce (shuffle (coerce *operations* 'list)) 'vector)))
 
-
-
+;; this whole thing should be refactored out of slomachine and r-machine,
+;; to a more central location
 (defun update-dependent-machine-parameters ()
 
-   (setf *destination-register-bits*
+  (setf *operation-keys*
+        (pairlis
+         (mapcar #'(lambda (x) (intern x :keyword))
+                 (mapcar #'func->string (coerce *operations* 'list)))
+         (coerce *operations* 'list)))
+
+;; Not quite ready yet. 
+  
+  (when *opstring*
+    (setf *ops* (read-from-string
+                 (concatenate 'string "("
+                              (substitute #\space #\, *opstring*) ")"))))
+
+  (when *ops*
+    (setf *ops* (sort *ops* #'(lambda (x y) (cond ((and (member x *reg-op-keys*)
+                                                   (member y *jmp-op-keys*))
+                                              t)
+                                             ((and (member x *reg-op-keys*)
+                                                   (member y *load-op-keys*))
+                                              t)
+                                             ((and (member x *reg-op-keys*)
+                                                   (member y *store-op-keys*))
+                                              t)
+                                             ((and (member x *jmp-op-keys*)
+                                                   (member y *load-op-keys*))
+                                              t)
+                                             ((and (member x *jmp-op-keys*)
+                                                   (member y *store-op-keys*))
+                                              t)
+                                             ((and (member x *load-op-keys*)
+                                                   (member y *store-op-keys*))
+                                              t)
+                                             (t nil)))))
+    (setf *operations*
+          (concatenate 'vector
+                       (mapcar #'(lambda (x) (cdr (assoc x *operation-keys*)))
+                               *ops*)
+                       (loop repeat (expt 2 *opcode-bits*) collect #'MOV))))
+  
+  (setf *REGIOPS* (length (remove-if-not #'(lambda (x) (member x *reg-op-keys*)) *ops*)))
+
+  (setf *JUMPOPS* (+ *REGIOPS* (length *jmp-op-keys*)))
+
+  (setf *LOADOPS* (+ *JUMPOPS* (length *load-op-keys*)))
+
+  (setf *STOROPS* (+ *LOADOPS* (length *store-op-keys*)))
+  
+  (setf *destination-register-bits*
          (max (ceiling (log (how-many-output-registers?) 2))
               *destination-register-bits*))
 
@@ -144,36 +220,6 @@
          (max (ceiling (log (+ (how-many-input-registers?)
                                (how-many-output-registers?)) 2))
               *source-register-bits*))
-  
-    ;; call the how-many-registers funcs here.
-    ;; simpler:
-
-       
-;;     (when (> output-needed
-;;              (expt 2 *destination-register-bits*))
-;;       (hrule)
-;;       (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO DESTINATION 
-;; REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
-;; MAKING ADJUSTMENTS.~%")
-;;       (hrule)
-;;       (loop for x from *destination-register-bits*
-;;          while (< (expt 2 x) output-needed)
-;;          do (incf *destination-register-bits*)))
-;;     (when (> input-needed
-;;              (- (expt 2 *source-register-bits*)
-;;                 (expt 2 *destination-register-bits*)))
-;;       (hrule)
-;;       (format t "WARNING: NOT ENOUGH BITS ALLOCATED TO SOURCE 
-;; REGISTER ADDRESS, FOR THIS PARTICULAR DATASET.
-;; MAKING ADJUSTMENTS.~%")
-;;       (hrule)
-;;       (loop for x from *source-register-bits*
-;;          while (< (- (expt 2 x)
-;;                      (expt 2 *destination-register-bits*))
-;;                   input-needed)
-;;          do (incf *source-register-bits*))))
-
-  
   
   (setf *wordsize*
         (+ *opcode-bits* *source-register-bits*
@@ -194,11 +240,6 @@
         (byte *destination-register-bits*
               (+ *source-register-bits* *opcode-bits*)))
 
-  ;; (setf *flgbits*
-  ;;       (byte *flag-bits*
-  ;;             (+ *destination-registers-bits*
-  ;;                *source-register-bits* *opcode-bits)))
-  
   (setf *default-input-reg*
         (concatenate 'vector
                (loop for i from 1 to (- (expt 2 *source-register-bits*)
@@ -355,27 +396,8 @@ entries in the history stack, tracking changes to the registers."
                              (t val))
                           'rational))))
 
-(defparameter *operations*
-  (concatenate 'vector
-               (vector  #'DIV #'MUL #'SUB #'ADD   ;; basic operations    
-                        #'PMD ;;                  ;; end of register ops
-                        ;; --------------------
-                        #'JLE #'LOD #'STO         ;; placeholders
-                        ;; -------------------- 
-                        #'XOR #'CNJ #'DIS #'MOV)   ;; extended operations 
-               (loop repeat (expt 2 *opcode-bits*)
-                  collect #'MOV))
 
-"Instruction set for the virtual machine. Only the first
-     2^*opcode-bits* will be used." )
-
-(defparameter *REGIOPS* 5) ;; all ops w code < 5 are register ops
-
-(defparameter *JUMPOPS* (1+ (position #'JLE *operations*))) ;; all ops >= 5 < 6 are jump ops
-
-(defparameter *LOADOPS* (1+ (position #'LOD *operations*))) ;; and so on
-
-(defparameter *STOROPS* (1+ (position #'STO *operations*))) ;; you understand now. 
+  
 
 ;; Some anaphoric macros for quickly dispatching instructions
 ;; and clarifying code, without costly stack operations

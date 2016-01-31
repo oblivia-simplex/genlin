@@ -23,6 +23,7 @@
     *max-len*
     *max-start-len*
     *maxval*
+    *opstring*
     *opcode-bits*
     *source-register-bits*
     *destination-register-bits*
