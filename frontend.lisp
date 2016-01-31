@@ -10,6 +10,7 @@
     *parallel*
     *dataset*
     *data-path*
+    *testing-data-path*
     *training-ratio*
     *method-key*
     *number-of-islands*
@@ -160,9 +161,18 @@ launch setup and evolve."
   "A place to prevent a few of the more disasterous parameter clashes
 and eventually, sanitize the input."
   (when *debug*
-    (setf *parallel* nil)))
+    (setf *parallel* nil)
+    (when (and (eq *method-key* :lexicase) *track-genealogy*)
+      (format t "WARNING: *TRACK-GENEALOGY* CURRENTLY INCOMPATIBLE")
+      (format t " WITH LEXICASE SELECTION.~%DISABLING.")
+      (setf *track-genealogy* nil))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defun setup-population ()
+    (setf +ISLAND-RING+
+          (init-population *population-size* *max-start-len*
+                           :number-of-islands *number-of-islands*)))
 
 (defun main ()
   (when (parse-command-line-args)
@@ -170,9 +180,7 @@ and eventually, sanitize the input."
     (setup-data)   ;; load the dataset, build the hashtables
     (update-dependent-machine-parameters)
     (sanity-check) ;; makes things slightly less likely to explode
-    (setf +ISLAND-RING+
-          (init-population *population-size* *max-start-len*
-                           :number-of-islands *number-of-islands*))
+    (setup-population)
     (print-params)
     (format t "          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-~%")
     (hrule)
@@ -184,6 +192,7 @@ and eventually, sanitize the input."
 
 ;; it's not convenient, yet, to select the VM at runtime. this choice needs
 ;; to be made at compile time, for the time being. 
+
 
 
 

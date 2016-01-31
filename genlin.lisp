@@ -38,7 +38,7 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun make-logger ()
-  (let ((log '()))
+  (let ((log (list (cons 0 0)))) ;; prevents a "nil is not a number" error
     (lambda (&optional (entry nil))
       (cond ((eq entry 'CLEAR) (setf log '()))
             (entry (push entry log))
@@ -126,22 +126,22 @@ register(s)."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (defun get-fitfunc ()
-  .fitfunc.)
+  *fitfunc*)
 
 (defun get-out-reg ()
   *out-reg*)
 
 (defun set-fitfunc (name)
   (case name
-    ((binary-1) (setf .fitfunc. #'fitness-binary-classifier-1)
+    ((binary-1) (setf *fitfunc* #'fitness-binary-classifier-1)
      (setf *out-reg* '(0)))
-    ((binary-2) (setf .fitfunc. #'fitness-binary-classifier-2)
+    ((binary-2) (setf *fitfunc* #'fitness-binary-classifier-2)
      (setf *out-reg* '(0)))
-    ((binary-3) (setf .fitfunc. #'fitness-binary-classifier-3)
+    ((binary-3) (setf *fitfunc* #'fitness-binary-classifier-3)
      (setf *out-reg* '(0 1)))
-    ((ternary-1) (setf .fitfunc. #'fitness-ternary-classifier-1)
+    ((ternary-1) (setf *fitfunc* #'fitness-ternary-classifier-1)
      (setf *out-reg* '(0 1 2)))
-    ((n-ary) (setf .fitfunc. #'fitness-n-ary-classifier)
+    ((n-ary) (setf *fitfunc* #'fitness-n-ary-classifier)
      (set-out-reg)) ;; sets the out-reg wrt the label-scanner   
     (otherwise (error "FITFUNC NICKNAME NOT RECOGNIZED. MUST BE ONE OF THE FOLLOWING: BINARY-1, BINARY-2, BINARY-3, TERNARY-1."))))
 
@@ -297,7 +297,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 fitness function."
   (unless (creature-fit crt)  
     (setf (creature-fit crt)
-          (funcall .fitfunc. crt :ht ht))
+          (funcall *fitfunc* crt :ht ht))
     (loop for parent in (creature-parents crt) do
          (cond ((> (creature-fit crt) (creature-fit parent))
                 (incf (getf *records* :fitter-than-parents)))
@@ -419,7 +419,8 @@ fitness function."
          (when genealogy
           
            (mapcar #'(lambda (x) (setf (creature-gen x) ;; update gen and parents
-                                  (1+ (max (creature-gen p0) (creature-gen p1)))
+                                  (1+ (max (creature-gen p0)
+                                           (creature-gen p1)))
                                   (creature-parents x)
                                   (list p0 p1)))
                    children)))
@@ -438,21 +439,36 @@ fitness function."
   (unless (creature-eff crt)
     (setf (creature-eff crt) (remove-introns (creature-seq crt)
                                              :output *out-reg*)))
-  (let ((output (execute-sequence (creature-eff crt)
+  (let ((chosen)
+        (output (execute-sequence (creature-eff crt)
                                   :output *out-reg*
                                   :input (car case-kv))))
     ;; simply: award one point if classified correctly. zero otherwise. 
-;;    (setf (creature-fit crt)
-          (if (every #'(lambda (x) (<= x (nth (cdr case-kv) output))) output)
-              1
-              0)))
+    ;;    (setf (creature-fit crt)
+    ;;(if (every #'(lambda (x) (< x (nth (cdr case-kv) output)))
+    ;;           output)
+    ;;   1
+    ;;  0)))
+
+    (setf chosen
+          (reduce #'(lambda (x y) (if (> (nth x output)
+                                    (nth y output)) 
+                                 x y))
+                  *out-reg*))
+    ;; (FORMAT T "CHOSEN: ~D     CLASS: ~D   ~A~%"
+    ;;         chosen (cdr case-kv) (if (= chosen (cdr case-kv))
+    ;;                                  "** CORRECT! **"
+    ;;                                  ">> INCORRECT <<"))
+    ;; return boolean: T for pass, NIL for fail
+    ;;(if
+    (= chosen (cdr case-kv))))
+     ;;   'PASS
+      ;;  'FAIL)))
+    
   ;;  (creature-fit crt)))
 
-(defun gauge-accuracy (crt &key (ht *training-hashtable*))
-  (let ((results (loop for k being the hash-keys in ht
-                    using (hash-value v)
-                    collect (per-case-n-ary crt (cons k v)))))
-    (/ (reduce #'+ results) (length results))))
+;;(dbg)
+
 
                                                     
 (defun per-case-n-ary-proportional-abs (crt case-kv)
@@ -471,49 +487,69 @@ fitness function."
   
 ;;(setf *stop* T)
 
-(defun f-lexicase (island &key (ht *training-hashtable*)
-                            (per-case #'per-case-n-ary) (epsilon 0))
+(defun gauge-accuracy (crt &key (ht *training-hashtable*))
+  (let ((results (loop for k being the hash-keys in ht
+                    using (hash-value v)
+                    collect (per-case-n-ary crt (cons k v)))))
+    (/ (reduce #'+ (mapcar #'(lambda (x) (if x 1 0)) results))
+       (length results))))
+
+(defparameter **lexi-debug** nil)
+(setf *stop* t)
+
+(defun f-lexicase (island
+                   &key (ht *training-hashtable*)
+                     (per-case #'per-case-n-ary)
+                     (epsilon 1/32))
   (let* ((cases (shuffle (loop for k being the hash-keys in ht
                             using (hash-value v) collect (cons k v))))
          (candidates (copy-seq (island-deme island)))
+         (next-candidates candidates)
          (total (length cases))
+         (highscore 0)
          (worst)
          (scores (make-hash-table :test #'equalp)))
-    (flet ((fitter-for (crt-x crt-y case-kv)
-             (> (setf (gethash crt-x scores)
-                      (funcall per-case crt-x case-kv))
-                (setf (gethash crt-y scores)
-                      (funcall per-case crt-y case-kv))))
-           (near (x y) ;; when epsilon is 0, near is #'=
-             (<= (abs (- x y)) epsilon)))
-      (loop while (and (> (length candidates) 1) (> (length cases) 1)) do
-           (let ((top)
-                 (the-case))
-             (setf the-case (pop cases))
-             ;; (FORMAT T "TESTING CASE ~A~%~D REMAIN~%~%"
-             ;;         THE-CASE (LENGTH CANDIDATES))
-             (setf candidates
-                   (sort candidates
-                         #'(lambda (x y) (fitter-for x y the-case))))
-             ;; then take top n candidates with identical fitness.
-             (unless worst (setf worst (last candidates)))
-             (setf top (gethash (car candidates) scores))
-             (setf candidates
-                   (loop ;; could soften the '=' here, i imagine. 
-                      for creature in candidates
-                      while (near (gethash creature scores) top)
-                      collect creature)))))
-    ;; (FORMAT T "PASSED ~D of ~D (~4,2F%) OF TESTS.~%"
-    ;;         (- total (length cases))
-    ;;         total
-    ;;         (* 100 (/ (- total (length cases)) total)))
-    (mapcar #'(lambda (x) (setf (creature-fit x)
-                           (/ (- total (length cases)) total)))
-            candidates)
-    (values (car candidates)
-            (car worst)))) ;; return just one parent
-;; do this again for the other? so the parents are not trained on the same
-;; lexicographic ordering of cases?
+    (loop while (and next-candidates cases) do
+         (let ((the-case))
+           (setf the-case (pop cases))
+           (setf candidates next-candidates)
+           (when **lexi-debug**
+             (FORMAT T "TESTING CASE ~A~%REMAINING CANDIDATES: ~D~%REMAINING CASES: ~D~%~%"
+                     THE-CASE (LENGTH CANDIDATES) (LENGTH CASES)))
+           (setf next-candidates
+                 (remove-if-not 
+                  #'(lambda (x) (funcall per-case x the-case))
+                  candidates))))
+    
+    (when (null candidates)
+      (when **lexi-debug**
+        (FORMAT T "EVERYONE FAILED. CHOSING AT RANDOM.~%"))
+      (setf candidates
+            (list (elt (island-deme island)
+                       (random (length (island-deme island)))))))
+    (setf highscore
+          (/ (- total (length cases)) total))
+    (when **lexi-debug**
+      (FORMAT T "PASSED ~D of ~D (~4,2F%) OF TESTS.~%"
+              (- total (length cases))
+              total
+              highscore)) 
+      (setf worst ;; the quick and dirty way -- should work fine
+            (elt (island-deme island) (random (length (island-deme island)))))
+      ;; ************************************************************
+      ;; It greatly increases training time to also gauge the acc
+      ;; of a creature against the entire dataset. I'm keeping this
+      ;; here only for debugging purposes. It can be commented out
+      ;; once I'm confident with the utility of lexicase fitness.
+      ;; (Which is wildly unstable, but should still converge on 1.)
+      ;; ************************************************************
+      (when **lexi-debug**
+        (FORMAT T "GAUGING ACCURACY OF WINNING CANDIDATE...~%"))
+      ;; (setf (creature-fit (car candidates))
+      ;;       (gauge-accuracy (car candidates) :ht ht))
+      (values (car candidates)
+              worst))) ;; return just one parent
+
 
 (defun lexicase! (island &key (per-case #'per-case-n-ary))
   "Selects parents by lexicase selection." ;; stub, expand
@@ -521,20 +557,49 @@ fitness function."
       (f-lexicase island :per-case #'per-case-n-ary)
     (multiple-value-bind (best-two worst-two)
         (f-lexicase island :per-case #'per-case-n-ary)
-      (update-best-if-better best-one island)
-      (update-best-if-better best-two island)
-      (let ((children (mate best-one best-two)))
-        (nsubst (car children) worst-one (island-deme island))
-        (nsubst (car children) worst-two (island-deme island))))))
-        
+      (update-accuracy-log best-one island)
+      (update-accuracy-log best-two island)
+      (let ((children (mate best-one best-two
+                            :genealogy *track-genealogy*)))
+        ;; (setf (elt (island-deme island)
+        ;;            (position worst-one (island-deme island)))
+        ;;       (car children))
+        ;; (setf (elt (island-deme island)
+        ;;            (position worst-two (island-deme island)))
+        ;;       (cadr children))
+        ;; children))))
+        (mapcar #'(lambda (x) (setf (creature-home x)
+                               (island-id island))) children)
+        (nsubst (car children) worst-one (island-deme island)
+                :test #'equalp)
+        (nsubst (cadr children) worst-two (island-deme island)
+                :test #'equalp)
+        children))))
+
+(defun update-accuracy-log (crt island)
+  (let ((acc (gauge-accuracy crt :ht *testing-hashtable*)))
+    (setf (creature-fit crt) acc)
+    (when (> acc (creature-fit (island-best island)))
+      (setf (island-best island) crt)
+      (funcall (island-logger island) (cons (island-era island)
+                                            acc)))))
 
 (defun update-best-if-better (crt island)
+  ;; NB: When using lexicase selection, because island-best preserves a
+  ;; reference to, and not just a copy of, the island's best, the fitness
+  ;; of "best" may perplexingly fluctuate. This is to be expected.
+  ;; But since numbers are passed by value, the logger will only record
+  ;; the fitness of the island best at the time it was logged.
+  (when (and (eq crt (island-best island))
+             (/= (creature-fit crt) (cdar (funcall (island-logger island)))))
+    (funcall (island-logger island) (cons (island-era island)
+                                          (creature-fit crt))))
   (when (> (creature-fit crt) (creature-fit (island-best island)))
+    ;; (FORMAT T "~F IS BETTER THAN ~F~%"
+    ;;         (creature-fit crt) (creature-fit (island-best island)))
     (setf (island-best island) crt) 
-    (funcall (island-logger island) `(,(island-era island) .
-                                       ,(creature-fit crt)))))
-
-
+    (funcall (island-logger island) (cons (island-era island) 
+                                          (creature-fit crt)))))
 
 
 (defun tournement! (island &key (genealogy *track-genealogy*))
@@ -767,11 +832,6 @@ applying, say, mapcar or length to it, in most cases."
                      (dataset *dataset*)
                      (method-key *method-key*)
                      (fitfunc-name)
-;;                     (popsize *population-size*)
-;;                     (number-of-islands *number-of-islands*)
-;;                     (migration-rate *migration-rate*)
-;;                     (migration-size *migration-size*)
-;;                     (greedy-migration *greedy-migration*)
                      (filename *data-path*))
   (let ((hashtable)
         (training+testing))
@@ -784,16 +844,11 @@ applying, say, mapcar or length to it, in most cases."
                                   (format t "WARNING: METHOD NAME NOT RECO")
                                   (format t "GNIZED. USING #'TOURNEMENT!.~%")
                                   #'tournement!))))
-    (setf ;;*number-of-islands* number-of-islands
-          ;;*population-size* popsize
-          *dataset* dataset)
-          ;;*migration-rate* migration-rate
-          ;;*migration-size* migration-size
-          ;;*greedy-migration* greedy-migration)
+    (setf *dataset* dataset)
     (reset-records)
     (funcall =label-scanner= 'flush)
-    (case dataset
-      ((:tictactoe)
+    (case dataset   ;; at some point, I'll have to clean up all of this
+      ((:tictactoe) ;; ad-hoc spaghetti code. 
        (unless filename (setf filename *tictactoe-path*))
        (unless fitfunc-name (setf fitfunc-name 'binary-1))
        (setf hashtable (ttt-datafile->hashtable
@@ -801,26 +856,22 @@ applying, say, mapcar or length to it, in most cases."
       (otherwise
        (unless filename (setf filename *iris-path*))
        (unless fitfunc-name (setf fitfunc-name 'n-ary))
-       (setf hashtable (datafile->hashtable :filename filename))))
-    ;;(setf hashtable (iris-datafile->hashtable :filename filename)))
-    ;;      (otherwise (error "DATASET UNKNOWN (IN SETUP)")))
-    (setf training+testing (partition-data hashtable ratio))
+       (setf hashtable (datafile->hashtable :filename filename))
+       (when *testing-data-path*
+         (setf training+testing (cons hashtable
+                                      (datafile->hashtable
+                                       :filename *testing-data-path*))))))
+    (unless training+testing
+      (setf training+testing (partition-data hashtable ratio)))
     (init-fitness-env :training-hashtable (car training+testing)
                       :testing-hashtable  (cdr training+testing)
                       :fitfunc-name fitfunc-name)
-    ;; (setf *best* (make-creature :fit 0))
-    ;; (update-dependent-machine-parameters)
-;;    (format t "~%")
-;;    (hrule)
-;;    (format t "[!] DATA READ AND PARTITIONED INTO TRAINING AND TESTING TABLES
-;;[!] POPULATION OF ~d INITIALIZED
-;;[!] POPULATION SPLIT INTO ~d DEMES AND ISLANDS POPULATED
-;;[!]  FITNESS ENVIRONMENT INITIALIZED:~%" popsize number-of-islands)
- ;;   (hrule)
- ;;   (peek-fitness-environment)
- ;;   (hrule)
- ;;  (print-params)
     training+testing))
+;; note: I should have a separate label-scanner object for the
+;; testing and training sets, if they come from different files.
+;; copies, otherwise. right now, the same object is used, which
+;; is fine if the testing and training sets have the same attributes
+;; and classes, but which could lead to obsure bugs otherwise.  
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Runners
@@ -882,11 +933,15 @@ applying, say, mapcar or length to it, in most cases."
                    (when (= 0 (mod i stat-interval))
                      (print-statistics island-ring)
                      (best-of-all +island-ring+)
-                     (format t "BEST FIT: ~F ON ISLAND ~A   |   RUNNING ~A ON ~A...~%"
+                     (format t "BEST FIT: ~F ON ISLAND ~A   *   RUNNING ~A ON ~A...~%"
                              (creature-fit *best*)
                              (roman (creature-home *best*))
                              (func->string method)
                              *dataset*)
+                     ;; (when (eq *method-key* :LEXICASE)
+                     ;;   (format t "ACCURACY: ~F~%"
+                     ;;           (gauge-accuracy *best*
+                     ;;                           :ht *testing-hashtable*)))
                      (hrule))
                    (when (or (> (creature-fit (island-best isle)) target)
                              *STOP*)
@@ -901,11 +956,12 @@ applying, say, mapcar or length to it, in most cases."
        (plot-fitness isle))
   (when *track-genealogy* (genealogical-fitness-stats))
   (hrule)
-  (format t "BEST FITNESS IS ~F~%ACHIEVED BY A GENERATION ~D CREATURE, FROM ISLAND ~A AT ERA ~D~%"
-          (creature-fit *best*)
-          (creature-gen *best*)
-          (roman (creature-home *best*))
-          (island-era (elt +island-ring+ (creature-home *best*))))
+  (if (not (zerop (creature-fit *best*)))
+      (format t "BEST FITNESS IS ~F~%ACHIEVED BY A GENERATION ~D CREATURE, FROM ISLAND ~A AT ERA ~D~%"
+              (creature-fit *best*)
+              (creature-gen *best*)
+              (roman (creature-home *best*))
+              (island-era (elt +island-ring+ (creature-home *best*)))))
   (hrule))
           
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -985,7 +1041,7 @@ without incurring delays."
                  #\tab
                  (* 100 (divide (aref buckets y) sum))))))
 
-(defun percent-effective (crt &key (out *output-reg*))
+(defun percent-effective (crt &key (out *out-reg*))
   (when (equalp #() (creature-eff crt))
     (setf (creature-eff crt) (remove-introns (creature-seq crt)
                                              :output out)))
@@ -1120,8 +1176,9 @@ without incurring delays."
 
 
 ;; for testing in the REPL:
-(defun grab-specimen ()
-  (let* ((isle (elt +island-ring+ (random *number-of-islands*)))
+(defun grab-specimen (&key island)
+  (let* ((isle (if island island
+                   (elt +island-ring+ (random *number-of-islands*))))
         (crt (elt (island-deme isle) (random (length (island-deme isle))))))
     crt))
 
@@ -1129,6 +1186,7 @@ without incurring delays."
   (setf *parallel* nil)
   (setf *rounds* 10000)
   (setf *target* 1)
+  (setf *track-genealogy* nil)
   (setf *stat-interval* 100)
   (setf *dataset* :shuttle)
   (setf *data-path* #p"~/Projects/genlin/datasets/shuttle/shuttle.csv")
@@ -1137,4 +1195,4 @@ without incurring delays."
   (setf *method-key* :lexicase))
 
 ;;(dbg)
-;;(setf *stop* t)
+(setf *stop* t)

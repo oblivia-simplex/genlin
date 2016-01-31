@@ -131,11 +131,11 @@
 
 ;; Things whose presence here reflects a want of refactoring. 
 
-(defvar .fitfunc. nil)
+(defvar *fitfunc* nil)
 
-(defvar .training-hashtable. (make-hash-table :test #'equalp))
+(defvar *training-hashtable* (make-hash-table :test #'equalp))
 
-(defvar .testing-hashtable.  (make-hash-table :test #'equalp))
+(defvar *testing-hashtable*  (make-hash-table :test #'equalp))
 
 (defvar *out-reg* '())
 
@@ -248,4 +248,13 @@
   "The user may supply a list of opcode mnemonics if to reconfigure
      the virtual machine's primitive instruction set.")
 
-(defvar *opstring* nil)
+(defvar *opstring* nil
+  "The user may supply a list of opcode mnemonics to reconfigure the
+     virtual machine's primitive instruction set. These operations
+     should be entered as keywords, separated by commas, with no
+     spaces. (UNSTABLE.)")
+
+(defvar *testing-data-path* nil
+  "Specify an independent testing dataset. If left as nil, then the
+     main dataset will be partitioned according to *RATIO*.")
+
