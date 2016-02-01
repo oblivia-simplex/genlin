@@ -39,7 +39,7 @@
            (data-hash line ht)
            (and *debug* (format t "READ|  ~a~%" line)))
       (close input))
-;;    (set-out-reg) ;; set the output registers, knowing the classes
+    ;;    (set-out-reg) ;; set the output registers, knowing the classes
     ht))
 
 (defun attribute-string (vec)
@@ -49,7 +49,7 @@
                                 (format nil "ATTRIBUTE ~@R:~C~F~%"
                                         i #\Tab (aref vec (1- i)))))) str))
 
-;; the actual testing function should be refactored out of these reports. 
+;; use the helper functions in the fitness section in here, instead. 
 (defun data-classification-report  (&key (crt *best*) (ht) (out '(0 1 2)))
   (print-creature crt)
   (let ((seq (creature-eff crt))
@@ -69,7 +69,7 @@
                             (reduce #'max output))))
            (hrule)
            (format t "~A~%" (attribute-string k))
-           (format t "~%")
+           (terpri)
            (loop for i from 0 to (1- (length output)) do
                 (format t "CLASS ~A: ~f%~%" (elt names i)
                         (elt certainties i)))
@@ -139,4 +139,5 @@
                     (gethash k hashtable))))
     (cons training testing)))
 
-(setf *stop* t)
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=

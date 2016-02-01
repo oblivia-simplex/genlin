@@ -2,7 +2,7 @@
 ;; If you want to create a file, visit that file with C-x C-f,
 ;; then enter the text in that file's own buffer.
 
-(defun crossover (p0 p1)
+(defun shufflefuck (p0 p1)
   (declare (type creature p0 p1))
   (declare (optimize (speed 1)))
 

@@ -284,7 +284,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                          x y))
           *out-reg*))
 
-(defun register-vote (output &key (comparator #'<) (pre #'abs))
+(defun register-vote (output &key (comparator #'>) (pre #'abs))
   "Return the index of the register with the highest or lowest value."
   (reduce #'(lambda (x y) (if (funcall comparator
                                   (funcall pre (nth x output))
@@ -405,9 +405,22 @@ fitness function."
   (and *debug* (print "smutate-append"))
   (setf seq (concatenate 'vector
                          seq
-                         (vector (random (expt 2 *wordsize*)))));;(aref seq idx))
+                         (vector (random (expt 2 *wordsize*)))))
   seq)
 
+(defun smutate-shrink (seq)
+  "Doubles a random element of seq."
+  (declare (type simple-array seq))
+  (and *debug* (print "smutate-shrink"))
+  (cond ((>= (length seq) (max 3 *min-len*))
+         (let* ((tocut (random  (length seq)))
+                (newseq (concatenate 'vector
+                                     (subseq seq 0 tocut)
+                                     (subseq seq (1+ tocut)))))
+           newseq))
+        (t seq)))
+           
+           
 
 (defun smutate-imutate (seq)
   "Applies imutate-flip to a random instruction in the sequence."
@@ -418,7 +431,7 @@ fitness function."
   seq)
 
 (defparameter *mutations*
-  (vector #'smutate-insert #'smutate-grow #'smutate-imutate #'smutate-swap))
+  (vector #'smutate-insert #'smutate-shrink #'smutate-shrink #'smutate-grow #'smutate-imutate #'smutate-swap))
 
 (defun random-mutation (seq)
   (declare (type simple-array seq))
@@ -430,7 +443,8 @@ fitness function."
       (random-mutation seq)
       seq))
 
-(defun crossover (p0 p1)
+(defun shufflefuck (p0 p1)
+  "Crossover operator. Works just like it sounds."
   (declare (type creature p0 p1))
   (declare (optimize (speed 1)))
 
@@ -460,7 +474,7 @@ fitness function."
 
 (defun mate (p0 p1 &key (genealogy *track-genealogy*)
                                (output-registers *out-reg*))
-  (let ((children (crossover p0 p1)))
+  (let ((children (shufflefuck p0 p1)))
     ;; mutation
     (loop for child in children do
          (setf (creature-seq child) (maybe-mutate (creature-seq child)))
@@ -493,18 +507,16 @@ fitness function."
        (length results))))
 
 (defparameter **lexi-debug** nil)
-(setf *stop* t)
+;;(setf *stop* t)
 
 (defun f-lexicase (island
                    &key (ht *training-hashtable*)
                      (per-case #'per-case-n-ary))
-                    
   (flet ((set-eff (crt)
            (unless (creature-eff crt)
              (setf (creature-eff crt) (remove-introns (creature-seq crt)
                                                       :output *out-reg*)))
            crt))
-    
     (let* ((cases (shuffle (loop for k being the hash-keys in ht
                               using (hash-value v) collect (cons k v))))
            (candidates (copy-seq (island-deme island)))
@@ -525,7 +537,6 @@ fitness function."
                    (remove-if-not 
                     #'(lambda (x) (funcall per-case x the-case))
                     candidates))))
-      
       (when (null candidates)
         (when **lexi-debug**
           (FORMAT T "EVERYONE FAILED. CHOSING AT RANDOM.~%"))
@@ -554,6 +565,8 @@ fitness function."
       ;;       (gauge-accuracy (car candidates) :ht ht))
       (values (car candidates)
               worst)))) ;; return just one parent
+
+;(defun per-case-prop->bool (crt case-kv target)
   
   
 (defun lexicase! (island &key (per-case #'per-case-n-ary))
@@ -1009,7 +1022,8 @@ applying, say, mapcar or length to it, in most cases."
   (hrule)
   (format t "[+] VIRTUAL MACHINE:      ~A~%" *machine*)
   (format t "[+] INSTRUCTION SIZE:     ~d bits~%" *wordsize*)
-  (format t "[+] # of RW REGISTERS:    ~d~%" (expt 2 *destination-register-bits*))
+  (format t "[+] # of RW REGISTERS:    ~d~%"
+          (expt 2 *destination-register-bits*))
   (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *source-register-bits*))
   (format t "[+] PRIMITIVE OPERATIONS: ")
   (loop for i from 0 to (1- (expt 2 *opcode-bits*)) do
@@ -1087,7 +1101,6 @@ without incurring delays."
   (/ (reduce #'+ (mapcar #'percent-effective population))
      (length population)))
 
-
 (defun print-statistics (island-ring)
   (mapcar #'print-statistics-for-island
           (subseq island-ring 0 (island-of (car island-ring))))
@@ -1104,9 +1117,11 @@ without incurring delays."
   (format t "[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: ~5,4f %~%"
           (* 100 (creature-fit (island-best island))))
   (format t "[*] AVERAGE FITNESS ON ISLAND: ~5,2f %~%"
-          (* 100 (/ (reduce #'+
-                            (remove-if #'null (mapcar #'creature-fit (island-deme island))))
-                    (length (island-deme island)))))
+          (* 100 (divide (reduce #'+
+                                 (remove-if #'null
+                                            (mapcar #'creature-fit
+                                                    (island-deme island))))
+                         (length (island-deme island)))))
   (format t "[*] BEST FITNESS BY GENERATION:  ~%")
   (print-fitness-by-gen (island-logger island))
   (format t "[*] AVERAGE SIMILARITY TO BEST:  ~5,2f %~%"
@@ -1115,16 +1130,15 @@ without incurring delays."
           (* 100 (- 1 (average-effective (island-deme island)))))
 
   (format t "[*] AVERAGE LENGTH: ~5,2f instructions (~5,2f effective)~%"
-          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-seq x)))
+          (divide (reduce #'+ (mapcar #'(lambda (x) (length (creature-seq x)))
                                  (island-deme island)))
              (length (island-deme island)))
-          (/ (reduce #'+ (mapcar #'(lambda (x) (length (creature-eff x)))
+          (divide (reduce #'+ (mapcar #'(lambda (x) (length (creature-eff x)))
                                  (island-deme island)))
              (length (remove-if #'(lambda (x) (equalp #() (creature-eff x)))
                                 (island-deme island)))))
   (format t "[*] EFFECTIVE OPCODE CENSUS:~%")
   (opcode-census (island-deme island)))
-                  
 
 (defun plot-fitness (island)
   (hrule)
@@ -1181,14 +1195,13 @@ without incurring delays."
   (format t "DISASSEMBLY OF EFFECTIVE CODE:~%")
   (disassemble-sequence (creature-eff crt) :static t))
   
-
 (defun genealogical-fitness-stats ()
   (let ((sum 0))
     (mapcar #'(lambda (x) (if (numberp x) (incf sum x))) *records*)
     (loop for (entry stat) on *records* by #'cddr do
          (format t "~A: ~5,2F%~%"
                  (substitute #\space #\- (symbol-name entry))
-                 (* 100 (/ stat sum))))))
+                 (* 100 (divide stat sum))))))
 
 (defun print-new-best-update (island)
   ;;  (hrule)

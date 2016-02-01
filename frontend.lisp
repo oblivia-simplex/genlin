@@ -162,7 +162,7 @@ launch setup and evolve."
 and eventually, sanitize the input."
   (when *debug*
     (setf *parallel* nil)
-    (when (and (eq *method-key* :lexicase) *track-genealogy*)
+    (when (eq *method-key* :lexicase)
       (format t "WARNING: *TRACK-GENEALOGY* CURRENTLY INCOMPATIBLE")
       (format t " WITH LEXICASE SELECTION.~%DISABLING.")
       (setf *track-genealogy* nil))))
@@ -175,6 +175,7 @@ and eventually, sanitize the input."
                            :number-of-islands *number-of-islands*)))
 
 (defun main ()
+  (format t "~A~%" (timestring))
   (when (parse-command-line-args)
     (when *menu* (menu))
     (setup-data)   ;; load the dataset, build the hashtables
