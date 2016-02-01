@@ -256,5 +256,5 @@
 
 (defvar *testing-data-path* nil
   "Specify an independent testing dataset. If left as nil, then the
-     main dataset will be partitioned according to *RATIO*.")
+     main dataset will be partitioned according to --training-ratio.")
 

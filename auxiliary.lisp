@@ -80,15 +80,16 @@ must be disjoint."
 (defun shuffle (seq)
   (sort seq #'(lambda (x y) (declare (ignore x y))(= 0 (random 2)))))
 
-(defun n-rnd (low high &optional (r '()) (n 4))
+(defun n-rnd (low high &key (n 4))
   "Returns a list of n distinct random numbers between low and high."
-  (declare (type fixnum low high n))
-  (declare (optimize speed))
-  (when (< (- high low) n)
-    (error "Error in n-rnd: interval too small: infinite loop"))
-  (loop (when (= (length r) n)
-          (return r))
-     (setf r (remove-duplicates (cons (+ low (random high)) r)))))
+  (let ((r '()))
+    (declare (type fixnum low high n))
+    (declare (optimize speed))
+    (when (< (- high low) n)
+      (error "Error in n-rnd: interval too small: infinite loop"))
+   (loop (when (= (length r) n)
+            (return r))
+       (setf r (remove-duplicates (cons (+ low (random high)) r))))))
 
 ;; a helper:
 (defun sieve-of-eratosthenes (maximum) "sieve for odd numbers"
