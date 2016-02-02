@@ -29,18 +29,20 @@
            collect i)))
 
 (defun datafile->hashtable (&key filename)
-  (format t "FILENAME: ~a~%" filename)
-  (let ((ht (make-hash-table :test 'equal))
-        (input (open filename :if-does-not-exist nil)))
-    (when input
-      (loop
-         for line = (read-line input nil)
-         while line do
-           (data-hash line ht)
-           (and *debug* (format t "READ|  ~a~%" line)))
-      (close input))
-    ;;    (set-out-reg) ;; set the output registers, knowing the classes
-    ht))
+  (cond ((eq *dataset* :tictactoe)
+         (ttt-datafile->hashtable :filename filename))
+        (t (format t "FILENAME: ~a~%" filename)
+           (let ((ht (make-hash-table :test 'equal))
+                 (input (open filename :if-does-not-exist nil)))
+             (when input
+               (loop
+                  for line = (read-line input nil)
+                  while line do
+                    (data-hash line ht)
+                    (and *debug* (format t "READ|  ~a~%" line)))
+               (close input))
+             ;;    (set-out-reg) ;; set the output registers, knowing the classes
+             ht))))
 
 (defun attribute-string (vec)
   (let ((str ""))

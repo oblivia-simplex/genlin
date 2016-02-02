@@ -1,0 +1,3230 @@
+;; It is now 23:20:11 of Monday, 1/02/2016 (GMT-4)
+Setting *DATASET* to TICTACTOE...
+Setting *DATA-PATH* to ./datasets/TicTacToe/tic-tac-toe.data...
+Setting *TESTING-DATA-PATH* to ./datasets/TicTacToe/hard-ttt.data...
+Setting *SELECTION-METHOD* to LEXICASE...
+Setting *TARGET* to 1...
+FILENAME: ./datasets/TicTacToe/tic-tac-toe.data
+FILENAME: ./datasets/TicTacToe/hard-ttt.data
+-----------------------------------------------------------------------------
+[+] VIRTUAL MACHINE:      SLOMACHINE
+[+] INSTRUCTION SIZE:     8 bits
+[+] # of RW REGISTERS:    4
+[+] # of RO REGISTERS:    8
+[+] PRIMITIVE OPERATIONS: DIV MUL SUB ADD PMD JLE LOD STO 
+[+] POPULATION SIZE:      1200
+[+] NUMBER OF ISLANDS:    12
+[+] MIGRATION RATE:       ONCE EVERY 1000 CYCLES
+[+] MIGRATION SIZE:       1/10
+[+] MIGRATION ELITISM:    1
+[+] MUTATION RATE:        3/20
+[+] METAMUTATION RATE:    1/10
+[+] MAX SEQUENCE LENGTH:  256
+[+] MAX STARTING LENGTH:  25
+[+] # of TRAINING CASES:  958
+[+] # of TEST CASES:      16
+[+] SELECTION FUNCTION:   #<FUNCTION GENLIN::LEXICASE!>
+[+] OUTPUT REGISTERS:     (0)
+-----------------------------------------------------------------------------
+          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: .0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.00 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.68 %
+[*] AVERAGE LENGTH: 14.34 instructions (14.44 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  189	(13.49 %)		MUL:  168	(11.99 %)
+	SUB:  173	(12.35 %)		ADD:  146	(10.42 %)
+	PMD:  175	(12.49 %)		JLE:  179	(12.78 %)
+	LOD:  192	(13.70 %)		STO:  179	(12.78 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 14.03 instructions (13.83 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  157	(11.35 %)		MUL:  176	(12.73 %)
+	SUB:  181	(13.09 %)		ADD:  171	(12.36 %)
+	PMD:  182	(13.16 %)		JLE:  187	(13.52 %)
+	LOD:  166	(12.00 %)		STO:  163	(11.79 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.04 instructions (15.70 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  179	(12.13 %)		MUL:  167	(11.31 %)
+	SUB:  192	(13.01 %)		ADD:  176	(11.92 %)
+	PMD:  215	(14.57 %)		JLE:  159	(10.77 %)
+	LOD:  192	(13.01 %)		STO:  196	(13.28 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 6.2500 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	711:	6.2500 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.17 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.64 instructions (13.76 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  178	(13.20 %)		MUL:  163	(12.09 %)
+	SUB:  158	(11.72 %)		ADD:  169	(12.54 %)
+	PMD:  157	(11.65 %)		JLE:  159	(11.80 %)
+	LOD:  189	(14.02 %)		STO:  175	(12.98 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 6.2500 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	875:	6.2500 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.33 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 13.83 instructions (13.64 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  163	(11.95 %)		MUL:  160	(11.73 %)
+	SUB:  183	(13.42 %)		ADD:  188	(13.78 %)
+	PMD:  149	(10.92 %)		JLE:  173	(12.68 %)
+	LOD:  154	(11.29 %)		STO:  194	(14.22 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.89 %
+[*] AVERAGE LENGTH: 14.72 instructions (15.19 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  164	(11.25 %)		MUL:  187	(12.83 %)
+	SUB:  206	(14.13 %)		ADD:  169	(11.59 %)
+	PMD:  183	(12.55 %)		JLE:  171	(11.73 %)
+	LOD:  212	(14.54 %)		STO:  166	(11.39 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.06 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.53 %
+[*] AVERAGE LENGTH: 15.32 instructions (15.35 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  189	(12.43 %)		MUL:  193	(12.70 %)
+	SUB:  191	(12.57 %)		ADD:  185	(12.17 %)
+	PMD:  205	(13.49 %)		JLE:  186	(12.24 %)
+	LOD:  188	(12.37 %)		STO:  183	(12.04 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.42 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 13.62 instructions (14.20 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(12.58 %)		MUL:  143	(10.71 %)
+	SUB:  157	(11.76 %)		ADD:  161	(12.06 %)
+	PMD:  165	(12.36 %)		JLE:  165	(12.36 %)
+	LOD:  197	(14.76 %)		STO:  179	(13.41 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.08 %
+[*] AVERAGE LENGTH: 13.80 instructions (14.41 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  153	(11.29 %)		MUL:  176	(12.99 %)
+	SUB:  177	(13.06 %)		ADD:  163	(12.03 %)
+	PMD:  179	(13.21 %)		JLE:  151	(11.14 %)
+	LOD:  172	(12.69 %)		STO:  184	(13.58 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.31 %
+[*] AVERAGE LENGTH: 12.53 instructions (12.61 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  160	(13.08 %)		MUL:  160	(13.08 %)
+	SUB:  144	(11.77 %)		ADD:  153	(12.51 %)
+	PMD:  144	(11.77 %)		JLE:  135	(11.04 %)
+	LOD:  148	(12.10 %)		STO:  179	(14.64 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: .0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.00 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.17 %
+[*] AVERAGE LENGTH: 14.55 instructions (14.50 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  189	(13.30 %)		MUL:  177	(12.46 %)
+	SUB:  184	(12.95 %)		ADD:  161	(11.33 %)
+	PMD:  177	(12.46 %)		JLE:  172	(12.10 %)
+	LOD:  192	(13.51 %)		STO:  169	(11.89 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 1000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.30 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.07 instructions (13.34 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  166	(12.96 %)		MUL:  146	(11.40 %)
+	SUB:  147	(11.48 %)		ADD:  166	(12.96 %)
+	PMD:  158	(12.33 %)		JLE:  167	(13.04 %)
+	LOD:  174	(13.58 %)		STO:  157	(12.26 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE I  *  14 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.68 %
+[*] AVERAGE LENGTH: 14.29 instructions (14.39 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  176	(12.61 %)		MUL:  166	(11.89 %)
+	SUB:  181	(12.97 %)		ADD:  154	(11.03 %)
+	PMD:  173	(12.39 %)		JLE:  171	(12.25 %)
+	LOD:  189	(13.54 %)		STO:  186	(13.32 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 13.84 instructions (13.64 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  160	(11.73 %)		MUL:  168	(12.32 %)
+	SUB:  182	(13.34 %)		ADD:  161	(11.80 %)
+	PMD:  177	(12.98 %)		JLE:  182	(13.34 %)
+	LOD:  169	(12.39 %)		STO:  165	(12.10 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  9.06 %
+[*] AVERAGE LENGTH: 15.35 instructions (15.98 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  184	(12.25 %)		MUL:  172	(11.45 %)
+	SUB:  190	(12.65 %)		ADD:  187	(12.45 %)
+	PMD:  215	(14.31 %)		JLE:  170	(11.32 %)
+	LOD:  192	(12.78 %)		STO:  192	(12.78 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.25 instructions (13.36 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  167	(12.76 %)		MUL:  162	(12.38 %)
+	SUB:  148	(11.31 %)		ADD:  171	(13.06 %)
+	PMD:  159	(12.15 %)		JLE:  154	(11.76 %)
+	LOD:  181	(13.83 %)		STO:  167	(12.76 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.37 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 14.29 instructions (14.10 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  176	(12.48 %)		MUL:  156	(11.06 %)
+	SUB:  206	(14.61 %)		ADD:  186	(13.19 %)
+	PMD:  160	(11.35 %)		JLE:  171	(12.13 %)
+	LOD:  160	(11.35 %)		STO:  195	(13.83 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.17 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.89 %
+[*] AVERAGE LENGTH: 14.83 instructions (15.44 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  169	(11.52 %)		MUL:  195	(13.29 %)
+	SUB:  203	(13.84 %)		ADD:  167	(11.38 %)
+	PMD:  176	(12.00 %)		JLE:  181	(12.34 %)
+	LOD:  207	(14.11 %)		STO:  169	(11.52 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  1.53 %
+[*] AVERAGE LENGTH: 15.35 instructions (15.25 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  179	(11.74 %)		MUL:  198	(12.98 %)
+	SUB:  187	(12.26 %)		ADD:  192	(12.59 %)
+	PMD:  203	(13.31 %)		JLE:  185	(12.13 %)
+	LOD:  195	(12.79 %)		STO:  186	(12.20 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.41 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 13.47 instructions (14.04 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(12.73 %)		MUL:  145	(10.98 %)
+	SUB:  153	(11.59 %)		ADD:  164	(12.42 %)
+	PMD:  166	(12.58 %)		JLE:  157	(11.89 %)
+	LOD:  190	(14.39 %)		STO:  177	(13.41 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.31 %
+[*] STRUCTURAL INTRON FREQUENCY: 10.11 %
+[*] AVERAGE LENGTH: 13.71 instructions (14.25 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  150	(11.32 %)		MUL:  170	(12.83 %)
+	SUB:  177	(13.36 %)		ADD:  164	(12.38 %)
+	PMD:  166	(12.53 %)		JLE:  150	(11.32 %)
+	LOD:  162	(12.23 %)		STO:  186	(14.04 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.11 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.64 %
+[*] AVERAGE LENGTH: 12.67 instructions (12.74 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  161	(13.03 %)		MUL:  154	(12.46 %)
+	SUB:  145	(11.73 %)		ADD:  155	(12.54 %)
+	PMD:  151	(12.22 %)		JLE:  139	(11.25 %)
+	LOD:  162	(13.11 %)		STO:  169	(13.67 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: .0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.00 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.30 instructions (14.21 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  186	(13.22 %)		MUL:  179	(12.72 %)
+	SUB:  179	(12.72 %)		ADD:  159	(11.30 %)
+	PMD:  176	(12.51 %)		JLE:  172	(12.22 %)
+	LOD:  188	(13.36 %)		STO:  168	(11.94 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 2000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.18 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.41 instructions (13.70 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  179	(13.61 %)		MUL:  154	(11.71 %)
+	SUB:  139	(10.57 %)		ADD:  169	(12.85 %)
+	PMD:  165	(12.55 %)		JLE:  169	(12.85 %)
+	LOD:  181	(13.76 %)		STO:  159	(12.09 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  27 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.93 %
+[*] AVERAGE LENGTH: 14.02 instructions (14.10 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  179	(13.08 %)		MUL:  159	(11.62 %)
+	SUB:  182	(13.30 %)		ADD:  143	(10.45 %)
+	PMD:  166	(12.13 %)		JLE:  172	(12.57 %)
+	LOD:  187	(13.67 %)		STO:  180	(13.16 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 14.24 instructions (14.04 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(11.97 %)		MUL:  174	(12.39 %)
+	SUB:  183	(13.03 %)		ADD:  172	(12.25 %)
+	PMD:  176	(12.54 %)		JLE:  196	(13.96 %)
+	LOD:  170	(12.11 %)		STO:  165	(11.75 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.07 instructions (15.73 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  173	(11.70 %)		MUL:  174	(11.76 %)
+	SUB:  184	(12.44 %)		ADD:  185	(12.51 %)
+	PMD:  210	(14.20 %)		JLE:  170	(11.49 %)
+	LOD:  186	(12.58 %)		STO:  197	(13.32 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.67 instructions (13.79 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  179	(13.25 %)		MUL:  160	(11.84 %)
+	SUB:  171	(12.66 %)		ADD:  160	(11.84 %)
+	PMD:  167	(12.36 %)		JLE:  155	(11.47 %)
+	LOD:  186	(13.77 %)		STO:  173	(12.81 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.06 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.37 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.92 %
+[*] AVERAGE LENGTH: 14.42 instructions (14.35 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  184	(12.95 %)		MUL:  165	(11.61 %)
+	SUB:  200	(14.07 %)		ADD:  181	(12.74 %)
+	PMD:  161	(11.33 %)		JLE:  177	(12.46 %)
+	LOD:  159	(11.19 %)		STO:  194	(13.65 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.17 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.89 %
+[*] AVERAGE LENGTH: 14.84 instructions (15.31 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  166	(11.29 %)		MUL:  199	(13.54 %)
+	SUB:  200	(13.61 %)		ADD:  173	(11.77 %)
+	PMD:  173	(11.77 %)		JLE:  176	(11.97 %)
+	LOD:  214	(14.56 %)		STO:  169	(11.50 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  1.53 %
+[*] AVERAGE LENGTH: 15.29 instructions (15.19 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  177	(11.65 %)		MUL:  198	(13.03 %)
+	SUB:  180	(11.85 %)		ADD:  189	(12.44 %)
+	PMD:  213	(14.02 %)		JLE:  181	(11.92 %)
+	LOD:  190	(12.51 %)		STO:  191	(12.57 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY: 10.23 %
+[*] AVERAGE LENGTH: 13.20 instructions (13.80 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  162	(12.63 %)		MUL:  137	(10.68 %)
+	SUB:  150	(11.69 %)		ADD:  157	(12.24 %)
+	PMD:  151	(11.77 %)		JLE:  163	(12.70 %)
+	LOD:  180	(14.03 %)		STO:  183	(14.26 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.62 %
+[*] AVERAGE LENGTH: 13.94 instructions (14.63 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  150	(11.02 %)		MUL:  173	(12.71 %)
+	SUB:  179	(13.15 %)		ADD:  175	(12.86 %)
+	PMD:  176	(12.93 %)		JLE:  153	(11.24 %)
+	LOD:  177	(13.01 %)		STO:  178	(13.08 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.36 %
+[*] AVERAGE LENGTH: 12.46 instructions (12.51 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  164	(13.38 %)		MUL:  156	(12.72 %)
+	SUB:  144	(11.75 %)		ADD:  151	(12.32 %)
+	PMD:  154	(12.56 %)		JLE:  133	(10.85 %)
+	LOD:  157	(12.81 %)		STO:  167	(13.62 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: .0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.00 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.62 instructions (14.54 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  200	(13.90 %)		MUL:  187	(13.00 %)
+	SUB:  173	(12.02 %)		ADD:  163	(11.33 %)
+	PMD:  183	(12.72 %)		JLE:  174	(12.09 %)
+	LOD:  184	(12.79 %)		STO:  175	(12.16 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 3000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.48 instructions (13.77 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  169	(12.78 %)		MUL:  147	(11.12 %)
+	SUB:  152	(11.50 %)		ADD:  184	(13.92 %)
+	PMD:  167	(12.63 %)		JLE:  162	(12.25 %)
+	LOD:  175	(13.24 %)		STO:  166	(12.56 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  40 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.55 %
+[*] AVERAGE LENGTH: 14.42 instructions (14.45 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  185	(13.20 %)		MUL:  165	(11.77 %)
+	SUB:  182	(12.98 %)		ADD:  154	(10.98 %)
+	PMD:  165	(11.77 %)		JLE:  182	(12.98 %)
+	LOD:  188	(13.41 %)		STO:  181	(12.91 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 13.94 instructions (13.74 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  155	(11.28 %)		MUL:  175	(12.74 %)
+	SUB:  173	(12.59 %)		ADD:  169	(12.30 %)
+	PMD:  177	(12.88 %)		JLE:  193	(14.05 %)
+	LOD:  166	(12.08 %)		STO:  166	(12.08 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.38 instructions (16.06 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  187	(12.38 %)		MUL:  168	(11.13 %)
+	SUB:  198	(13.11 %)		ADD:  179	(11.85 %)
+	PMD:  227	(15.03 %)		JLE:  163	(10.79 %)
+	LOD:  192	(12.72 %)		STO:  196	(12.98 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.26 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.27 %
+[*] AVERAGE LENGTH: 13.75 instructions (13.99 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  188	(13.85 %)		MUL:  176	(12.97 %)
+	SUB:  166	(12.23 %)		ADD:  159	(11.72 %)
+	PMD:  160	(11.79 %)		JLE:  156	(11.50 %)
+	LOD:  184	(13.56 %)		STO:  168	(12.38 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 14.50 instructions (14.31 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  175	(12.23 %)		MUL:  169	(11.81 %)
+	SUB:  194	(13.56 %)		ADD:  189	(13.21 %)
+	PMD:  156	(10.90 %)		JLE:  179	(12.51 %)
+	LOD:  162	(11.32 %)		STO:  207	(14.47 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.17 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.89 %
+[*] AVERAGE LENGTH: 14.77 instructions (15.24 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  161	(11.00 %)		MUL:  203	(13.88 %)
+	SUB:  194	(13.26 %)		ADD:  168	(11.48 %)
+	PMD:  176	(12.03 %)		JLE:  176	(12.03 %)
+	LOD:  209	(14.29 %)		STO:  176	(12.03 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.48 %
+[*] AVERAGE LENGTH: 15.00 instructions (14.95 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  175	(11.82 %)		MUL:  191	(12.91 %)
+	SUB:  186	(12.57 %)		ADD:  184	(12.43 %)
+	PMD:  193	(13.04 %)		JLE:  181	(12.23 %)
+	LOD:  182	(12.30 %)		STO:  188	(12.70 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.42 %
+[*] STRUCTURAL INTRON FREQUENCY:  9.56 %
+[*] AVERAGE LENGTH: 13.39 instructions (13.99 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  165	(12.68 %)		MUL:  136	(10.45 %)
+	SUB:  153	(11.76 %)		ADD:  160	(12.30 %)
+	PMD:  160	(12.30 %)		JLE:  158	(12.14 %)
+	LOD:  195	(14.99 %)		STO:  174	(13.37 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.33 %
+[*] AVERAGE LENGTH: 13.51 instructions (14.14 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  149	(11.21 %)		MUL:  170	(12.79 %)
+	SUB:  177	(13.32 %)		ADD:  162	(12.19 %)
+	PMD:  175	(13.17 %)		JLE:  149	(11.21 %)
+	LOD:  172	(12.94 %)		STO:  175	(13.17 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.36 %
+[*] AVERAGE LENGTH: 13.01 instructions (13.07 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  172	(13.43 %)		MUL:  163	(12.72 %)
+	SUB:  136	(10.62 %)		ADD:  161	(12.57 %)
+	PMD:  164	(12.80 %)		JLE:  145	(11.32 %)
+	LOD:  162	(12.65 %)		STO:  178	(13.90 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: .0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.00 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.66 instructions (14.58 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  191	(13.24 %)		MUL:  186	(12.89 %)
+	SUB:  187	(12.96 %)		ADD:  171	(11.85 %)
+	PMD:  181	(12.54 %)		JLE:  165	(11.43 %)
+	LOD:  185	(12.82 %)		STO:  177	(12.27 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 4000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.18 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.85 %
+[*] AVERAGE LENGTH: 13.04 instructions (13.42 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  165	(12.94 %)		MUL:  140	(10.98 %)
+	SUB:  150	(11.76 %)		ADD:  167	(13.10 %)
+	PMD:  156	(12.24 %)		JLE:  162	(12.71 %)
+	LOD:  174	(13.65 %)		STO:  161	(12.63 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  54 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.68 %
+[*] AVERAGE LENGTH: 14.18 instructions (14.28 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  176	(12.71 %)		MUL:  162	(11.70 %)
+	SUB:  176	(12.71 %)		ADD:  155	(11.19 %)
+	PMD:  165	(11.91 %)		JLE:  180	(13.00 %)
+	LOD:  186	(13.43 %)		STO:  185	(13.36 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 14.31 instructions (14.11 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  172	(12.19 %)		MUL:  168	(11.91 %)
+	SUB:  190	(13.47 %)		ADD:  164	(11.62 %)
+	PMD:  195	(13.82 %)		JLE:  187	(13.25 %)
+	LOD:  167	(11.84 %)		STO:  168	(11.91 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  9.44 %
+[*] AVERAGE LENGTH: 15.57 instructions (16.42 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  196	(12.84 %)		MUL:  187	(12.25 %)
+	SUB:  198	(12.97 %)		ADD:  179	(11.72 %)
+	PMD:  221	(14.47 %)		JLE:  168	(11.00 %)
+	LOD:  187	(12.25 %)		STO:  191	(12.51 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.69 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.90 instructions (14.02 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  182	(13.25 %)		MUL:  176	(12.81 %)
+	SUB:  164	(11.94 %)		ADD:  167	(12.15 %)
+	PMD:  161	(11.72 %)		JLE:  161	(11.72 %)
+	LOD:  185	(13.46 %)		STO:  178	(12.95 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 14.30 instructions (14.11 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  171	(12.12 %)		MUL:  171	(12.12 %)
+	SUB:  185	(13.11 %)		ADD:  189	(13.39 %)
+	PMD:  159	(11.27 %)		JLE:  177	(12.54 %)
+	LOD:  161	(11.41 %)		STO:  198	(14.03 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.84 %
+[*] AVERAGE LENGTH: 14.33 instructions (14.83 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  158	(11.21 %)		MUL:  189	(13.41 %)
+	SUB:  191	(13.56 %)		ADD:  166	(11.78 %)
+	PMD:  165	(11.71 %)		JLE:  171	(12.14 %)
+	LOD:  198	(14.05 %)		STO:  171	(12.14 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.81 %
+[*] AVERAGE LENGTH: 15.11 instructions (15.05 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  175	(11.74 %)		MUL:  185	(12.42 %)
+	SUB:  184	(12.35 %)		ADD:  189	(12.68 %)
+	PMD:  205	(13.76 %)		JLE:  181	(12.15 %)
+	LOD:  194	(13.02 %)		STO:  177	(11.88 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  9.28 %
+[*] AVERAGE LENGTH: 13.04 instructions (13.69 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  162	(12.73 %)		MUL:  137	(10.76 %)
+	SUB:  148	(11.63 %)		ADD:  155	(12.18 %)
+	PMD:  160	(12.57 %)		JLE:  155	(12.18 %)
+	LOD:  189	(14.85 %)		STO:  167	(13.12 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.33 %
+[*] AVERAGE LENGTH: 14.04 instructions (14.70 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  158	(11.43 %)		MUL:  172	(12.45 %)
+	SUB:  172	(12.45 %)		ADD:  168	(12.16 %)
+	PMD:  187	(13.53 %)		JLE:  158	(11.43 %)
+	LOD:  180	(13.02 %)		STO:  187	(13.53 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.36 %
+[*] AVERAGE LENGTH: 12.87 instructions (12.93 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  163	(12.87 %)		MUL:  163	(12.87 %)
+	SUB:  152	(12.00 %)		ADD:  165	(13.02 %)
+	PMD:  159	(12.55 %)		JLE:  131	(10.34 %)
+	LOD:  159	(12.55 %)		STO:  175	(13.81 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.19 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.33 instructions (14.24 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  185	(13.12 %)		MUL:  174	(12.34 %)
+	SUB:  186	(13.19 %)		ADD:  161	(11.42 %)
+	PMD:  178	(12.62 %)		JLE:  168	(11.91 %)
+	LOD:  182	(12.91 %)		STO:  176	(12.48 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 5000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.23 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.65 %
+[*] AVERAGE LENGTH: 13.42 instructions (13.67 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  173	(13.19 %)		MUL:  145	(11.05 %)
+	SUB:  151	(11.51 %)		ADD:  178	(13.57 %)
+	PMD:  155	(11.81 %)		JLE:  173	(13.19 %)
+	LOD:  175	(13.34 %)		STO:  162	(12.35 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  67 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.68 %
+[*] AVERAGE LENGTH: 14.41 instructions (14.52 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  187	(13.28 %)		MUL:  159	(11.29 %)
+	SUB:  188	(13.35 %)		ADD:  144	(10.23 %)
+	PMD:  178	(12.64 %)		JLE:  181	(12.86 %)
+	LOD:  191	(13.57 %)		STO:  180	(12.78 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.06 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.87 %
+[*] AVERAGE LENGTH: 14.51 instructions (14.43 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  178	(12.46 %)		MUL:  186	(13.02 %)
+	SUB:  189	(13.23 %)		ADD:  168	(11.76 %)
+	PMD:  188	(13.16 %)		JLE:  191	(13.37 %)
+	LOD:  164	(11.48 %)		STO:  165	(11.55 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.94 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.61 instructions (16.31 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  186	(12.13 %)		MUL:  179	(11.68 %)
+	SUB:  194	(12.65 %)		ADD:  191	(12.46 %)
+	PMD:  218	(14.22 %)		JLE:  173	(11.29 %)
+	LOD:  194	(12.65 %)		STO:  198	(12.92 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.72 instructions (13.84 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(13.27 %)		MUL:  182	(13.42 %)
+	SUB:  157	(11.58 %)		ADD:  160	(11.80 %)
+	PMD:  164	(12.09 %)		JLE:  155	(11.43 %)
+	LOD:  184	(13.57 %)		STO:  174	(12.83 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.06 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.88 %
+[*] AVERAGE LENGTH: 13.93 instructions (13.78 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  170	(12.46 %)		MUL:  161	(11.80 %)
+	SUB:  185	(13.56 %)		ADD:  185	(13.56 %)
+	PMD:  144	(10.56 %)		JLE:  170	(12.46 %)
+	LOD:  149	(10.92 %)		STO:  200	(14.66 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.17 %
+[*] AVERAGE LENGTH: 14.68 instructions (15.19 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  162	(11.23 %)		MUL:  190	(13.17 %)
+	SUB:  195	(13.51 %)		ADD:  170	(11.78 %)
+	PMD:  175	(12.13 %)		JLE:  172	(11.92 %)
+	LOD:  214	(14.83 %)		STO:  165	(11.43 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  1.53 %
+[*] AVERAGE LENGTH: 14.86 instructions (14.76 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  176	(11.92 %)		MUL:  186	(12.60 %)
+	SUB:  184	(12.47 %)		ADD:  179	(12.13 %)
+	PMD:  205	(13.89 %)		JLE:  180	(12.20 %)
+	LOD:  190	(12.87 %)		STO:  176	(11.92 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 13.45 instructions (14.02 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  171	(12.97 %)		MUL:  140	(10.62 %)
+	SUB:  143	(10.85 %)		ADD:  161	(12.22 %)
+	PMD:  169	(12.82 %)		JLE:  164	(12.44 %)
+	LOD:  195	(14.80 %)		STO:  175	(13.28 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.33 %
+[*] AVERAGE LENGTH: 13.89 instructions (14.54 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  149	(10.90 %)		MUL:  171	(12.51 %)
+	SUB:  186	(13.61 %)		ADD:  175	(12.80 %)
+	PMD:  180	(13.17 %)		JLE:  149	(10.90 %)
+	LOD:  176	(12.87 %)		STO:  181	(13.24 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.36 %
+[*] AVERAGE LENGTH: 12.45 instructions (12.50 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  157	(12.82 %)		MUL:  150	(12.24 %)
+	SUB:  148	(12.08 %)		ADD:  152	(12.41 %)
+	PMD:  151	(12.33 %)		JLE:  131	(10.69 %)
+	LOD:  159	(12.98 %)		STO:  177	(14.45 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.21 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.69 instructions (14.61 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  192	(13.28 %)		MUL:  177	(12.24 %)
+	SUB:  186	(12.86 %)		ADD:  170	(11.76 %)
+	PMD:  178	(12.31 %)		JLE:  181	(12.52 %)
+	LOD:  187	(12.93 %)		STO:  175	(12.10 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 6000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.18 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.20 instructions (13.48 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  162	(12.52 %)		MUL:  151	(11.67 %)
+	SUB:  141	(10.90 %)		ADD:  176	(13.60 %)
+	PMD:  155	(11.98 %)		JLE:  172	(13.29 %)
+	LOD:  177	(13.68 %)		STO:  160	(12.36 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  80 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.14 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.68 %
+[*] AVERAGE LENGTH: 14.83 instructions (15.08 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  200	(13.81 %)		MUL:  184	(12.71 %)
+	SUB:  190	(13.12 %)		ADD:  146	(10.08 %)
+	PMD:  176	(12.15 %)		JLE:  184	(12.71 %)
+	LOD:  187	(12.91 %)		STO:  181	(12.50 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 14.45 instructions (14.25 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(11.79 %)		MUL:  180	(12.63 %)
+	SUB:  185	(12.98 %)		ADD:  172	(12.07 %)
+	PMD:  184	(12.91 %)		JLE:  199	(13.96 %)
+	LOD:  169	(11.86 %)		STO:  168	(11.79 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.41 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.61 instructions (16.31 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  188	(12.26 %)		MUL:  193	(12.59 %)
+	SUB:  187	(12.20 %)		ADD:  183	(11.94 %)
+	PMD:  221	(14.42 %)		JLE:  168	(10.96 %)
+	LOD:  195	(12.72 %)		STO:  198	(12.92 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.22 %
+[*] AVERAGE LENGTH: 13.27 instructions (13.41 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  172	(13.22 %)		MUL:  164	(12.61 %)
+	SUB:  152	(11.68 %)		ADD:  160	(12.30 %)
+	PMD:  150	(11.53 %)		JLE:  155	(11.91 %)
+	LOD:  172	(13.22 %)		STO:  176	(13.53 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.37 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.21 %
+[*] AVERAGE LENGTH: 14.11 instructions (13.95 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  169	(12.24 %)		MUL:  159	(11.51 %)
+	SUB:  188	(13.61 %)		ADD:  184	(13.32 %)
+	PMD:  153	(11.08 %)		JLE:  174	(12.60 %)
+	LOD:  164	(11.88 %)		STO:  190	(13.76 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.89 %
+[*] AVERAGE LENGTH: 14.53 instructions (14.99 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  164	(11.40 %)		MUL:  189	(13.13 %)
+	SUB:  193	(13.41 %)		ADD:  168	(11.67 %)
+	PMD:  172	(11.95 %)		JLE:  177	(12.30 %)
+	LOD:  210	(14.59 %)		STO:  166	(11.54 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  1.53 %
+[*] AVERAGE LENGTH: 15.01 instructions (14.91 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  183	(12.27 %)		MUL:  189	(12.68 %)
+	SUB:  175	(11.74 %)		ADD:  182	(12.21 %)
+	PMD:  209	(14.02 %)		JLE:  181	(12.14 %)
+	LOD:  193	(12.94 %)		STO:  179	(12.01 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 13.45 instructions (14.02 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  162	(12.29 %)		MUL:  140	(10.62 %)
+	SUB:  154	(11.68 %)		ADD:  171	(12.97 %)
+	PMD:  166	(12.59 %)		JLE:  152	(11.53 %)
+	LOD:  199	(15.10 %)		STO:  174	(13.20 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.33 %
+[*] AVERAGE LENGTH: 13.61 instructions (14.24 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  148	(11.05 %)		MUL:  168	(12.55 %)
+	SUB:  182	(13.59 %)		ADD:  163	(12.17 %)
+	PMD:  174	(12.99 %)		JLE:  146	(10.90 %)
+	LOD:  174	(12.99 %)		STO:  184	(13.74 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.16 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.69 %
+[*] AVERAGE LENGTH: 12.77 instructions (12.82 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  164	(13.06 %)		MUL:  155	(12.34 %)
+	SUB:  150	(11.94 %)		ADD:  163	(12.98 %)
+	PMD:  150	(11.94 %)		JLE:  140	(11.15 %)
+	LOD:  159	(12.66 %)		STO:  175	(13.93 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.19 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.28 instructions (14.19 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  185	(13.17 %)		MUL:  180	(12.81 %)
+	SUB:  176	(12.53 %)		ADD:  165	(11.74 %)
+	PMD:  172	(12.24 %)		JLE:  174	(12.38 %)
+	LOD:  179	(12.74 %)		STO:  174	(12.38 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 7000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.24 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.40 instructions (13.69 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  175	(13.32 %)		MUL:  144	(10.96 %)
+	SUB:  156	(11.87 %)		ADD:  171	(13.01 %)
+	PMD:  165	(12.56 %)		JLE:  166	(12.63 %)
+	LOD:  176	(13.39 %)		STO:  161	(12.25 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  92 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.09 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.68 %
+[*] AVERAGE LENGTH: 14.63 instructions (14.74 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  184	(12.87 %)		MUL:  172	(12.03 %)
+	SUB:  186	(13.01 %)		ADD:  150	(10.49 %)
+	PMD:  173	(12.10 %)		JLE:  190	(13.29 %)
+	LOD:  195	(13.64 %)		STO:  180	(12.59 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.32 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.87 %
+[*] AVERAGE LENGTH: 14.24 instructions (14.04 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  166	(11.82 %)		MUL:  186	(13.25 %)
+	SUB:  182	(12.96 %)		ADD:  164	(11.68 %)
+	PMD:  186	(13.25 %)		JLE:  189	(13.46 %)
+	LOD:  165	(11.75 %)		STO:  166	(11.82 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY: 10.39 %
+[*] AVERAGE LENGTH: 14.97 instructions (15.69 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  178	(12.20 %)		MUL:  173	(11.86 %)
+	SUB:  184	(12.61 %)		ADD:  177	(12.13 %)
+	PMD:  205	(14.05 %)		JLE:  166	(11.38 %)
+	LOD:  181	(12.41 %)		STO:  195	(13.37 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.55 %
+[*] AVERAGE LENGTH: 13.52 instructions (13.66 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  175	(13.21 %)		MUL:  168	(12.68 %)
+	SUB:  155	(11.70 %)		ADD:  161	(12.15 %)
+	PMD:  159	(12.00 %)		JLE:  154	(11.62 %)
+	LOD:  191	(14.42 %)		STO:  162	(12.23 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.37 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 14.09 instructions (13.90 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  167	(12.01 %)		MUL:  161	(11.58 %)
+	SUB:  187	(13.45 %)		ADD:  184	(13.24 %)
+	PMD:  156	(11.22 %)		JLE:  186	(13.38 %)
+	LOD:  161	(11.58 %)		STO:  188	(13.53 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.89 %
+[*] AVERAGE LENGTH: 14.50 instructions (14.96 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  163	(11.35 %)		MUL:  193	(13.44 %)
+	SUB:  183	(12.74 %)		ADD:  168	(11.70 %)
+	PMD:  175	(12.19 %)		JLE:  176	(12.26 %)
+	LOD:  212	(14.76 %)		STO:  166	(11.56 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.27 %
+[*] STRUCTURAL INTRON FREQUENCY:  1.53 %
+[*] AVERAGE LENGTH: 15.15 instructions (15.05 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  177	(11.76 %)		MUL:  188	(12.49 %)
+	SUB:  185	(12.29 %)		ADD:  195	(12.96 %)
+	PMD:  204	(13.55 %)		JLE:  175	(11.63 %)
+	LOD:  201	(13.36 %)		STO:  180	(11.96 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 13.19 instructions (13.74 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  161	(12.46 %)		MUL:  131	(10.14 %)
+	SUB:  153	(11.84 %)		ADD:  159	(12.31 %)
+	PMD:  161	(12.46 %)		JLE:  152	(11.76 %)
+	LOD:  195	(15.09 %)		STO:  180	(13.93 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.31 %
+[*] STRUCTURAL INTRON FREQUENCY:  7.33 %
+[*] AVERAGE LENGTH: 13.98 instructions (14.64 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  156	(11.34 %)		MUL:  171	(12.43 %)
+	SUB:  184	(13.37 %)		ADD:  175	(12.72 %)
+	PMD:  171	(12.43 %)		JLE:  158	(11.48 %)
+	LOD:  178	(12.94 %)		STO:  183	(13.30 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.36 %
+[*] AVERAGE LENGTH: 12.38 instructions (12.43 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  152	(12.48 %)		MUL:  153	(12.56 %)
+	SUB:  139	(11.41 %)		ADD:  162	(13.30 %)
+	PMD:  148	(12.15 %)		JLE:  137	(11.25 %)
+	LOD:  154	(12.64 %)		STO:  173	(14.20 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.21 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.49 instructions (14.40 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  193	(13.53 %)		MUL:  172	(12.06 %)
+	SUB:  190	(13.32 %)		ADD:  160	(11.22 %)
+	PMD:  182	(12.76 %)		JLE:  170	(11.92 %)
+	LOD:  185	(12.97 %)		STO:  174	(12.20 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 8000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.18 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.85 %
+[*] AVERAGE LENGTH: 13.92 instructions (14.36 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  190	(13.93 %)		MUL:  157	(11.51 %)
+	SUB:  160	(11.73 %)		ADD:  169	(12.39 %)
+	PMD:  170	(12.46 %)		JLE:  178	(13.05 %)
+	LOD:  177	(12.98 %)		STO:  163	(11.95 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  105 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.09 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.68 %
+[*] AVERAGE LENGTH: 14.40 instructions (14.51 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  184	(13.08 %)		MUL:  172	(12.22 %)
+	SUB:  181	(12.86 %)		ADD:  145	(10.31 %)
+	PMD:  175	(12.44 %)		JLE:  176	(12.51 %)
+	LOD:  191	(13.57 %)		STO:  183	(13.01 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.83 %
+[*] AVERAGE LENGTH: 13.90 instructions (13.74 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  161	(11.84 %)		MUL:  176	(12.94 %)
+	SUB:  178	(13.09 %)		ADD:  162	(11.91 %)
+	PMD:  169	(12.43 %)		JLE:  186	(13.68 %)
+	LOD:  159	(11.69 %)		STO:  169	(12.43 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  9.72 %
+[*] AVERAGE LENGTH: 15.30 instructions (16.03 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  179	(12.01 %)		MUL:  174	(11.67 %)
+	SUB:  188	(12.61 %)		ADD:  179	(12.01 %)
+	PMD:  216	(14.49 %)		JLE:  165	(11.07 %)
+	LOD:  205	(13.75 %)		STO:  185	(12.41 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.22 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.51 instructions (13.62 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  174	(13.03 %)		MUL:  167	(12.51 %)
+	SUB:  156	(11.69 %)		ADD:  161	(12.06 %)
+	PMD:  162	(12.13 %)		JLE:  162	(12.13 %)
+	LOD:  191	(14.31 %)		STO:  162	(12.13 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.42 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.71 %
+[*] AVERAGE LENGTH: 14.07 instructions (13.77 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  176	(12.78 %)		MUL:  160	(11.62 %)
+	SUB:  178	(12.93 %)		ADD:  182	(13.22 %)
+	PMD:  158	(11.47 %)		JLE:  173	(12.56 %)
+	LOD:  158	(11.47 %)		STO:  192	(13.94 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.17 %
+[*] STRUCTURAL INTRON FREQUENCY:  4.89 %
+[*] AVERAGE LENGTH: 14.59 instructions (15.05 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  153	(10.59 %)		MUL:  193	(13.36 %)
+	SUB:  199	(13.77 %)		ADD:  173	(11.97 %)
+	PMD:  179	(12.39 %)		JLE:  165	(11.42 %)
+	LOD:  214	(14.81 %)		STO:  169	(11.70 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.27 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.28 %
+[*] AVERAGE LENGTH: 14.76 instructions (14.63 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  173	(11.83 %)		MUL:  181	(12.37 %)
+	SUB:  184	(12.58 %)		ADD:  180	(12.30 %)
+	PMD:  201	(13.74 %)		JLE:  174	(11.89 %)
+	LOD:  189	(12.92 %)		STO:  181	(12.37 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.47 %
+[*] STRUCTURAL INTRON FREQUENCY:  9.28 %
+[*] AVERAGE LENGTH: 13.44 instructions (14.12 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(12.80 %)		MUL:  136	(10.36 %)
+	SUB:  154	(11.73 %)		ADD:  167	(12.72 %)
+	PMD:  158	(12.03 %)		JLE:  163	(12.41 %)
+	LOD:  192	(14.62 %)		STO:  175	(13.33 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.25 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.33 %
+[*] AVERAGE LENGTH: 13.44 instructions (14.15 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  143	(10.87 %)		MUL:  166	(12.61 %)
+	SUB:  171	(12.99 %)		ADD:  168	(12.77 %)
+	PMD:  168	(12.77 %)		JLE:  152	(11.55 %)
+	LOD:  168	(12.77 %)		STO:  180	(13.68 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.36 %
+[*] AVERAGE LENGTH: 12.70 instructions (12.76 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  166	(13.28 %)		MUL:  150	(12.00 %)
+	SUB:  153	(12.24 %)		ADD:  154	(12.32 %)
+	PMD:  158	(12.64 %)		JLE:  133	(10.64 %)
+	LOD:  159	(12.72 %)		STO:  177	(14.16 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.19 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.88 %
+[*] AVERAGE LENGTH: 15.18 instructions (15.23 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  210	(14.07 %)		MUL:  187	(12.53 %)
+	SUB:  196	(13.13 %)		ADD:  163	(10.92 %)
+	PMD:  192	(12.86 %)		JLE:  178	(11.92 %)
+	LOD:  188	(12.59 %)		STO:  179	(11.99 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 9000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.18 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.58 instructions (13.88 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  171	(12.84 %)		MUL:  153	(11.49 %)
+	SUB:  160	(12.01 %)		ADD:  173	(12.99 %)
+	PMD:  160	(12.01 %)		JLE:  176	(13.21 %)
+	LOD:  177	(13.29 %)		STO:  162	(12.16 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  117 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MIGRATION EVENT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.63 %
+[*] AVERAGE LENGTH: 14.13 instructions (14.27 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(13.14 %)		MUL:  167	(12.19 %)
+	SUB:  177	(12.92 %)		ADD:  146	(10.66 %)
+	PMD:  161	(11.75 %)		JLE:  177	(12.92 %)
+	LOD:  176	(12.85 %)		STO:  186	(13.58 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.16 %
+[*] AVERAGE LENGTH: 14.35 instructions (14.18 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(11.97 %)		MUL:  177	(12.61 %)
+	SUB:  181	(12.89 %)		ADD:  168	(11.97 %)
+	PMD:  186	(13.25 %)		JLE:  191	(13.60 %)
+	LOD:  173	(12.32 %)		STO:  160	(11.40 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.30 instructions (15.98 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(11.98 %)		MUL:  178	(11.85 %)
+	SUB:  187	(12.45 %)		ADD:  177	(11.78 %)
+	PMD:  223	(14.85 %)		JLE:  167	(11.12 %)
+	LOD:  200	(13.32 %)		STO:  190	(12.65 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.49 instructions (13.60 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(13.50 %)		MUL:  168	(12.60 %)
+	SUB:  145	(10.88 %)		ADD:  166	(12.45 %)
+	PMD:  164	(12.30 %)		JLE:  155	(11.63 %)
+	LOD:  184	(13.80 %)		STO:  171	(12.83 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.34 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 14.32 instructions (14.13 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  172	(12.17 %)		MUL:  162	(11.46 %)
+	SUB:  194	(13.73 %)		ADD:  197	(13.94 %)
+	PMD:  161	(11.39 %)		JLE:  167	(11.82 %)
+	LOD:  165	(11.68 %)		STO:  195	(13.80 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.64 %
+[*] AVERAGE LENGTH: 14.26 instructions (14.68 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  155	(11.00 %)		MUL:  183	(12.99 %)
+	SUB:  196	(13.91 %)		ADD:  165	(11.71 %)
+	PMD:  169	(11.99 %)		JLE:  166	(11.78 %)
+	LOD:  209	(14.83 %)		STO:  166	(11.78 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.24 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.33 %
+[*] AVERAGE LENGTH: 15.18 instructions (15.00 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(12.00 %)		MUL:  187	(12.47 %)
+	SUB:  185	(12.33 %)		ADD:  191	(12.73 %)
+	PMD:  200	(13.33 %)		JLE:  185	(12.33 %)
+	LOD:  190	(12.67 %)		STO:  182	(12.13 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 12.99 instructions (13.53 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  156	(12.26 %)		MUL:  133	(10.46 %)
+	SUB:  142	(11.16 %)		ADD:  162	(12.74 %)
+	PMD:  155	(12.19 %)		JLE:  161	(12.66 %)
+	LOD:  190	(14.94 %)		STO:  173	(13.60 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.31 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.33 %
+[*] AVERAGE LENGTH: 13.84 instructions (14.59 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  156	(11.50 %)		MUL:  164	(12.09 %)
+	SUB:  188	(13.85 %)		ADD:  164	(12.09 %)
+	PMD:  179	(13.19 %)		JLE:  150	(11.05 %)
+	LOD:  174	(12.82 %)		STO:  182	(13.41 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.13 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.36 %
+[*] AVERAGE LENGTH: 13.16 instructions (13.34 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  177	(13.68 %)		MUL:  164	(12.67 %)
+	SUB:  159	(12.29 %)		ADD:  152	(11.75 %)
+	PMD:  165	(12.75 %)		JLE:  142	(10.97 %)
+	LOD:  160	(12.36 %)		STO:  175	(13.52 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.19 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.99 instructions (14.91 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  193	(13.08 %)		MUL:  188	(12.74 %)
+	SUB:  195	(13.21 %)		ADD:  172	(11.65 %)
+	PMD:  185	(12.53 %)		JLE:  180	(12.20 %)
+	LOD:  188	(12.74 %)		STO:  175	(11.86 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.23 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.37 instructions (13.66 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  169	(12.89 %)		MUL:  154	(11.75 %)
+	SUB:  153	(11.67 %)		ADD:  168	(12.81 %)
+	PMD:  163	(12.43 %)		JLE:  167	(12.74 %)
+	LOD:  174	(13.27 %)		STO:  163	(12.43 %)
+-----------------------------------------------------------------------------
+BEST: 1.0 ON ISLE ZERO  *  129 SEC. INTO LEXICASE! ON TICTACTOE
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND ZERO AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1006:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.63 %
+[*] AVERAGE LENGTH: 14.13 instructions (14.27 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(13.14 %)		MUL:  167	(12.19 %)
+	SUB:  177	(12.92 %)		ADD:  146	(10.66 %)
+	PMD:  161	(11.75 %)		JLE:  177	(12.92 %)
+	LOD:  176	(12.85 %)		STO:  186	(13.58 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND I AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	153:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.16 %
+[*] AVERAGE LENGTH: 14.35 instructions (14.18 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  168	(11.97 %)		MUL:  177	(12.61 %)
+	SUB:  181	(12.89 %)		ADD:  168	(11.97 %)
+	PMD:  186	(13.25 %)		JLE:  191	(13.60 %)
+	LOD:  173	(12.32 %)		STO:  160	(11.40 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND II AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	833:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.28 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.44 %
+[*] AVERAGE LENGTH: 15.30 instructions (15.98 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(11.98 %)		MUL:  178	(11.85 %)
+	SUB:  187	(12.45 %)		ADD:  177	(11.78 %)
+	PMD:  223	(14.85 %)		JLE:  167	(11.12 %)
+	LOD:  200	(13.32 %)		STO:  190	(12.65 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND III AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1231:	100.0000 %		711:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.20 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.27 %
+[*] AVERAGE LENGTH: 13.49 instructions (13.60 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(13.50 %)		MUL:  168	(12.60 %)
+	SUB:  145	(10.88 %)		ADD:  166	(12.45 %)
+	PMD:  164	(12.30 %)		JLE:  155	(11.63 %)
+	LOD:  184	(13.80 %)		STO:  171	(12.83 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IV AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	1691:	100.0000 %		875:	6.2500 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.34 %
+[*] STRUCTURAL INTRON FREQUENCY:  3.92 %
+[*] AVERAGE LENGTH: 14.32 instructions (14.13 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  172	(12.17 %)		MUL:  162	(11.46 %)
+	SUB:  194	(13.73 %)		ADD:  197	(13.94 %)
+	PMD:  161	(11.39 %)		JLE:  167	(11.82 %)
+	LOD:  165	(11.68 %)		STO:  195	(13.80 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND V AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	359:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.13 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.64 %
+[*] AVERAGE LENGTH: 14.26 instructions (14.68 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  155	(11.00 %)		MUL:  183	(12.99 %)
+	SUB:  196	(13.91 %)		ADD:  165	(11.71 %)
+	PMD:  169	(11.99 %)		JLE:  166	(11.78 %)
+	LOD:  209	(14.83 %)		STO:  166	(11.78 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VI AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  1.00 %
+[*] BEST FITNESS BY GENERATION:  
+	401:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.24 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.33 %
+[*] AVERAGE LENGTH: 15.18 instructions (15.00 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  180	(12.00 %)		MUL:  187	(12.47 %)
+	SUB:  185	(12.33 %)		ADD:  191	(12.73 %)
+	PMD:  200	(13.33 %)		JLE:  185	(12.33 %)
+	LOD:  190	(12.67 %)		STO:  182	(12.13 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VII AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	753:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.36 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.28 %
+[*] AVERAGE LENGTH: 12.99 instructions (13.53 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  156	(12.26 %)		MUL:  133	(10.46 %)
+	SUB:  142	(11.16 %)		ADD:  162	(12.74 %)
+	PMD:  155	(12.19 %)		JLE:  161	(12.66 %)
+	LOD:  190	(14.94 %)		STO:  173	(13.60 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND VIII AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	240:	100.0000 %		200:	87.5000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.31 %
+[*] STRUCTURAL INTRON FREQUENCY:  8.33 %
+[*] AVERAGE LENGTH: 13.84 instructions (14.59 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  156	(11.50 %)		MUL:  164	(12.09 %)
+	SUB:  188	(13.85 %)		ADD:  164	(12.09 %)
+	PMD:  179	(13.19 %)		JLE:  150	(11.05 %)
+	LOD:  174	(12.82 %)		STO:  182	(13.41 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND IX AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.13 %
+[*] BEST FITNESS BY GENERATION:  
+	133:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.05 %
+[*] STRUCTURAL INTRON FREQUENCY:  6.36 %
+[*] AVERAGE LENGTH: 13.16 instructions (13.34 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  177	(13.68 %)		MUL:  164	(12.67 %)
+	SUB:  159	(12.29 %)		ADD:  152	(11.75 %)
+	PMD:  165	(12.75 %)		JLE:  142	(10.97 %)
+	LOD:  160	(12.36 %)		STO:  175	(13.52 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND X AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	4259:	100.0000 %		0:	.0000 %
+[*] AVERAGE SIMILARITY TO BEST:   0.19 %
+[*] STRUCTURAL INTRON FREQUENCY:  2.88 %
+[*] AVERAGE LENGTH: 14.99 instructions (14.91 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  193	(13.08 %)		MUL:  188	(12.74 %)
+	SUB:  195	(13.21 %)		ADD:  172	(11.65 %)
+	PMD:  185	(12.53 %)		JLE:  180	(12.20 %)
+	LOD:  188	(12.74 %)		STO:  175	(11.86 %)
+-----------------------------------------------------------------------------
+              *** STATISTICS FOR ISLAND XI AT ERA 10000 ***
+-----------------------------------------------------------------------------
+[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: 100.0000 %
+[*] AVERAGE FITNESS ON ISLAND:  0.00 %
+[*] BEST FITNESS BY GENERATION:  
+	52:	100.0000 %		1:	50.0000 %
+	0:	.0000 %		NIL:	NIL   %
+[*] AVERAGE SIMILARITY TO BEST:   0.23 %
+[*] STRUCTURAL INTRON FREQUENCY:  5.85 %
+[*] AVERAGE LENGTH: 13.37 instructions (13.66 effective)
+[*] EFFECTIVE OPCODE CENSUS:
+	DIV:  169	(12.89 %)		MUL:  154	(11.75 %)
+	SUB:  153	(11.67 %)		ADD:  168	(12.81 %)
+	PMD:  163	(12.43 %)		JLE:  167	(12.74 %)
+	LOD:  174	(13.27 %)		STO:  163	(12.43 %)
+-----------------------------------------------------------------------------
+FIT: 1.0
+SEQ: #(198 185 48 108 108 126 108 122 126 48 48 172 198 198 75 75 149 198 2 7
+       122 11)
+EFF: #(198 185 48 108 108 126 108 122 126 48 48 172 198 198 75 75 149 198 2 7
+       122 11)
+MUT: 0.15
+HOME: ISLAND #0
+GEN: 1005
+FITNESS OF PARENTS: 0.0, 0.0
+HOMES OF PARENTS: ISLAND 0, ISLAND 0
+-----------------------------------------------------------------------------
+DISASSEMBLY OF EFFECTIVE CODE:
+11000110  [LOD  R0, R3]
+10111001  [MUL  R7, R2]
+00110000  [DIV  R6, R0]
+01101100  [PMD  R5, R1]
+01101100  [PMD  R5, R1]
+01111110  [LOD  R7, R1]
+01101100  [PMD  R5, R1]
+01111010  [SUB  R7, R1]
+01111110  [LOD  R7, R1]
+00110000  [DIV  R6, R0]
+00110000  [DIV  R6, R0]
+10101100  [PMD  R5, R2]
+11000110  [LOD  R0, R3]
+11000110  [LOD  R0, R3]
+01001011  [ADD  R1, R1]
+01001011  [ADD  R1, R1]
+10010101  [JLE  R2, R2]
+11000110  [LOD  R0, R3]
+00000010  [SUB  R0, R0]
+00000111  [STO  R0, R0]
+01111010  [SUB  R7, R1]
+00001011  [ADD  R1, R0]
+-----------------------------------------------------------------------------
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | x | o 
+---+---+---
+ o | x | x 
+---+---+---
+ x | o | x 
+
+CORRECTLY CLASSIFIED 14873 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | x | o 
+---+---+---
+ x | x | o 
+---+---+---
+ x | o | x 
+
+CORRECTLY CLASSIFIED 14792 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | o | x 
+---+---+---
+ x | x | o 
+---+---+---
+ o | x | x 
+
+CORRECTLY CLASSIFIED 16961 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | x | o 
+---+---+---
+ x | o | x 
+---+---+---
+ x | o | x 
+
+CORRECTLY CLASSIFIED 15035 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | x | x 
+---+---+---
+ x | x | o 
+---+---+---
+ o | o | x 
+
+CORRECTLY CLASSIFIED 14441 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | x | x 
+---+---+---
+ x | o | o 
+---+---+---
+ x | o | x 
+
+CORRECTLY CLASSIFIED 14684 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | o | o 
+---+---+---
+ o | x | x 
+---+---+---
+ x | x | o 
+
+CORRECTLY CLASSIFIED 8309 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ o | x | x 
+---+---+---
+ x | o | o 
+---+---+---
+ o | x | x 
+
+CORRECTLY CLASSIFIED 16871 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | o | x 
+---+---+---
+ x | o | x 
+---+---+---
+ o | x | o 
+
+CORRECTLY CLASSIFIED 7391 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | o | x 
+---+---+---
+ x | x | o 
+---+---+---
+ o | x | o 
+
+CORRECTLY CLASSIFIED 7877 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | o | x 
+---+---+---
+ o | x | x 
+---+---+---
+ o | x | o 
+
+CORRECTLY CLASSIFIED 7472 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | x | o 
+---+---+---
+ o | o | x 
+---+---+---
+ x | o | x 
+
+CORRECTLY CLASSIFIED 14996 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | o | x 
+---+---+---
+ x | o | o 
+---+---+---
+ o | x | x 
+
+CORRECTLY CLASSIFIED 16868 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | o | x 
+---+---+---
+ o | o | x 
+---+---+---
+ x | x | o 
+
+CORRECTLY CLASSIFIED 8444 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | x | o 
+---+---+---
+ o | o | x 
+---+---+---
+ x | x | o 
+
+CORRECTLY CLASSIFIED 8435 -> -739.0
+
+11000110  [LOD  R0, R3]  (  1 )  ;; loading 198 from @0 into R3
+10111001  [MUL  R7, R2]  (  2 )  ;; now R7 = 1.0; R2 = -1.0
+00110000  [DIV  R6, R0]  (  3 )  ;; now R6 = -1.0; R0 = 0.000015258789
+01101100  [PMD  R5, R1]  (  4 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01101100  [PMD  R5, R1]  (  5 )  ;; now R5 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  6 )  ;; loading 185 from @1 into R1
+01101100  [PMD  R5, R1]  (  7 )  ;; now R5 = 1.0; R1 = 1.0
+01111010  [SUB  R7, R1]  (  8 )  ;; now R7 = 1.0; R1 = 0.000015258789
+01111110  [LOD  R7, R1]  (  9 )  ;; loading 185 from @1 into R1
+00110000  [DIV  R6, R0]  ( 10 )  ;; now R6 = -1.0; R0 = -65536.0
+00110000  [DIV  R6, R0]  ( 11 )  ;; now R6 = -1.0; R0 = 0.000015258789
+10101100  [PMD  R5, R2]  ( 12 )  ;; now R5 = 1.0; R2 = 0.000015258789
+11000110  [LOD  R0, R3]  ( 13 )  ;; loading 198 from @0 into R3
+11000110  [LOD  R0, R3]  ( 14 )  ;; loading 198 from @0 into R3
+01001011  [ADD  R1, R1]  ( 15 )  ;; now R1 = 370.0; R1 = 370.0
+01001011  [ADD  R1, R1]  ( 16 )  ;; now R1 = 740.0; R1 = 740.0
+10010101  [JLE  R2, R2]  ( 18 )  ;; R2 <= R2, so incrementing %PC
+00000010  [SUB  R0, R0]  ( 19 )  ;; now R0 = 0.000015258789; R0 = 0.000015258789
+00000111  [STO  R0, R0]  ( 20 )  ;; storing 0 from R0 in @0
+01111010  [SUB  R7, R1]  ( 21 )  ;; now R7 = 1.0; R1 = -739.0
+00001011  [ADD  R1, R0]  ( 22 )  ;; now R1 = -739.0; R0 = -739.0
+
+ x | x | o 
+---+---+---
+ o | x | x 
+---+---+---
+ x | o | o 
+
+CORRECTLY CLASSIFIED 11837 -> -739.0
+
+-----------------------------------------------------------------------------
+FAILURES:
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+TOTAL CORRECT:   16
+TOTAL INCORRECT: 0
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND ZERO
+-----------------------------------------------------------------------------
+((1006 . 1) (0 . 0))
+    0 || 
+   28 || 
+   56 || 
+   84 || 
+  112 || 
+  140 || 
+  168 || 
+  196 || 
+  224 || 
+  252 || 
+  280 || 
+  308 || 
+  336 || 
+  364 || 
+  392 || 
+  420 || 
+  448 || 
+  476 || 
+  504 || 
+  532 || 
+  560 || 
+  588 || 
+  616 || 
+  644 || 
+  672 || 
+  700 || 
+  728 || 
+  756 || 
+  784 || 
+  812 || 
+  840 || 
+  868 || 
+  896 || 
+  924 || 
+  952 || 
+  980 || 
+ 1008 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND I
+-----------------------------------------------------------------------------
+((153 . 1) (0 . 0))
+    0 || 
+    4 || 
+    8 || 
+   12 || 
+   16 || 
+   20 || 
+   24 || 
+   28 || 
+   32 || 
+   36 || 
+   40 || 
+   44 || 
+   48 || 
+   52 || 
+   56 || 
+   60 || 
+   64 || 
+   68 || 
+   72 || 
+   76 || 
+   80 || 
+   84 || 
+   88 || 
+   92 || 
+   96 || 
+  100 || 
+  104 || 
+  108 || 
+  112 || 
+  116 || 
+  120 || 
+  124 || 
+  128 || 
+  132 || 
+  136 || 
+  140 || 
+  144 || 
+  148 || 
+  152 || 
+  156 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND II
+-----------------------------------------------------------------------------
+((833 . 1) (0 . 0))
+    0 || 
+   23 || 
+   46 || 
+   69 || 
+   92 || 
+  115 || 
+  138 || 
+  161 || 
+  184 || 
+  207 || 
+  230 || 
+  253 || 
+  276 || 
+  299 || 
+  322 || 
+  345 || 
+  368 || 
+  391 || 
+  414 || 
+  437 || 
+  460 || 
+  483 || 
+  506 || 
+  529 || 
+  552 || 
+  575 || 
+  598 || 
+  621 || 
+  644 || 
+  667 || 
+  690 || 
+  713 || 
+  736 || 
+  759 || 
+  782 || 
+  805 || 
+  828 || 
+  851 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND III
+-----------------------------------------------------------------------------
+((1231 . 1) (711 . 1/16) (0 . 0))
+    0 || 
+   35 || 
+   70 || 
+  105 || 
+  140 || 
+  175 || 
+  210 || 
+  245 || 
+  280 || 
+  315 || 
+  350 || 
+  385 || 
+  420 || 
+  455 || 
+  490 || 
+  525 || 
+  560 || 
+  595 || 
+  630 || 
+  665 || 
+  700 || 
+  735 || 
+  770 || 
+  805 || 
+  840 || 
+  875 || 
+  910 || 
+  945 || 
+  980 || 
+ 1015 || 
+ 1050 || 
+ 1085 || 
+ 1120 || 
+ 1155 || 
+ 1190 || 
+ 1225 || 
+ 1260 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND IV
+-----------------------------------------------------------------------------
+((1691 . 1) (875 . 1/16) (0 . 0))
+    0 || 
+   48 || 
+   96 || 
+  144 || 
+  192 || 
+  240 || 
+  288 || 
+  336 || 
+  384 || 
+  432 || 
+  480 || 
+  528 || 
+  576 || 
+  624 || 
+  672 || 
+  720 || 
+  768 || 
+  816 || 
+  864 || 
+  912 || 
+  960 || 
+ 1008 || 
+ 1056 || 
+ 1104 || 
+ 1152 || 
+ 1200 || 
+ 1248 || 
+ 1296 || 
+ 1344 || 
+ 1392 || 
+ 1440 || 
+ 1488 || 
+ 1536 || 
+ 1584 || 
+ 1632 || 
+ 1680 || 
+ 1728 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND V
+-----------------------------------------------------------------------------
+((359 . 1) (0 . 0))
+    0 || 
+   10 || 
+   20 || 
+   30 || 
+   40 || 
+   50 || 
+   60 || 
+   70 || 
+   80 || 
+   90 || 
+  100 || 
+  110 || 
+  120 || 
+  130 || 
+  140 || 
+  150 || 
+  160 || 
+  170 || 
+  180 || 
+  190 || 
+  200 || 
+  210 || 
+  220 || 
+  230 || 
+  240 || 
+  250 || 
+  260 || 
+  270 || 
+  280 || 
+  290 || 
+  300 || 
+  310 || 
+  320 || 
+  330 || 
+  340 || 
+  350 || 
+  360 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND VI
+-----------------------------------------------------------------------------
+((401 . 1) (0 . 0))
+    0 || 
+   11 || 
+   22 || 
+   33 || 
+   44 || 
+   55 || 
+   66 || 
+   77 || 
+   88 || 
+   99 || 
+  110 || 
+  121 || 
+  132 || 
+  143 || 
+  154 || 
+  165 || 
+  176 || 
+  187 || 
+  198 || 
+  209 || 
+  220 || 
+  231 || 
+  242 || 
+  253 || 
+  264 || 
+  275 || 
+  286 || 
+  297 || 
+  308 || 
+  319 || 
+  330 || 
+  341 || 
+  352 || 
+  363 || 
+  374 || 
+  385 || 
+  396 || 
+  407 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND VII
+-----------------------------------------------------------------------------
+((753 . 1) (0 . 0))
+    0 || 
+   21 || 
+   42 || 
+   63 || 
+   84 || 
+  105 || 
+  126 || 
+  147 || 
+  168 || 
+  189 || 
+  210 || 
+  231 || 
+  252 || 
+  273 || 
+  294 || 
+  315 || 
+  336 || 
+  357 || 
+  378 || 
+  399 || 
+  420 || 
+  441 || 
+  462 || 
+  483 || 
+  504 || 
+  525 || 
+  546 || 
+  567 || 
+  588 || 
+  609 || 
+  630 || 
+  651 || 
+  672 || 
+  693 || 
+  714 || 
+  735 || 
+  756 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND VIII
+-----------------------------------------------------------------------------
+((240 . 1) (200 . 7/8) (0 . 0))
+    0 || 
+    6 || 
+   12 || 
+   18 || 
+   24 || 
+   30 || 
+   36 || 
+   42 || 
+   48 || 
+   54 || 
+   60 || 
+   66 || 
+   72 || 
+   78 || 
+   84 || 
+   90 || 
+   96 || 
+  102 || 
+  108 || 
+  114 || 
+  120 || 
+  126 || 
+  132 || 
+  138 || 
+  144 || 
+  150 || 
+  156 || 
+  162 || 
+  168 || 
+  174 || 
+  180 || 
+  186 || 
+  192 || 
+  198 || 
+  204 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  210 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  216 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  222 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  228 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  234 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  240 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND IX
+-----------------------------------------------------------------------------
+((133 . 1) (0 . 0))
+    0 || 
+    3 || 
+    6 || 
+    9 || 
+   12 || 
+   15 || 
+   18 || 
+   21 || 
+   24 || 
+   27 || 
+   30 || 
+   33 || 
+   36 || 
+   39 || 
+   42 || 
+   45 || 
+   48 || 
+   51 || 
+   54 || 
+   57 || 
+   60 || 
+   63 || 
+   66 || 
+   69 || 
+   72 || 
+   75 || 
+   78 || 
+   81 || 
+   84 || 
+   87 || 
+   90 || 
+   93 || 
+   96 || 
+   99 || 
+  102 || 
+  105 || 
+  108 || 
+  111 || 
+  114 || 
+  117 || 
+  120 || 
+  123 || 
+  126 || 
+  129 || 
+  132 || 
+  135 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND X
+-----------------------------------------------------------------------------
+((4259 . 1) (0 . 0))
+    0 || 
+  121 || 
+  242 || 
+  363 || 
+  484 || 
+  605 || 
+  726 || 
+  847 || 
+  968 || 
+ 1089 || 
+ 1210 || 
+ 1331 || 
+ 1452 || 
+ 1573 || 
+ 1694 || 
+ 1815 || 
+ 1936 || 
+ 2057 || 
+ 2178 || 
+ 2299 || 
+ 2420 || 
+ 2541 || 
+ 2662 || 
+ 2783 || 
+ 2904 || 
+ 3025 || 
+ 3146 || 
+ 3267 || 
+ 3388 || 
+ 3509 || 
+ 3630 || 
+ 3751 || 
+ 3872 || 
+ 3993 || 
+ 4114 || 
+ 4235 || 
+ 4356 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+           PLOT OF BEST FITNESS OVER GENERATIONS FOR ISLAND XI
+-----------------------------------------------------------------------------
+((52 . 1) (1 . 1/2) (0 . 0))
+    0 || 
+    1 || 
+    2 || 
+    3 || 
+    4 || 
+    5 || 
+    6 || 
+    7 || 
+    8 || 
+    9 || 
+   10 || 
+   11 || 
+   12 || 
+   13 || 
+   14 || 
+   15 || 
+   16 || 
+   17 || 
+   18 || 
+   19 || 
+   20 || 
+   21 || 
+   22 || 
+   23 || 
+   24 || 
+   25 || 
+   26 || 
+   27 || 
+   28 || 
+   29 || 
+   30 || 
+   31 || 
+   32 || 
+   33 || 
+   34 || 
+   35 || 
+   36 || 
+   37 || 
+   38 || 
+   39 || 
+   40 || 
+   41 || 
+   42 || 
+   43 || 
+   44 || 
+   45 || 
+   46 || 
+   47 || 
+   48 || 
+   49 || 
+   50 || 
+   51 || 
+   52 || XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-----------------------------------------------------------------------------
+        50           60           70           80           90           100
+-----------------------------------------------------------------------------
+FITTER THAN PARENTS:  0.00%
+LESS FIT THAN PARENTS:  0.00%
+AS FIT AS PARENTS:  0.00%
+-----------------------------------------------------------------------------
+                         -oO( BEST SPECIMEN )Oo-
+-----------------------------------------------------------------------------
+16 TESTS CLASSIFIED CORRECTLY, 0 INCORRECTLY.
+-----------------------------------------------------------------------------
+FIT: 1.0
+SEQ: #(198 185 48 108 108 126 108 122 126 48 48 172 198 198 75 75 149 198 2 7
+       122 11)
+EFF: #(198 185 48 108 108 126 108 122 126 48 48 172 198 198 75 75 149 198 2 7
+       122 11)
+MUT: 0.15
+HOME: ISLAND #0
+GEN: 1005
+FITNESS OF PARENTS: 0.0, 0.0
+HOMES OF PARENTS: ISLAND 0, ISLAND 0
+-----------------------------------------------------------------------------
+DISASSEMBLY OF EFFECTIVE CODE:
+11000110  [LOD  R0, R3]
+10111001  [MUL  R7, R2]
+00110000  [DIV  R6, R0]
+01101100  [PMD  R5, R1]
+01101100  [PMD  R5, R1]
+01111110  [LOD  R7, R1]
+01101100  [PMD  R5, R1]
+01111010  [SUB  R7, R1]
+01111110  [LOD  R7, R1]
+00110000  [DIV  R6, R0]
+00110000  [DIV  R6, R0]
+10101100  [PMD  R5, R2]
+11000110  [LOD  R0, R3]
+11000110  [LOD  R0, R3]
+01001011  [ADD  R1, R1]
+01001011  [ADD  R1, R1]
+10010101  [JLE  R2, R2]
+11000110  [LOD  R0, R3]
+00000010  [SUB  R0, R0]
+00000111  [STO  R0, R0]
+01111010  [SUB  R7, R1]
+00001011  [ADD  R1, R0]
+-----------------------------------------------------------------------------
+
+Evaluation took:
+  128.368 seconds of real time
+  358.213298 seconds of total run time (264.996640 user, 93.216658 system)
+  [ Run times consist of 1.934 seconds GC time, and 356.280 seconds non-GC time. ]
+  279.05% CPU
+  319,873,962,138 processor cycles
+  33,484,710,720 bytes consed
+  
+-----------------------------------------------------------------------------

@@ -116,7 +116,7 @@ launch setup and evolve."
 ;;       (setf target (read))
 ;;       (format t "~%CHOOSE A SELECTION METHOD: TOURNEMENT, ROULETTE, OR GREEDY-ROULETTE?~%ENTER :T, :R, or :G.~%~~ ")
 ;; ;      (clear-input)
-;;       (setf *method-key* (read))
+;;       (setf *selection-method* (read))
 ;;       (format t "
 ;; ENTER MAXIMUM NUMBER OF CYCLES (A CYCLE HAS TAKEN PLACE WHEN A
 ;; BREEDING EVENT HAS ELAPSED ON EACH ISLAND. IN TOURNMENT MODE, THIS
@@ -134,9 +134,11 @@ launch setup and evolve."
 and eventually, sanitize the input."
   (when (or (eql *migration-size* 0) (eql *greedy-migration* 0))
     (setf *greedy-migration* nil))
+  (when (eq :tictactoe *dataset*)
+    (setf *arity* :binary))
   (when *debug*
     (setf *parallel* nil)
-    (when (eq *method-key* :lexicase)
+    (when (eq *selection-method* :lexicase)
       (format t "WARNING: *TRACK-GENEALOGY* CURRENTLY INCOMPATIBLE")
       (format t " WITH LEXICASE SELECTION.~%DISABLING.")
       (setf *track-genealogy* nil))))

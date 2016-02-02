@@ -117,7 +117,7 @@
      have elapsed on each island, or a pre-established fitness target
      has been reached. This determines the latter.")
 
-(defparameter *method-key* :tournement
+(defparameter *selection-method* :tournement
   "Determines which selection method will be used to select the parents 
     of each subsequent generation. Accepts as values the keywords: 
     :tournement, :roulette, :greedy-roulette, or :lexicase.")
@@ -278,7 +278,7 @@
     *data-path*
     *testing-data-path*
     *training-ratio*
-    *method-key*
+    *selection-method*
     *number-of-islands*
     *population-size*
     *mutation-rate*
@@ -298,3 +298,5 @@
     *rounds*
     *target*))    
 
+
+(defparameter *arity* :n-ary)

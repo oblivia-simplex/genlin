@@ -1,3 +1,13 @@
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;;   ___ ___ _  _ _    ___ _  _
+;;  / __| __| \| | |  |_ _| \| |
+;; | (_ | _|| .` | |__ | || .` |
+;;  \___|___|_|\_|____|___|_|\_| Linear Genetic Programming Engine
+;;
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(setf *stop* t)
+
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; Linear Genetic Algorithm
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -154,16 +164,9 @@ environment."
 
 ;; DO NOT TINKER WITH THIS ANY MORE. 
 (defun sigmoid-error(raw goal)
-  ;; goal is a boolean value (t or nil)
-  ;; raw is, typically, the return value in r0
   (let ((divisor 8))
     (flet ((sigmoid (x)
              (tanh (/ x divisor))))
-      ;; if raw is < 0, then (sigmoid raw) will be between
-      ;; 0 and -1. If the goal is -1, then the final result
-      ;; will be (-1 + p)/2 -- a value between -0.5 and -1,
-      ;; but taken absolutely as a val between 0.5 and 1.
-      ;; likewise when raw is > 0.
       (/ (abs (+ (sigmoid raw) goal)) 2))))
 
 ;; design a meta-gp to evolve the sigmoid function?
@@ -286,7 +289,18 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                          x
                          y))
           *out-reg*))
-  
+
+;; -- boolean returning per-cases --
+
+(defun per-case-binary (crt case-kv)
+  "Returns a boolean."
+  (let ((output (execute-sequence (creature-eff crt)
+                                  :output *out-reg*
+                                  :input (car case-kv))))
+    ;; the binary table has -1 for no, +1 for yes
+    ;; if the output agrees with the value, then the product is +
+    (< 0 (* (car output) (cdr case-kv)))))
+    
 (defun per-case-n-ary (crt case-kv)
   "Returns a boolean."
   (let ((output (execute-sequence (creature-eff crt)
@@ -294,6 +308,8 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                                   :input (car case-kv))))
     (= (register-vote output :comparator #'> :pre #'abs) ;; get lowest
        (cdr case-kv))))
+
+;; -- real returning per-cases --
 
 (defun per-case-n-ary-proportional (crt case-kv)
   "Case-kv is a cons of key and value from hashtable."
@@ -343,15 +359,22 @@ fitness function."
   (creature-fit crt))
 
 
-
-(defun gauge-accuracy (crt &key (ht *training-hashtable*))
-  (let ((results (loop for k being the hash-keys in ht
-                    using (hash-value v)
-                    collect (per-case-n-ary crt (cons k v)))))
+(defun gauge-accuracy (crt &key (ht *training-hashtable*)
+                             (per-case))
+  (let ((results))
+    (unless per-case
+      (setf per-case (if (= (length *out-reg*) 1)
+                         #'per-case-binary
+                         #'per-case-n-ary)))
+    (setf results (loop for k being the hash-keys in ht
+                     using (hash-value v)
+                     collect (funcall per-case crt (cons k v))))
+;;    (print results)
     (/ (reduce #'+ (mapcar #'(lambda (x) (if x 1 0)) results))
        (length results))))
 
 ;; there needs to be an option to run the fitness functions with the testing hashtable. 
+
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic operations (variation)
@@ -410,7 +433,7 @@ fitness function."
                                      (subseq seq (1+ tocut)))))
            newseq))
         (t seq)))
-           
+
            
 
 (defun smutate-imutate (seq)
@@ -509,6 +532,7 @@ fitness function."
 (defun f-lexicase (island
                    &key (ht *training-hashtable*)
                      (per-case #'per-case-n-ary))
+  "Note: per-case can be any boolean-returning fitness function."
   (flet ((set-eff (crt)
            (unless (creature-eff crt)
              (setf (creature-eff crt) (remove-introns (creature-seq crt)
@@ -520,8 +544,7 @@ fitness function."
            (next-candidates candidates)
            (total (length cases))
            (highscore 0)
-           (worst)
-           (scores (make-hash-table :test #'equalp)))
+           (worst))
       (mapcar #'set-eff candidates)
       (loop while (and next-candidates cases) do
            (let ((the-case))
@@ -533,7 +556,10 @@ fitness function."
              (setf next-candidates
                    (remove-if-not 
                     #'(lambda (x) (funcall per-case x the-case))
-                    candidates))))
+                    candidates))
+             (unless worst ;; somewhat better way to get worst
+               (setf worst
+                     (car (set-difference candidates next-candidates))))))
       (when (null candidates)
         (when **lexi-debug**
           (FORMAT T "EVERYONE FAILED. CHOSING AT RANDOM.~%"))
@@ -547,26 +573,10 @@ fitness function."
                 (- total (length cases))
                 total
                 highscore)) 
-      (setf worst ;; the quick and dirty way -- should work fine
-            (elt (island-deme island) (random (length (island-deme island)))))
-      ;; ************************************************************
-      ;; It greatly increases training time to also gauge the acc
-      ;; of a creature against the entire dataset. I'm keeping this
-      ;; here only for debugging purposes. It can be commented out
-      ;; once I'm confident with the utility of lexicase fitness.
-      ;; (Which is wildly unstable, but should still converge on 1.)
-      ;; ************************************************************
-      (when **lexi-debug**
-        (FORMAT T "GAUGING ACCURACY OF WINNING CANDIDATE...~%"))
-      ;; (setf (creature-fit (car candidates))
-      ;;       (gauge-accuracy (car candidates) :ht ht))
       (values (car candidates)
               worst)))) ;; return just one parent
-
-;(defun per-case-prop->bool (crt case-kv target)
   
-  
-(defun lexicase! (island &key (per-case #'per-case-n-ary))
+(defun lexicase! (island &key (per-case))
   "Selects parents by lexicase selection." ;; stub, expand
   (multiple-value-bind (best-one worst-one)
       (f-lexicase island :per-case #'per-case-n-ary)
@@ -576,13 +586,10 @@ fitness function."
       (update-accuracy-log best-two island)
       (let ((children (mate best-one best-two
                             :genealogy *track-genealogy*)))
-        ;; (setf (elt (island-deme island)
-        ;;            (position worst-one (island-deme island)))
-        ;;       (car children))
-        ;; (setf (elt (island-deme island)
-        ;;            (position worst-two (island-deme island)))
-        ;;       (cadr children))
-        ;; children))))
+        (unless per-case
+          (setf per-case (if (= (length *out-reg*) 1)
+                             #'per-case-binary
+                             #'per-case-n-ary)))
         (mapcar #'(lambda (x) (setf (creature-home x)
                                (island-id island))) children)
         (nsubst (car children) worst-one (island-deme island)
@@ -871,12 +878,12 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun setup-data (&key (ratio *training-ratio*)
                      (dataset *dataset*)
-                     (method-key *method-key*)
+                     (selection-method *selection-method*)
                      (fitfunc-name)
                      (filename *data-path*))
   (let ((hashtable)
         (training+testing))
-    (setf *method* (case method-key
+    (setf *method* (case selection-method
                      ((:tournement) #'tournement!)
                      ((:roulette) #'roulette!)
                      ((:greedy-roulette) #'greedy-roulette!)
@@ -891,17 +898,15 @@ applying, say, mapcar or length to it, in most cases."
     (case dataset   ;; at some point, I'll have to clean up all of this
       ((:tictactoe) ;; ad-hoc spaghetti code. 
        (unless filename (setf filename *tictactoe-path*))
-       (unless fitfunc-name (setf fitfunc-name 'binary-1))
-       (setf hashtable (ttt-datafile->hashtable
-                        :filename filename :int t :gray t)))
+       (unless fitfunc-name (setf fitfunc-name 'binary-1)))
       (otherwise
        (unless filename (setf filename *iris-path*))
-       (unless fitfunc-name (setf fitfunc-name 'n-ary))
-       (setf hashtable (datafile->hashtable :filename filename))
-       (when *testing-data-path*
-         (setf training+testing (cons hashtable
-                                      (datafile->hashtable
-                                       :filename *testing-data-path*))))))
+       (unless fitfunc-name (setf fitfunc-name 'n-ary))))
+    (setf hashtable (datafile->hashtable :filename filename))
+    (when *testing-data-path*
+      (setf training+testing (cons hashtable
+                                   (datafile->hashtable
+                                    :filename *testing-data-path*))))
     (unless training+testing
       (setf training+testing (partition-data hashtable ratio)))
     (init-fitness-env :training-hashtable (car training+testing)
@@ -1004,7 +1009,7 @@ applying, say, mapcar or length to it, in most cases."
                                        (funcall stopwatch)
                                        (func->string method)
                                        *dataset*)
-                               ;; (when (eq *method-key* :LEXICASE)
+                               ;; (when (eq *selection-method* :LEXICASE)
                                ;;   (format t "ACCURACY: ~F~%"
                                ;;           (gauge-accuracy *best*
                                ;;                           :ht *testing-hashtable*)))
@@ -1284,7 +1289,7 @@ without incurring delays."
   (setf *data-path* #p"~/Projects/genlin/datasets/shuttle/shuttle.csv")
   (setf *destination-register-bits* 3)
   (setf *source-register-bits* 4)
-  (setf *method-key* :lexicase))
+  (setf *selection-method* :lexicase))
 
 ;;(dbg)
 ;;(setf *stop* t)
