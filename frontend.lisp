@@ -134,8 +134,6 @@ launch setup and evolve."
 and eventually, sanitize the input."
   (when (or (eql *migration-size* 0) (eql *greedy-migration* 0))
     (setf *greedy-migration* nil))
-  (when (eq :tictactoe *dataset*)
-    (setf *arity* :binary))
   (when *debug*
     (setf *parallel* nil)
     (when (eq *selection-method* :lexicase)

@@ -526,9 +526,6 @@ fitness function."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-(defparameter **lexi-debug** nil)
-;;(setf *stop* t)
-
 (defun f-lexicase (island
                    &key (ht *training-hashtable*)
                      (per-case #'per-case-n-ary))
@@ -542,17 +539,14 @@ fitness function."
                               using (hash-value v) collect (cons k v))))
            (candidates (copy-seq (island-deme island)))
            (next-candidates candidates)
-           (total (length cases))
-           (highscore 0)
+           ;; (total (length cases))
+           ;; (highscore 0)
            (worst))
       (mapcar #'set-eff candidates)
       (loop while (and next-candidates cases) do
            (let ((the-case))
              (setf the-case (pop cases))
              (setf candidates next-candidates)
-             (when **lexi-debug**
-               (FORMAT T "TESTING CASE ~A~%REMAINING CANDIDATES: ~D~%REMAINING CASES: ~D~%~%"
-                       THE-CASE (LENGTH CANDIDATES) (LENGTH CASES)))
              (setf next-candidates
                    (remove-if-not 
                     #'(lambda (x) (funcall per-case x the-case))
@@ -561,18 +555,11 @@ fitness function."
                (setf worst
                      (car (set-difference candidates next-candidates))))))
       (when (null candidates)
-        (when **lexi-debug**
-          (FORMAT T "EVERYONE FAILED. CHOSING AT RANDOM.~%"))
         (setf candidates
               (list (elt (island-deme island)
                          (random (length (island-deme island)))))))
-      (setf highscore
-            (/ (- total (length cases)) total))
-      (when **lexi-debug**
-        (FORMAT T "PASSED ~D of ~D (~4,2F%) OF TESTS.~%"
-                (- total (length cases))
-                total
-                highscore)) 
+      ;; (setf highscore
+      ;;       (/ (- total (length cases)) total))
       (values (car candidates)
               worst)))) ;; return just one parent
   
@@ -907,6 +894,8 @@ applying, say, mapcar or length to it, in most cases."
       (setf training+testing (cons hashtable
                                    (datafile->hashtable
                                     :filename *testing-data-path*))))
+    (unless *split-data*
+      (setf training+testing (cons hashtable hashtable)))
     (unless training+testing
       (setf training+testing (partition-data hashtable ratio)))
     (init-fitness-env :training-hashtable (car training+testing)
@@ -1331,3 +1320,14 @@ without incurring delays."
               year
               (- tz)))))
 
+;; Note: it should be simple enough to generalize the ttt data processing
+;; technique.
+;; - scan the dataset
+;; - count the possible values for each field, and if there are an equal
+;;   number of possibilities for each field, say n, formalize the key as
+;;   an m-digit base-n gray code integer.
+;; - this may, in some cases, even work when there is a maximum number
+;;   of possibilities per field. or if each field can have any of n
+;;   values, when unconstrained by other fields (the mutual constraints,
+;;   of course, are an impt aspect of the pattern that the algo's meant
+;;   to detect). 

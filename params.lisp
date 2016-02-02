@@ -267,6 +267,9 @@
 
 (defparameter *metamutation-step* 1/50)
 
+(defparameter *split-data* t
+  "Set to nil to use the same dataset for both training and testing. I
+     won't judge. *TRAINING-RATIO* is ignored if this is to set to nil.")
 
 
 (defparameter *tweakables*
@@ -277,6 +280,7 @@
     *dataset*
     *data-path*
     *testing-data-path*
+    *split-data*
     *training-ratio*
     *selection-method*
     *number-of-islands*
@@ -299,4 +303,6 @@
     *target*))    
 
 
-(defparameter *arity* :n-ary)
+
+
+
