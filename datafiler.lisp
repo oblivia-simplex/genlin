@@ -96,7 +96,8 @@
     (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
             correct incorrect)
     (hrule)
-    failures))
+    (values (cons correct incorrect)
+            failures)))
 
 ;; moved over here from genlin.lisp:
 

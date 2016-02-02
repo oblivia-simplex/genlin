@@ -1,12 +1,12 @@
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; Linear Genetic Algorithm
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-(load #p"package.lisp")
+(load #p"~/Projects/genlin/package.lisp")
 
 (in-package :genlin)
 
 (defparameter *project-path*
-  "./")
+  "~/Projects/genlin/")
 
 (defun loadfile (filename)
   (load (merge-pathnames filename *load-truename*)))
@@ -278,12 +278,6 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 ;; break some parts of the programme -- which should be easy enough to
 ;; patch, once we see what they are. 
 
-(defun index-of-highest (output)
-  (reduce #'(lambda (x y) (if (> (nth x output)
-                            (nth y output)) 
-                         x y))
-          *out-reg*))
-
 (defun register-vote (output &key (comparator #'>) (pre #'abs))
   "Return the index of the register with the highest or lowest value."
   (reduce #'(lambda (x y) (if (funcall comparator
@@ -292,7 +286,6 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                          x
                          y))
           *out-reg*))
-
   
 (defun per-case-n-ary (crt case-kv)
   "Returns a boolean."
@@ -314,18 +307,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                    (reduce #'+ output))
                 1
                 0))))
-;; but will it make sense without abs?
          
-       ;; ;; (let ((output (execute-sequence seq
-       ;;   ;;                                 :input pattern
-       ;;   ;;                                 :output *out-reg*)))
-           
-
-       ;;     (incf acc1 (divide (abs (nth i output))
-       ;;                     (reduce #'+ (mapcar #'abs output))))
-       ;;     (incf acc2 (if (> (* (abs (nth i output)) (length output)) (reduce #'+ output))
-       ;;                    1 0)))) 
-
 (defun fitness-n-ary-classifier (crt &key (ht *training-hashtable*))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
@@ -359,6 +341,15 @@ fitness function."
                 (incf (getf *records* :less-fit-than-parents)))
                (t (incf (getf *records* :as-fit-as-parents))))))
   (creature-fit crt))
+
+
+
+(defun gauge-accuracy (crt &key (ht *training-hashtable*))
+  (let ((results (loop for k being the hash-keys in ht
+                    using (hash-value v)
+                    collect (per-case-n-ary crt (cons k v)))))
+    (/ (reduce #'+ (mapcar #'(lambda (x) (if x 1 0)) results))
+       (length results))))
 
 ;; there needs to be an option to run the fitness functions with the testing hashtable. 
 
@@ -437,9 +428,9 @@ fitness function."
   (declare (type simple-array seq))
   (apply (aref *mutations* (random (length *mutations*))) `(,seq)))
 
-(defun maybe-mutate (seq)
+(defun maybe-mutate (seq mutation-rate)
   (declare (type simple-array seq))
-  (if (< (random 100) *mutation-rate*)
+  (if (< (random 1.0) mutation-rate)
       (random-mutation seq)
       seq))
 
@@ -472,39 +463,45 @@ fitness function."
     (setf children (list (make-creature :seq son)
                          (make-creature :seq daughter)))))
 
+(defun metamutate (mut)
+  (if (< (random 1.0) *metamutation-rate*)
+      (min 1 (max 0
+                  (+ mut
+                     (* (if (= 0 (random 2)) 1 -1)
+                        *metamutation-step*)))))
+  mut)
+
 (defun mate (p0 p1 &key (genealogy *track-genealogy*)
-                               (output-registers *out-reg*))
-  (let ((children (shufflefuck p0 p1)))
+                     (output-registers *out-reg*))
+  (let ((offspring (shufflefuck p0 p1)))
     ;; mutation
-    (loop for child in children do
-         (setf (creature-seq child) (maybe-mutate (creature-seq child)))
+    (loop for child in offspring do
+       ;; now, let the mutation rate be linked to each creature, and
+       ;; potentially mutate, itself.
+         (setf (creature-mut child) ;; baseline: avg of parents' muts
+               (metamutate (/ (+ (creature-mut p0) (creature-mut p1)) 2)))
+         (setf (creature-seq child) (maybe-mutate (creature-seq child)
+                                                  (creature-mut child)))
          (setf (creature-eff child) (remove-introns
                                      (creature-seq child)
                                      :output output-registers))
          (loop for parent in (list p0 p1) do
               (if (equalp (creature-eff child) (creature-eff parent))
                   (setf (creature-fit child) (creature-fit parent))))
+         ;; genealogical records: costly in terms of memory space, but neat
          (when genealogy
-          
            (mapcar #'(lambda (x) (setf (creature-gen x) ;; update gen and parents
                                   (1+ (max (creature-gen p0)
                                            (creature-gen p1)))
                                   (creature-parents x)
                                   (list p0 p1)))
-                   children)))
-    children))
+                   offspring)))
+    offspring))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Selection functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-
-(defun gauge-accuracy (crt &key (ht *training-hashtable*))
-  (let ((results (loop for k being the hash-keys in ht
-                    using (hash-value v)
-                    collect (per-case-n-ary crt (cons k v)))))
-    (/ (reduce #'+ (mapcar #'(lambda (x) (if x 1 0)) results))
-       (length results))))
 
 (defparameter **lexi-debug** nil)
 ;;(setf *stop* t)
@@ -756,45 +753,46 @@ each island. Creatures dwelling on the same island share a list."
   (mapcar #'(lambda (x) (mapcar #'(lambda (y) (creature-seq y)) (island-deme x)))
           (de-ring island-ring)))
 
-(defun fitsort-deme (deme)
+(defun fitsort-deme (deme &key (fraction 1))
   (flet ((nil0 (n)
            (if (null n) 0 n)))
-    (let ((population (copy-seq deme)))
-      (sort population
-            #'(lambda (x y) (> (nil0 (creature-fit x))
-                          (nil0 (creature-fit y))))))))
+    (let* ((ratio (if (rationalp fraction) fraction 1/1))
+           (population (if (< ratio 1)
+                           (shuffle (copy-seq deme))
+                           (copy-seq deme)))
+           (num (floor (* ratio (length population))))
+           (to-sort (subseq deme 0 num))
+           (not-to-sort (subseq deme num)))
+      (concatenate 'list
+                   (sort to-sort
+                         #'(lambda (x y) (> (nil0 (creature-fit x))
+                                       (nil0 (creature-fit y)))))
+                   not-to-sort))))
 
 ;; this needs to be mutex protected
 (defun reorder-demes (island-ring &key (greedy t))
-  "Shuffles the demes of each island in the ring."
+  "Shuffles the demes of each island in the ring, or fitsorts a
+fraction of the deme and places the fittest at the top."
   (loop for isle in (de-ring island-ring) do
        (sb-thread:grab-mutex (island-lock isle))
        (setf (island-deme isle)
              (if greedy
-                 (fitsort-deme (island-deme isle))
+                 (fitsort-deme (island-deme isle) :fraction greedy)
                  (shuffle (island-deme isle))))
        (sb-thread:release-mutex (island-lock isle))))
   
 ;; now chalk-full of locks. 
-(defun migrate (island-ring &key (emigrant-percent 10)
+(defun migrate (island-ring &key (emigrant-fraction 1/10)
                               (greedy *greedy-migration*))
   "Migrates a randomly-populated percentage of each island to the
 preceding island in the island-ring. The demes of each island are
 shuffled in the process."
     (let* ((island-pop (length (island-deme (car island-ring))))
-           (emigrant-count (floor (* island-pop (/ emigrant-percent 100))))
-;           (emigrant-idx (- island-pop emigrant-count))
+           (emigrant-count (floor (* island-pop emigrant-fraction)))
            (buffer))
       (reorder-demes island-ring :greedy greedy)
-      ;;;;;;;;;;;;;;;;;;;;;;;;;
-      ;; (format t "~%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%~%EMIGRANT FITNESS:~%~A~%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%~%"
-      ;;         (mapcar #'(lambda (z) (mapcar #'(lambda (y) (creature-fit y)) z)) 
-      ;;                 (mapcar #'(lambda (x) (subseq x emigrant-idx))
-      ;;                         (mapcar #'island-deme
-      ;;                                 (de-ring +island-ring+)))))
-                    ;;;;;;;;;;;;;;;;;;;;;;;;
       (setf buffer (subseq (island-deme (car island-ring)) 0 emigrant-count))
-      (loop
+      (loop ;; migrate the emigrants counterclockwise around the island-ring
          for (isle-1 isle-2) on island-ring
          for i from 1 to (1- (island-of (car island-ring))) do
            (sb-thread:grab-mutex (island-lock isle-1))
@@ -855,7 +853,8 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun spawn-creature (len)
   (make-creature :seq (spawn-sequence len)
-                 :gen 0))
+                 :gen 0
+                 :mut *mutation-rate*))
 
 (defun init-population (popsize slen &key (number-of-islands 4))
   (let ((adjusted-popsize (+ popsize (mod popsize (* 2 number-of-islands)))))
@@ -940,6 +939,15 @@ applying, say, mapcar or length to it, in most cases."
        (when (eql #\k (read-char-no-hang))
          (setf *STOP* t))))
 
+
+
+(defun make-stopwatch ()
+  (let ((start-time 0))
+    (lambda (&optional arg)
+      (case arg
+        ((set) (setf start-time (get-universal-time)))
+        (otherwise (- (get-universal-time) start-time))))))
+
 (defun evolve (&key (method *method*) (dataset *dataset*)
                  (rounds *rounds*) (target *target*)
                  (stat-interval *stat-interval*) (island-ring +island-ring+) 
@@ -949,73 +957,98 @@ applying, say, mapcar or length to it, in most cases."
   ;; adjustments needed to add fitfunc param here. 
   (setf *STOP* nil)
   (setf *parallel* parallelize)
+  (let ((stopwatch (make-stopwatch))
+        (timereport "")
+        (correct+incorrect))
+    (funcall stopwatch 'set)
   ;;; Just putting this here temporarily:
-  (time (block evolver
-          (loop for i from 1 to (* rounds *number-of-islands*) do
-               (let ((isle (pop island-ring)))
-                 ;; island-ring is circular, so pop
-                 ;; will cycle & not exhaust it
-                 (labels ((dispatcher ()
-                            ;; we don't want more than one thread per island.
-                            (when *parallel*
-                              (sb-thread:grab-mutex (island-lock isle)))
-                            (funcall method isle)
-                            (when *parallel*
-                              (sb-thread:release-mutex (island-lock isle))))
-                          (dispatch ()
-                            (incf (island-era isle))
-                            (if *parallel*
-                                (sb-thread:make-thread #'dispatcher)
-                                (dispatcher))))
-                   (dispatch)
-                   (when (equalp (read-char-no-hang) #\k)
-                     (setf *stop* t))
-                   (when (= 0 (mod i migration-rate))
-                     (when *parallel*
-                       (sb-thread:grab-mutex -migration-lock-))
-                     (princ ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                     (princ " MIGRATION EVENT ")
-                     (format t "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
-                     (migrate island-ring :emigrant-percent migration-size)
-                     (when *parallel*
-                       (sb-thread:release-mutex -migration-lock-)))
-                   (when (= 0 (mod i stat-interval))
-                     (print-statistics island-ring)
-                     (best-of-all +island-ring+)
-                     (format t "BEST FIT: ~F ON ISLAND ~A   *   RUNNING ~A ON ~A...~%"
-                             (creature-fit *best*)
-                             (roman (creature-home *best*))
-                             (func->string method)
-                             *dataset*)
-                     ;; (when (eq *method-key* :LEXICASE)
-                     ;;   (format t "ACCURACY: ~F~%"
-                     ;;           (gauge-accuracy *best*
-                     ;;                           :ht *testing-hashtable*)))
-                     (hrule))
-                   (when (or (> (creature-fit (island-best isle)) target)
-                             *STOP*)
-                     (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
-                             target i)
-                     (return-from evolver)))))))
-  (print-statistics +island-ring+)
-  (format t "BEST:~%")
-  (print-creature (best-of-all island-ring))
-  (classification-report *best* dataset)
-  (loop for isle in (de-ring island-ring) do
-       (plot-fitness isle))
-  (when *track-genealogy* (genealogical-fitness-stats))
-  (hrule)
-  (if (not (zerop (creature-fit *best*)))
-      (format t "BEST FITNESS IS ~F~%ACHIEVED BY A GENERATION ~D CREATURE, FROM ISLAND ~A AT ERA ~D~%"
-              (creature-fit *best*)
-              (creature-gen *best*)
-              (roman (creature-home *best*))
-              (island-era (elt +island-ring+ (creature-home *best*)))))
-  (hrule))
+    (setf timereport
+          (with-output-to-string (*trace-output*)
+            (time (block evolver
+                    (loop for i from 1 to (* rounds *number-of-islands*) do
+                         (let ((isle (pop island-ring)))
+                           ;; island-ring is circular, so pop
+                           ;; will cycle & not exhaust it
+                           (labels ((time-for (interval)
+                                      (= 0 (mod (/ i *number-of-islands*) interval)))
+                                    (dispatcher ()
+                                      ;; we don't want more than one thread per island.
+                                      (when *parallel*
+                                        (sb-thread:grab-mutex (island-lock isle)))
+                              (funcall method isle)
+                              (when *parallel*
+                                (sb-thread:release-mutex (island-lock isle))))
+                                    (dispatch ()
+                                      (incf (island-era isle))
+                                      (if *parallel*
+                                          (sb-thread:make-thread #'dispatcher)
+                                          (dispatcher))))
+                             (dispatch)
+                             (when (equalp (read-char-no-hang) #\k)
+                               (setf *stop* t))
+                             (when (time-for migration-rate)
+                               (when *parallel*
+                                 (sb-thread:grab-mutex -migration-lock-))
+                               (princ ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                               (princ " MIGRATION EVENT ")                       
+                               (migrate island-ring :emigrant-fraction migration-size)
+                               (format t "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<~%")
+                               (when *parallel*
+                                 (sb-thread:release-mutex -migration-lock-)))
+                             (when (time-for stat-interval)
+                               (print-statistics island-ring)
+                               (best-of-all +island-ring+)
+                               (format t "BEST: ~F ON ISLE ~A  *  ~D SEC. INTO ~A ON ~A~%"
+                                       (creature-fit *best*)
+                                       (roman (creature-home *best*))
+                                       (funcall stopwatch)
+                                       (func->string method)
+                                       *dataset*)
+                               ;; (when (eq *method-key* :LEXICASE)
+                               ;;   (format t "ACCURACY: ~F~%"
+                               ;;           (gauge-accuracy *best*
+                               ;;                           :ht *testing-hashtable*)))
+                               (hrule))
+                             (when (or (> (creature-fit (island-best isle)) target)
+                                       *STOP*)
+                               (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
+                                       target i)
+                               (return-from evolver)))))))))
+          (print-statistics +island-ring+)
+          (best-of-all island-ring)
+          ;;        (print-creature (best-of-all island-ring))
+          (setf correct+incorrect (classification-report *best* dataset))
+          (loop for isle in (de-ring island-ring) do
+               (plot-fitness isle))
+          (when *track-genealogy* (genealogical-fitness-stats))
+          (hrule)
+          (when (not (zerop (creature-fit *best*)))
+            (format t "                         -oO( BEST SPECIMEN )Oo-~%")
+            (hrule)
+            (format t "~D TESTS CLASSIFIED CORRECTLY, ~D INCORRECTLY.~%"
+                    (car correct+incorrect) (cdr correct+incorrect))
+            (hrule)
+            (print-creature *best*))
+            ;; (format t "BEST FITNESS IS ~F~%ACHIEVED BY A GENERATION ~D CREATURE, FROM ISLAND ~A, AT ERA ~D~%WITH SEQUENCE:~%~%"
+            ;;         (creature-fit *best*)
+            ;;         (creature-gen *best*)
+            ;;         (roman (creature-home *best*))
+            ;;         (island-era (elt +island-ring+ (creature-home *best*))))
+;;            (disassemble-sequence (creature-seq *best*) :static t))
+          (format t "~%~A" timereport))
+    (hrule))
           
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Debugging functions and information output
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+
+(defun disassemble-sequence (seq &key (registers *initial-register-state*)
+                                   (input *default-input-reg*)
+                                   (static nil))
+  (if static (disassemble-history :static seq)
+      (execute-sequence seq :debug t :input input :registers registers)))
+
 
 (defun print-params ()
   "Prints major global parameters, and some statistics, too."
@@ -1032,15 +1065,17 @@ applying, say, mapcar or length to it, in most cases."
           *population-size*)
   (format t "[+] NUMBER OF ISLANDS:    ~d~%" (island-of (car +island-ring+)))
   (format t "[+] MIGRATION RATE:       ONCE EVERY ~D CYCLES~%" *migration-rate*)
-  (format t "[+] MIGRATION SIZE:       ~D%~%" *migration-size*)
-  (format t "[+] MUTATION RATE:        ~d%~%" *mutation-rate*)
+  (format t "[+] MIGRATION SIZE:       ~D~%" *migration-size*)
+  (format t "[+] MIGRATION ELITISM:    ~D~%" *greedy-migration*)
+  (format t "[+] MUTATION RATE:        ~d~%" *mutation-rate*)
+  (format t "[+] METAMUTATION RATE:    ~d~%" *metamutation-rate*)
   (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
   (format t "[+] MAX STARTING LENGTH:  ~d~%" *max-start-len*)
   (format t "[+] # of TRAINING CASES:  ~d~%"
           (hash-table-count *training-hashtable*))
   (format t "[+] # of TEST CASES:      ~d~%"
           (hash-table-count *testing-hashtable*))
-  (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
+;;  (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
   (format t "[+] SELECTION FUNCTION:   ~s~%" *method*)
   (format t "[+] OUTPUT REGISTERS:     ~a~%" *out-reg*)
   (hrule))
@@ -1174,13 +1209,18 @@ without incurring delays."
     (format t "~%")
     (hrule)))
 
+(defun avg-mutation-rate (island)
+  (divide (reduce #'+ (mapcar #'creature-mut (island-deme island)))
+          (length (island-deme island))))
+
 (defun print-creature (crt)
   (flet ((nil0 (n)
            (if (null n) 0 n)))
-    (format t "FIT: ~F~%SEQ: ~A~%EFF: ~A~%HOME: ISLAND #~D~%GEN: ~D~%"
+    (format t "FIT: ~F~%SEQ: ~A~%EFF: ~A~%MUT: ~F~%HOME: ISLAND #~D~%GEN: ~D~%"
             (nil0 (creature-fit crt))
             (creature-seq crt)
             (creature-eff crt)
+            (creature-mut crt)
             (nil0 (creature-home crt))
             (nil0 (creature-gen crt)))
     (when (creature-parents crt)
@@ -1281,7 +1321,8 @@ without incurring delays."
               minute
               second
               (nth day-of-week day-names)
-              month
               date
+              month
               year
               (- tz)))))
+

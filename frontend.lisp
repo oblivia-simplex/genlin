@@ -3,34 +3,6 @@
 ;; A pretty front-end
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter *tweakables*
-  '(*menu*
-    *debug*
-    *stat-interval*
-    *parallel*
-    *dataset*
-    *data-path*
-    *testing-data-path*
-    *training-ratio*
-    *method-key*
-    *number-of-islands*
-    *population-size*
-    *mutation-rate*
-    *migration-rate*
-    *migration-size*
-    *greedy-migration*
-    *track-genealogy*
-    *min-len*
-    *max-len*
-    *max-start-len*
-    *maxval*
-    *opstring*
-    *opcode-bits*
-    *source-register-bits*
-    *destination-register-bits*
-    *rounds*
-    *target*))    
-
 (defun print-operations ()
   (let ((used #\*)
         (unused #\space))
@@ -160,6 +132,8 @@ launch setup and evolve."
 (defun sanity-check ()
   "A place to prevent a few of the more disasterous parameter clashes
 and eventually, sanitize the input."
+  (when (or (eql *migration-size* 0) (eql *greedy-migration* 0))
+    (setf *greedy-migration* nil))
   (when *debug*
     (setf *parallel* nil)
     (when (eq *method-key* :lexicase)

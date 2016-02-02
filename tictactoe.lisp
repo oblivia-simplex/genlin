@@ -169,7 +169,8 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
         (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
                 correct incorrect)
         (hrule)
-        failures)) ;; returns failures, as a convenience for retraining
+        (values (cons correct incorrect)
+                failures))) ;; returns failures, as a convenience for retraining
     
 
   (defun show-search-space (ht &key (upto #3r222222222))

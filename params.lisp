@@ -44,7 +44,7 @@
 
 ;; Vars and types:
 
-(defstruct creature fit seq eff gen home parents) 
+(defstruct creature fit seq eff gen mut home parents) 
 
 (defstruct island id of deme best era logger lock)
 
@@ -74,19 +74,18 @@
 
 (defparameter *specimens* '())
 
-(defparameter *mutation-rate* 15
-  "Chance of mutation per spawning event, expressed as percentage.")
-
-(defparameter *migration-size* 10
-  "Percentage of population that leaves one deme for the next, 
-     per migration event.") ;; percent
+(defparameter *migration-size* 1/10
+  "Fraction of population that leaves one deme for the next, per
+     migration event.") ;; percent
 
 (defparameter *migration-rate* 1000
   "Frequency of migrations, measured in main loop cycles.")
 
-(defparameter *greedy-migration* t
-  "If set to T, migrants are always the fittest in their deme.
-     Otherwise random.")
+(defparameter *greedy-migration* 1
+  "If set to 1, migrants are always the fittest in their deme. If set to a
+     fraction lesser than 1, then migrants will be the top *migration-size*
+     percent of a randomly-selected *greedy-migration* fraction of the
+     deme.")
 
 (defparameter *track-genealogy* t
   "If set to T, then genealogical lineage and statistics are computed
@@ -257,4 +256,45 @@
 (defvar *testing-data-path* nil
   "Specify an independent testing dataset. If left as nil, then the
      main dataset will be partitioned according to --training-ratio.")
+
+
+
+(defparameter *mutation-rate* 15/100
+  "Chance of mutation per spawning event, expressed as percentage.")
+
+(defparameter *metamutation-rate* 1/10
+  "If over 0, then the rate of mutation is localized for each creature, and is     itself susceptible to mutation.")
+
+(defparameter *metamutation-step* 1/50)
+
+
+
+(defparameter *tweakables*
+  '(*menu*
+    *debug*
+    *stat-interval*
+    *parallel*
+    *dataset*
+    *data-path*
+    *testing-data-path*
+    *training-ratio*
+    *method-key*
+    *number-of-islands*
+    *population-size*
+    *mutation-rate*
+    *metamutation-rate*
+    *migration-rate*
+    *migration-size*
+    *greedy-migration*
+    *track-genealogy*
+    *min-len*
+    *max-len*
+    *max-start-len*
+    *maxval*
+    *opstring*
+    *opcode-bits*
+    *source-register-bits*
+    *destination-register-bits*
+    *rounds*
+    *target*))    
 

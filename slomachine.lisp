@@ -509,11 +509,3 @@ list parameter, output."
                (format nil "[~a  R~d, R~d]"
                        (func->string (op? inst))
                        (src? inst) (dst? inst))))
-
-(defun disassemble-sequence (seq &key (registers *initial-register-state*)
-                                   (input *default-input-reg*)
-                                   (static nil))
-  (hrule)
-  (if static (disassemble-history :static seq)
-      (execute-sequence seq :debug t :input input :registers registers))
-  (hrule))
