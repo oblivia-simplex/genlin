@@ -8,31 +8,23 @@
 
 
 ;;; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-;;; SLOMACHINE (Store/LOad-machine) is an alternative architecture to be
-;;; used for the genetic programming engine in GENLIN. The most signficant
-;;; difference between SLOMACHINE and R-MACHINE (its predecessor) is that
-;;; SLOMACHINE introduces support for STO and LOD instructions, allowing
-;;; a creature to inspect its own source code and load bytes of source
-;;; into its registers with LOD (giving it a nutrious, autophagic diet of
-;;; fresh constants) and to rewrite its own code segment with STO. This can
-;;; be used either as a simple means of storing data for later, when writing
-;;; to past instructions (instructions at indicies prior to the current
-;;; programme counter) or as a control structure, when it is used to write
-;;; to its own future.
-;;;
-;;; Preliminary trials have shown GPs running on SLOMACHINE --
-;;; particularly with the tic-tac-toe data set -- to converge up to 40
-;;; times faster than they did on R-MACHINE, and result in much
-;;; simpler and more compact code. (On ttt, this meant a convergence by
-;;; generation 200 or so, rather than generation 5000, when running in
-;;; tournement mode.)
-;;;
-;;; On a smaller scale, it is somewhat slower than R-MACHINE, however,
-;;; and REMOVE-INTRONS is unable to streamline the code before
-;;; execution, since we may need to know what the input is before we
-;;; can calculate the effective registers. This isn't a totally
-;;; insurmountable obstacle, however, but an improved remove-introns
-;;; algorithm remains to be written.
+;;; STACKMACHINE differs from SLOMACHINE primarily in programme design.
+;;; I've switched back from arrays to lists as the canonical code-sequence
+;;; representation. I've also redesigned the way in which machine code
+;;; instructions are formalized. Each instruction is now, again, a function,
+;;; but a function that only takes one argument: the instruction itself,
+;;; from which it extracts the necessary information using dst? src? and
+;;; so on. This lets me be much more versatile with the way in which
+;;; instructions operate, without having to reduce everything to the same
+;;; procrustean signature, or wrap every call in an ugly, ad hoc case or
+;;; cond table. Use of external lexical variables is made possible by
+;;; incorporating a few free variables into these functions -- marked with
+;;; the sigil '%', for easy reading. These include, at present, %seq, %reg
+;;; and %stk. In order to run any of these functions, they need to be
+;;; enclosed in a lexical environment in which these variables are bound,
+;;; and bound to values of the expected types (%reg is an array, while
+;;; %seq and %stk are lists). (Note: there's also %skip, which is a boolean.
+;;; It's set to T when a jump instruction prompts a jump, and nil otherwise.)
 ;;; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -49,6 +41,45 @@
 (declaim (inline execute-sequence)) ;; ballsy. can't believe it worked.
 
 (declaim (inline dst? src? op? jmp?))
+
+(declaim (inline src? dst? op?))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defun src? (inst)
+  "Returns the source address."
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 64)) *srcbits*))
+  (declare (optimize (speed 3)))
+  (the signed-byte (ldb *srcbits* inst)))
+
+(defun dst? (inst)
+  "Returns the destination address."
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 64)) *dstbits*))
+  (declare (optimize (speed 3)))
+  (the signed-byte (ldb *dstbits* inst)))
+
+(defun op? (inst)
+  "Returns the actual operation, in the case of register ops, in 
+the form of a function."
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 64)) *opbits*))
+  (declare (type (simple-array function) *operations*))
+  (declare (optimize (speed 3)))
+  (the function (aref *operations* (ldb *opbits* inst ))))
+
+(defun opc? (inst)
+  "Returns the numerical opcode."
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 64)) *opbits*))
+  (the (unsigned-byte 64) (ldb *opbits* inst)))
+
+(defun jmp? (inst) ;; ad-hoc-ish...
+  (declare (type (unsigned-byte 64) inst))
+  (the boolean (= (opc? inst) 5))) ;; TEMPORARY STOPGAP
+
+
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; master update function for VM parameters
@@ -74,12 +105,13 @@
   `(guard-val ,expr *minval* *maxval*))
 
 (defun exec (inst)
+  (declare (type (unsigned-byte 64) inst))
+  (declare (optimize (speed 3)))
   (funcall (op? inst) inst))
 
 (defun test-exec (inst)
   (let ((%reg *initial-register-state*)
         (%seq `(,inst))
-        (%pc 0)
         (%stk '()))
     (format t "SRC: R~D = ~F~%DST: R~D = ~F~%OP:  ~A~%"
             (src? inst) (elt %reg (src? inst))
@@ -297,44 +329,17 @@
 ;; and other low-level machine code operations.
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(declaim (inline src? dst? op?))
-
-(defun src? (inst)
-  "Returns the source address."
-  (declare (type (unsigned-byte 64) inst))
-  (declare (type (cons (unsigned-byte 32)) *srcbits*))
-  (the signed-byte (ldb *srcbits* inst)))
-
-(defun dst? (inst)
-  "Returns the destination address."
-  (declare (type (unsigned-byte 64) inst))
-  (declare (type (cons (unsigned-byte 32)) *dstbits*))
-  (the signed-byte (ldb *dstbits* inst)))
-
-(defun op? (inst)
-  "Returns the actual operation, in the case of register ops, in 
-the form of a function."
-  (declare (type (unsigned-byte 64) inst))
-  (declare (type (cons (unsigned-byte 32)) *opbits*))
-  (declare (type (simple-array function) *operations*))
-  (the function (aref *operations* (ldb *opbits* inst))))
-
-(defun opc? (inst)
-  "Returns the numerical opcode."
-  (declare (type (unsigned-byte 64) inst))
-  (declare (type (cons (unsigned-byte 32)) *opbits*))
-  (the signed-byte (ldb *opbits* inst)))
-
-(defun jmp? (inst) ;; ad-hoc-ish...
-  (declare (type (unsigned-byte 64) inst))
-  (the boolean (= (opc? inst) 5))) ;; TEMPORARY STOPGAP
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
+;; history is not threadsafe. does it matter? not much, since it's
+;; only used in debugging mode, when *parallel* is set to nil. 
 (defparameter =history=
-  (let ((hist '()))
+  (let ((hist '())
+        (warning t))          
     (lambda (&optional (entry nil))
-      (cond ((eq entry 'CLEAR) (setf hist '()))
+      (when (and *parallel* warning)
+        (format t "***  WARNING: HISTORY IS NOT THREADSAFE  ***~%")
+        (format t "*** SET *PARALLEL* TO NIL WHEN DEBUGGING ***~%")
+        (setf warning nil))
+      (cond ((eq entry 'FLUSH) (setf hist '()))
             ((eq entry 'ALL) hist)
             (entry (push entry hist))
             (t (car hist))))))
@@ -343,7 +348,7 @@ the form of a function."
   (funcall =history= (cons seq reg)))
 
 (defun history-flush ()
-  (funcall =history= 'CLEAR))
+  (funcall =history= 'FLUSH))
 
 (defun history-print (&optional len)
   (let ((h (funcall =history=)))
@@ -369,7 +374,7 @@ entries in the history stack, tracking changes to the registers."
            (format t *machine-fmt* ;; needs to be made flexible. 
                    inst
                    (inst->string inst))
-           (when (not static) (format t "  (~3d ) " (getf line :pc))
+           (when (not static) (format t "  (~d) " (getf line :pc))
                  (cond ((member (op? inst) *reg-ops-list*)
                         (format t " ;; now R~d = ~f; R~d = ~f~%" 
                                 (src? inst)
@@ -379,7 +384,7 @@ entries in the history stack, tracking changes to the registers."
                        ((member (op? inst) *jump-ops-list*)
                         (if (<= (elt registers (src? inst))
                                 (elt registers (dst? inst)))
-                            (format t " ;; R~d <= R~d, so incrementing %PC~%"
+                            (format t " ;; R~d <= R~d, so skipping next~%"
                                     (src? inst) (dst? inst))
                             (format t " ;; R~d > R~d, no jump~%"
                                     (src? inst) (dst? inst))))
@@ -422,19 +427,20 @@ state vector, registers, and then runs the virtual machine, returning
 the resulting value in the registers indexed by the integers in the
 list parameter, output."
   (declare (type fixnum *input-start-idx* *pc-idx*)
-           (inline src? dst? op?)
            (type (cons integer) output)
            (type (or null (cons (unsigned-byte 64))) seq)
            (type (simple-array rational 1) input registers)
            (optimize (speed 3)))
-  (flet ((save-state (inst reg seq pc stk)
+  (flet ((save-state (inst &key reg seq stk skip pc)
            (declare (type (simple-array rational 1) reg)
-                    (type fixnum inst pc)
+                    (type boolean skip)
                     (type function =history=))
            (funcall =history= (list :inst inst
                                     :reg reg
-                                    :seq seq                                    :pc pc
-                                    :stk stk))))
+                                    :seq seq
+                                    :skip skip
+                                    :stk stk
+                                    :pc pc))))
     (let ((%seq (copy-seq seq)) ;; tmp: eventually switch to lists 
           (%reg (copy-seq registers))
           (%pc 0) ;; why bother putting the PC in the registers?
@@ -444,23 +450,29 @@ list parameter, output."
           (debugger (or debug *debug*)))
       ;; so that we can have our junk DNA back.
       (declare (type (simple-array rational 1) %reg)
-               (type boolean debugger))
+               (type boolean debugger)
+               (type integer %pc))
       ;; the input values will be stored in read-only %reg
       (setf (subseq %reg *input-start-idx*
                     (+ *input-start-idx* (length input))) input)
 
       (loop for inst in %seq do
-           (cond (%skip
-                 (setf %skip nil))
+           (incf %pc) 
+           (cond (%skip (setf %skip nil))
                  (T (exec inst)
-                    (and debugger (save-state inst %reg %seq %pc %stk)
+                    (and debugger (save-state inst
+                                              :reg %reg
+                                              :seq %seq
+                                              :skip %skip
+                                              :stk %stk
+                                              :pc %pc)
                          (disassemble-history)))))
       ;; exec does all the work. funcs contain
       ;; free variables that are captured by the % vars above.
       ;; Save history for debugger
       ;; Halt when you've reached the end of the sequence
 
-      (and *debug* (hrule)) ;; pretty
+      (and *debug* (hrule) (history-flush))
       (mapcar #'(lambda (i) (aref %reg i)) output))))
 
 
