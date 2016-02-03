@@ -6,7 +6,7 @@
 ;;
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(setf *stop* t)
+
 
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; Linear Genetic Algorithm
@@ -23,23 +23,26 @@
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter *machine* :slomachine)
+(defparameter *machine* :stackmachine)
 
-(defparameter *machine-file*
-  (case *machine*
-    ((:slomachine) "slomachine.lisp")
-    ((:r-machine) "r-machine.lisp")))
-;; slomachine is an unstable VM for self-modifying code
+
+;; (defparameter *machine-file*
+;;   (case *machine*
+;;     ((:stackmachine "stackmachine.lisp"))
+;;     ((:slomachine) "slomachine.lisp")
+;;     ((:r-machine) "r-machine.lisp")))
+;; ;; slomachine is an unstable VM for self-modifying code
 
 (defun load-other-files ()
   (loop for f in `("params.lisp"
                    "auxiliary.lisp"
-                   ,*machine-file*
+                   "stackmachine.lisp"
                    "datafiler.lisp"
                    "frontend.lisp"
                    "tictactoe.lisp"
                    "iris.lisp") do
        (loadfile (concatenate 'string *project-path* f))))
+
 
 (load-other-files)
 
@@ -119,17 +122,17 @@ register(s)."
                                       (equalp (op? inst) #'LOD))) seq))
            seq) ;; hence the filename: slomachine.lisp (also Store/LOad)
           (t (loop for i from (1- (length seq)) downto 0 do
-                  (let ((inst (aref seq i)))
+                  (let ((inst (elt seq i)))
                     (when (member (dst? inst) efr)
                       (push (src? inst) efr)
                       (push inst efseq)
-                   (when (and (not (zerop i)) (jmp? (aref seq (1- i))))
+                   (when (and (not (zerop i)) (jmp? (elt seq (1- i))))
                      ;; a jump immediately before an effective instruction
                      ;; is also an effective instruction. 
-                     (let ((prevjmp (aref seq (1- i))))
+                     (let ((prevjmp (elt seq (1- i))))
                        (push (src? prevjmp) efr)
                        (push (dst? prevjmp) efr))))))
-             (coerce efseq 'vector)))))
+             efseq))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Functions related to fitness measurement
@@ -292,15 +295,21 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
 ;; -- boolean returning per-cases --
 
-(defun per-case-binary (crt case-kv)
+(defun per-case-binary (crt case-kv &key (case-storage *case-storage*))
   "Returns a boolean."
-  (let ((output (execute-sequence (creature-eff crt)
-                                  :output *out-reg*
-                                  :input (car case-kv))))
-    ;; the binary table has -1 for no, +1 for yes
-    ;; if the output agrees with the value, then the product is +
-    (< 0 (* (car output) (cdr case-kv)))))
-    
+  (cond ((gethash (car case-kv) (creature-cas crt))
+         t)
+        (t
+         (let ((output (execute-sequence (creature-eff crt)
+                                         :output *out-reg*
+                                         :input (car case-kv))))
+           ;; the binary table has -1 for no, +1 for yes
+           ;; if the output agrees with the value, then the product is +
+           (if (< 0 (* (car output) (cdr case-kv)))
+               (or (not case-storage)
+                   (setf (gethash (car case-kv) (creature-cas crt)) t))
+               nil)))))
+
 (defun per-case-n-ary (crt case-kv)
   "Returns a boolean."
   (let ((output (execute-sequence (creature-eff crt)
@@ -377,6 +386,100 @@ fitness function."
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; Pack operations
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; a pack is a list of creatures
+;; we'll start with a simple control structure: the car of the pack is
+;; the delegator. It delegates the decision to (elt pack (execute-sequence
+;; (creature-eff (car pack))) mod (length pack)), which is then executed.
+;; obviously, it is possible to develop more complicated control structures,
+;; so long as provisions are made to handle the halting problem (a timer, e.g.)
+;; but we'll start with these simple constructions of "star packs".
+
+(defun execute-astropack (pack &key (input) (output *out-reg*))
+  (let ((delegation-reg (list (1- (expt 2 *destination-register-bits*)))))
+    ;; let the delegation task use a distinct register, if available,
+    ;; by setting its output register to the highest available R/W reg. 
+    (execute-sequence
+     (creature-eff
+      (elt pack (mod (car
+                      (execute-sequence (creature-eff (car pack))
+                                        :input input
+                                        :output delegation-reg))
+                     (length pack))))
+     :input input
+     :output output)))
+
+
+(defun pmutate-shuffle (pack)
+  (shuffle pack))
+
+(defun pmutate-shuffle-underlings (pack)
+  (cons (car pack) (shuffle (cdr pack))))
+
+(defun pmutate-swap-alpha (pack)
+  (let ((tmp))
+    (setf tmp (car pack))
+    (setf (pick (cdr pack)) (car pack))
+    (setf (car pack) tmp)
+    pack))
+
+(defun pmutate-inbreed (pack)
+  (let* ((p0 (pick pack))
+         (p1 (if (> (length pack) 2)
+                 (pick (remove p0 pack))
+                 (random-mutation p0)))
+         (cubs))
+    (unless (or (null p0) (null p1))
+      (setf cubs (mate p0 p1 :sex t)))
+    (nsubst p0 (car cubs) pack)
+    (nsubst p1 (cdr cubs) pack)    
+    pack))
+
+(defun pmutate-alpha (pack)
+  (setf #1=(creature-seq (car pack))
+          (random-mutation #1#))
+  pack)
+
+(defun pmutate-smutate (pack)
+  (let ((mutant (pick pack)))
+    (setf #1=(creature-seq mutant)
+          (random-mutation #1#))
+  pack))
+
+(defun pack-mingle (pack1 pack2)
+  "Destructively mingles the two packs, preserving alphas and size."
+  (let ((underlings (shuffle (concatenate 'list (cdr pack1) (cdr pack2)))))
+    (setf pack1 (cons (car pack1)
+                      (subseq underlings 0 (length pack1))))
+    (setf pack2 (cons (car pack2)
+                      (subseq underlings (length pack1))))
+    (list pack1 pack2)))
+
+
+(defun pack-mate (pack1 pack2)
+  "Nondestructively mates the two packs, pairwise, producing two new packs."
+  (let ((offspring
+         (loop
+            for p1 in pack1
+            for p2 in pack2 collect
+              (mate p1 p2))))
+    (list (mapcar #'car offspring)
+          (mapcar #'cadr offspring))))
+    
+
+(defparameter *pack-mutations*
+  (vector #'pmutate-smutate #'pmutate-inbreed #'pmutate-swap-alpha
+  #'pmutate-shuffle-underlings #'pmutate-alpha))
+
+;; accidental cloning problem...
+;; packs seem to collapse into pointers to identical creatures.
+;; needs some tinkering. 
+
+(defun random-pack-mutation (pack)
+  (setf pack (funcall (pick *pack-mutations*) pack)))
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic operations (variation)
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -392,7 +495,7 @@ fitness function."
 
 (defun smutate-swap (seq)
   "Exchanges the position of two instructions in a sequence."
-  (declare (type simple-array seq))
+  (declare (type cons seq))
   (and *debug* (print "smutate-swap"))
   (let* ((len (length seq))
          (i (random len))
@@ -404,31 +507,31 @@ fitness function."
 
 (defun smutate-insert (seq)
   "Doubles a random element of seq."
-  (declare (type simple-array seq))
+  (declare (type cons seq))
   (let ((idx (random (length seq))))
   (and *debug* (print "smutate-append"))
-  (setf seq (concatenate 'vector
+  (setf seq (concatenate 'list
                          (subseq seq 0 idx)
-                         (vector (aref seq idx))
+                         (list (elt seq idx))
                          (subseq seq idx (length seq))))
   seq))
 
 (defun smutate-grow (seq)
   "Doubles a random element of seq."
-  (declare (type simple-array seq))
+  (declare (type cons seq))
   (and *debug* (print "smutate-append"))
-  (setf seq (concatenate 'vector
+  (setf seq (concatenate 'list
                          seq
-                         (vector (random (expt 2 *wordsize*)))))
+                         (list (random (expt 2 *wordsize*)))))
   seq)
 
 (defun smutate-shrink (seq)
   "Doubles a random element of seq."
-  (declare (type simple-array seq))
+  (declare (type cons seq))
   (and *debug* (print "smutate-shrink"))
   (cond ((>= (length seq) (max 3 *min-len*))
          (let* ((tocut (random  (length seq)))
-                (newseq (concatenate 'vector
+                (newseq (concatenate 'list
                                      (subseq seq 0 tocut)
                                      (subseq seq (1+ tocut)))))
            newseq))
@@ -438,7 +541,7 @@ fitness function."
 
 (defun smutate-imutate (seq)
   "Applies imutate-flip to a random instruction in the sequence."
-  (declare (type simple-array seq))
+  (declare (type cons seq))
   (and *debug* (print "smutate-imutate"))
   (let ((idx (random (length seq))))
     (setf (elt seq idx) (imutate-flip (elt seq idx))))
@@ -448,11 +551,11 @@ fitness function."
   (vector #'smutate-insert #'smutate-shrink #'smutate-shrink #'smutate-grow #'smutate-imutate #'smutate-swap))
 
 (defun random-mutation (seq)
-  (declare (type simple-array seq))
-  (apply (aref *mutations* (random (length *mutations*))) `(,seq)))
+  (declare (type cons seq))
+  (apply (pick *mutations*) `(,seq)))
 
 (defun maybe-mutate (seq mutation-rate)
-  (declare (type simple-array seq))
+  (declare (type cons seq))
   (if (< (random 1.0) mutation-rate)
       (random-mutation seq)
       seq))
@@ -495,12 +598,18 @@ fitness function."
   mut)
 
 (defun mate (p0 p1 &key (genealogy *track-genealogy*)
-                     (output-registers *out-reg*))
-  (let ((offspring (shufflefuck p0 p1)))
+                     (output-registers *out-reg*)
+                     (sex *sex*))
+  (let ((offspring (if sex
+                       (shufflefuck p0 p1) ;; sexual reproduction
+                       (list (copy-structure p0)
+                             (copy-structure p1))))) ;; asexual
+                       
     ;; mutation
     (loop for child in offspring do
        ;; now, let the mutation rate be linked to each creature, and
        ;; potentially mutate, itself.
+         (setf (creature-cas child) (make-hash-table))
          (setf (creature-mut child) ;; baseline: avg of parents' muts
                (metamutate (/ (+ (creature-mut p0) (creature-mut p1)) 2)))
          (setf (creature-seq child) (maybe-mutate (creature-seq child)
@@ -528,7 +637,9 @@ fitness function."
 
 (defun f-lexicase (island
                    &key (ht *training-hashtable*)
-                     (per-case #'per-case-n-ary))
+                     (per-case #'per-case-n-ary)
+                     (case-storage *case-storage*)
+                     (combatant-ratio *lexicase-combatant-ratio*))
   "Note: per-case can be any boolean-returning fitness function."
   (flet ((set-eff (crt)
            (unless (creature-eff crt)
@@ -583,6 +694,7 @@ fitness function."
                 :test #'equalp)
         (nsubst (cadr children) worst-two (island-deme island)
                 :test #'equalp)
+        (mapcar #'bury-cases (list worst-one worst-two))
         children))))
 
 (defun update-accuracy-log (crt island)
@@ -843,11 +955,12 @@ applying, say, mapcar or length to it, in most cases."
                                      (de-ring island-ring))))
 
 (defun spawn-sequence (len)
-  (concatenate 'vector (loop repeat len collect (random *max-inst*))))
+  (concatenate 'list (loop repeat len collect (random *max-inst*))))
 
 (defun spawn-creature (len)
   (make-creature :seq (spawn-sequence len)
                  :gen 0
+                 :cas (make-hash-table)
                  :mut *mutation-rate*))
 
 (defun init-population (popsize slen &key (number-of-islands 4))
@@ -1003,7 +1116,8 @@ applying, say, mapcar or length to it, in most cases."
                                ;;           (gauge-accuracy *best*
                                ;;                           :ht *testing-hashtable*)))
                                (hrule))
-                             (when (or (> (creature-fit (island-best isle)) target)
+                             (when (or (> (creature-fit (island-best isle))
+                                          target)
                                        *STOP*)
                                (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
                                        target i)
@@ -1054,13 +1168,15 @@ applying, say, mapcar or length to it, in most cases."
   (format t "[+] # of RO REGISTERS:    ~d~%" (expt 2 *source-register-bits*))
   (format t "[+] PRIMITIVE OPERATIONS: ")
   (loop for i from 0 to (1- (expt 2 *opcode-bits*)) do
-       (format t "~a " (func->string (aref *operations* i))))
+       (format t "~a " (func->string (elt *operations* i))))
   (format t "~%[+] POPULATION SIZE:      ~d~%"
           *population-size*)
   (format t "[+] NUMBER OF ISLANDS:    ~d~%" (island-of (car +island-ring+)))
   (format t "[+] MIGRATION RATE:       ONCE EVERY ~D CYCLES~%" *migration-rate*)
   (format t "[+] MIGRATION SIZE:       ~D~%" *migration-size*)
   (format t "[+] MIGRATION ELITISM:    ~D~%" *greedy-migration*)
+  (format t "[+] REPRODUCTION:         ~A~%"
+          (if *sex* :sexual :asexual))
   (format t "[+] MUTATION RATE:        ~d~%" *mutation-rate*)
   (format t "[+] METAMUTATION RATE:    ~d~%" *metamutation-rate*)
   (format t "[+] MAX SEQUENCE LENGTH:  ~d~%" *max-len*)
@@ -1082,7 +1198,8 @@ without incurring delays."
                       (mapcar #'(lambda (x) (likeness (creature-eff specimen)
                                                  (creature-eff x)))
                               (remove-if
-                               #'(lambda (x) (equalp #() (creature-eff x)))
+                               #'(lambda (x) (or (null x)
+                                            (equalp #() (creature-eff x))))
                                population)))
               (length population))))
 
@@ -1105,20 +1222,20 @@ without incurring delays."
                                (mapcar #'creature-eff population)))
          (sum (length instructions)))
     (loop for inst in instructions do
-         (incf (aref buckets (ldb (byte *opcode-bits* 0) inst))))
+         (incf (elt buckets (ldb (byte *opcode-bits* 0) inst))))
     (loop repeat (/ (length buckets) 2)
        for x = 0 then (+ x 2)
        for y = 1 then (+ y 2) do
          (format t "~C~A: ~4D~C(~5,2f %)~C" #\tab
-                 (func->string (aref *operations* x))
-                 (aref buckets x)
+                 (func->string (elt *operations* x))
+                 (elt buckets x)
                  #\tab
-                 (* 100 (divide (aref buckets x) sum)) #\tab)
+                 (* 100 (divide (elt buckets x) sum)) #\tab)
          (format t "~C~A: ~4D~c(~5,2f %)~%" #\tab
-                 (func->string (aref *operations* y))
-                 (aref buckets y)
+                 (func->string (elt *operations* y))
+                 (elt buckets y)
                  #\tab
-                 (* 100 (divide (aref buckets y) sum))))))
+                 (* 100 (divide (elt buckets y) sum))))))
 
 (defun percent-effective (crt &key (out *out-reg*))
   (when (equalp #() (creature-eff crt))
@@ -1194,7 +1311,7 @@ without incurring delays."
     (format t "        ")
     (let ((x-axis 50))
       (dotimes (i (floor (divide scale 2)))
-        (if (= (pmd i (floor (divide scale 10.5))) 0)
+        (if (= (safemod i (floor (divide scale 10.5))) 0)
             (progn 
               (format t "~d" x-axis)
               (when (>= x-axis 100) (return))
@@ -1300,25 +1417,6 @@ without incurring delays."
 (defun restore-island-ring (filename)
   ;; todo
   )
-        
-(defun timestring ()
-  (let ((day-names
-         '("Monday" "Tuesday" "Wednesday"
-           "Thursday" "Friday" "Saturday"
-           "Sunday")))
-    (multiple-value-bind
-          (second minute hour date month year day-of-week dst-p tz)
-        (get-decoded-time)
-      (declare (ignore dst-p))
-      (format nil ";; It is now ~2,'0d:~2,'0d:~2,'0d of ~a, ~d/~2,'0d/~d (GMT~@d)"
-              hour
-              minute
-              second
-              (nth day-of-week day-names)
-              date
-              month
-              year
-              (- tz)))))
 
 ;; Note: it should be simple enough to generalize the ttt data processing
 ;; technique.
@@ -1331,3 +1429,19 @@ without incurring delays."
 ;;   values, when unconstrained by other fields (the mutual constraints,
 ;;   of course, are an impt aspect of the pattern that the algo's meant
 ;;   to detect). 
+
+
+(defun bury (crt)
+  (bury-cases crt)
+  (bury-parents crt))
+
+(defun bury-cases (crt)
+  "Free some memory when burying a creature."
+  (setf (creature-cas crt) nil))
+
+(defun bury-parents (crt)
+  (setf (creature-parents crt) nil))
+;; use tp, fp?
+;;(dbg)
+
+(setf *parallel* nil)

@@ -44,9 +44,9 @@
 
 ;; Vars and types:
 
-(defstruct creature fit seq eff gen mut home parents) 
+(defstruct creature fit seq eff gen mut cas home parents) 
 
-(defstruct island id of deme best era logger lock)
+(defstruct island id of deme packs best era logger lock)
 
 (defvar +ISLAND-RING+)
 
@@ -272,6 +272,38 @@
      won't judge. *TRAINING-RATIO* is ignored if this is to set to nil.")
 
 
+
+(defparameter *case-storage* nil
+  "For efficiency at the cost of memory allocation, set to T and have
+     creatures store hash-tables of the testing cases they are able to
+     correctly classify. Principally for use with the Lexicase selection
+     method.")
+
+;; NOTE: adjustable lexicase population pool. easy to implement. may speed up
+;; lexicase selection for large populations
+
+;; could also do so with datasets, but benefits unclear
+
+;; lexicase is doing quite badly right now.
+
+(defparameter *sex* t
+  "Sexual reproduction used when set to T. Cloning, otherwise (with
+     mutation).")
+
+(defparameter *max-pack-size* 8)
+
+(defparameter *lexicase-combatant-ratio* 1)
+
+(defparameter *params-path* nil
+  "An parameter file can be supplied, if desired. It should consist of
+     a series of Lisp S-expressions of the form 
+     (setf *PARAMETER-NAME* parameter-value)")
+
+
+(defparameter *last-params-path* "./last.params"
+  "File in which to store the parameters used on the last run.")
+
+
 (defparameter *tweakables*
   '(*menu*
     *debug*
@@ -283,13 +315,17 @@
     *split-data*
     *training-ratio*
     *selection-method*
+    *lexicase-combatant-ratio*
+    *case-storage*
     *number-of-islands*
     *population-size*
+    *sex*
     *mutation-rate*
     *metamutation-rate*
     *migration-rate*
     *migration-size*
     *greedy-migration*
+    *max-pack-size*
     *track-genealogy*
     *min-len*
     *max-len*
@@ -300,9 +336,6 @@
     *source-register-bits*
     *destination-register-bits*
     *rounds*
-    *target*))    
-
-
-
-
-
+    *target*
+    *params-path*
+    *last-params-path*))    

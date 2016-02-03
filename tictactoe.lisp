@@ -136,7 +136,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
                                               :debug t))
                     (sum (reduce #'+ (mapcar #'deneg output)))
                     (certainties
-                     (mapcar #'(lambda (x) (* (div x sum) 100)) output)))
+                     (mapcar #'(lambda (x) (* (divide x sum) 100)) output)))
                (format t "~%~a~%" (int->board i))
              (cond ((eq fitf 'FB1)
                     (cond ((fb1-correct output v)

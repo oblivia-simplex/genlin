@@ -211,3 +211,42 @@ must be disjoint."
 (defun make-iter (list)
   (lambda ()
     (pop list)))
+
+
+(defun rnd (integer)
+  (if (zerop integer) 0 (random integer)))
+
+(defmacro pick (seq)
+  `(elt ,seq (random (length ,seq))))
+
+
+        
+(defun timestring ()
+  (let ((day-names
+         '("Monday" "Tuesday" "Wednesday"
+           "Thursday" "Friday" "Saturday"
+           "Sunday")))
+    (multiple-value-bind
+          (second minute hour date month year day-of-week dst-p tz)
+        (get-decoded-time)
+      (declare (ignore dst-p))
+      (format nil ";; It is now ~2,'0d:~2,'0d:~2,'0d on ~a, ~d/~2,'0d/~d (GMT~@d)"
+              hour
+              minute
+              second
+              (nth day-of-week day-names)
+              date
+              month
+              year
+              (- tz)))))
+
+(defun guard-val (val minval maxval)
+  "Formats values for registers: guards against overflow, and type casts."
+  ;;(declare (type rational val minval maxval))
+  (let ((sign (if (< val 0) -1 1)))
+    ;;(declare (type rational sign))
+    (the rational (coerce (cond ((zerop val) val)
+                                ((< (abs val) minval) (* sign minval))
+                                ((> (abs val) maxval) (mod val maxval))
+                                (t val))
+                          'rational))))

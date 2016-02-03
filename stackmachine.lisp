@@ -4,7 +4,8 @@
 ;;; it will be merged with r-machine.lisp, the difference between the two
 ;;; coming down to a choice of parameters.
 
-(defparameter *machine* :slomachine)
+(defparameter *machine* :stackmachine)
+
 
 ;;; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ;;; SLOMACHINE (Store/LOad-machine) is an alternative architecture to be
@@ -41,7 +42,7 @@
 
 (declaim (inline guard-val))
 
-(declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
+;;(declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; master update function for VM parameters
@@ -51,83 +52,138 @@
 ;; --- fields above, so long as their are at least (expt 2 *opf*)
 ;; --- elements in the *operations* vector. 
 
-(defun MOV (&rest args)
+;; NEW STRATEGY: USE FREE VARIABLES. USE THEM LIKE YOU STOLE THEM
+
+(defvar %seq)
+
+(defvar %reg)
+
+(defvar %stk)
+
+(defvar %pc)
+
+(defmacro grd* (expr)
+  `(guard-val ,expr *minval* *maxval*))
+
+(defun exec (inst)
+  (funcall (op? inst) inst))
+
+(defun test-exec (inst)
+  (let ((%reg *initial-register-state*)
+        (%seq `(,inst))
+        (%pc 0)
+        (%stk '()))
+    (format t "SRC: R~D = ~F~%DST: R~D = ~F~%OP:  ~A~%"
+            (src? inst) (elt %reg (src? inst))
+            (dst? inst) (elt %reg (dst? inst))
+            (func->string (op? inst)))
+    (exec inst)))
+
+(defun MOV (inst)
   "Copy the contents in SRC to register DST."
-  (declare (type (or null (cons rational)) args))
-  (the rational (coerce (car args) 'rational)))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst)) (elt %reg (src? inst))))
 
-(defun DIV (&rest args)
-  "A divide-by-zero-proof division operator."
-  (declare (type (or null (cons rational)) args))
-  (the rational (if (some #'zerop args) 0
-                (/ (car args) (cadr args)))))
-                          
-(defun XOR (&rest args) ;; xor integer parts
+
+(defun DIV (inst)
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (grd* (divide (elt %reg (dst? inst))
+                      (elt %reg (src? inst))))))
+
+(defun XOR (inst) ;; xor integer parts
   "Performs a bitwise XOR on SRC and DST, storing the result in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (the rational (coerce (logxor (floor (car args)) (floor (cadr args))) 'rational)))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (logxor (floor (elt %reg (dst? inst)))
+                (floor (elt %reg (src? inst))))))
 
-(defun CNJ (&rest args)
+(defun CNJ (inst)
   "Performs a bitwise AND on SRC and DST, storing the result in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (logand (floor (car args)) (floor (cadr args))))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (logand (floor (elt %reg (dst? inst)))
+                (floor (elt %reg (src? inst))))))
 
-(defun DIS (&rest args)
+(defun DIS (inst)
   "Performs a bitwise OR on SRC and DST, storing the result in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (the rational (lognot (logand  (lognot (floor (car args)))
-                               (lognot (floor (cadr args)))))))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (logorc1 (floor (elt %reg (dst? inst)))
+                 (floor (elt %reg (src? inst))))))
 
-(defun PMD (&rest args)
+
+(defun PMD (inst)
   "Performs a protected SRC MOD DST, storing the result in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (the rational (if (some #'zerop args)
-                (car args)
-                (mod (car args) (cadr args)))))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (if (zerop (elt %reg (dst? inst)))
+            0
+            (mod (elt %reg (src? inst))
+                 (elt %reg (dst? inst))))))
 
-(defun ADD (&rest args)
+
+(defun ADD (inst)
   "Adds the rational-valued contents of SRC and DST, storing result in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (the rational (+ (car args)
-               (cadr args))))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (+ (elt %reg (src? inst))
+           (elt %reg (dst? inst)))))
 
-(defun SUB (&rest args)
+(defun SUB (inst)
   "Subtracts DST from SRC, storing the value in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (- (car args) (cadr args)))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (grd* (- (elt %reg (src? inst))
+                 (elt %reg (dst? inst))))))
 
-(defun MUL (&rest args)
+
+(defun MUL (inst)
   "Multiplies SRC and DST, storing the value in DST."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (* (car args) (cadr args)))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (grd* (* (elt %reg (src? inst))
+                 (elt %reg (dst? inst))))))
 
-(defun JLE (&rest args) ;; CONDITIONAL JUMP OPERATOR
+
+(defun JLE (inst)
   "Stub. Really just here for consistent pretty printing."
-  (declare (type (or null (cons rational)) args))
-  (check-type args (cons rational))
-  (if (<= (car args) (cadr args))
-      (1+ (caddr args))
-      (caddr args)))
+  ;;(declare (type (unsigned-byte 64) inst))
+  (if (<= (elt %reg (src? inst)) (elt %reg (dst? inst)))
+      (setf %skip T)))
 
-(defun LOD (&rest args) ;; CONDITIONAL JUMP OPERATOR
+(defun safemod (x y)
+  (if (zerop y) x
+      (mod x y)))
+
+(defun LOD (inst)
   "Stub. Really just here for consistent pretty printing."
-  (declare (ignore args))
-  (print "You shouldn't be seeing this.")
-  0)
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (elt %seq (safemod (floor (elt %reg (src? inst))) (length %seq)))))
 
-(defun STO (&rest args) ;; CONDITIONAL JUMP OPERATOR
+(defun STO (inst)
   "Stub. Really just here for consistent pretty printing."
-  (declare (ignore args))
-  (print "You shouldn't be seeing this.")
-  0)
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %seq (safemod (floor (elt %reg (dst? inst))) (length %seq)))
+        (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))
 
+(defun PPR (inst) ;; pop to register
+  ;;(declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (nil0 (pop %stk))))
+
+(defun PSH (inst)
+  ;;(declare (type (unsigned-byte 64) inst))
+  (push (elt %reg (src? inst)) %stk))
+
+(defun PPE (inst) ;; pop to execute
+  ;;(declare (ignore inst))
+  (exec (nil0 (pop %stk))))
+
+;; just go ahead and use free variables 
+;; (defun PPR (&rest args)
+;;   "
 
 (defparameter *reg-ops-list*
   `(,#'DIV ,#'MUL ,#'SUB ,#'ADD
@@ -143,11 +199,11 @@
   `(,#'STO))
 
 (defparameter *operations*
-  (concatenate 'vector
-               (subseq *reg-ops-list* 0 5)
-               *jump-ops-list*
-               *load-ops-list*
-               *store-ops-list*))
+  (remove-if #'null (concatenate 'vector
+                               (subseq *reg-ops-list* 0 5)
+                               *jump-ops-list*
+                               *load-ops-list*
+                               *store-ops-list*)))
   
 
 (defparameter *reg-op-keys*
@@ -171,47 +227,8 @@
 ;; to a more central location
 (defun update-dependent-machine-parameters ()
 
-  (setf *operation-keys*
-        (pairlis
-         (mapcar #'(lambda (x) (intern x :keyword))
-                 (mapcar #'func->string (coerce *operations* 'list)))
-         (coerce *operations* 'list)))
-
 ;; Not quite ready yet. 
-  
-  (when *opstring*
-    (setf *ops* (read-from-string
-                 (concatenate 'string "("
-                              (substitute #\space #\, *opstring*) ")"))))
-
-  (when *ops*
-    (setf *ops*
-          (sort *ops* #'(lambda (x y) (cond ((and (member x *reg-op-keys*)
-                                             (member y *jmp-op-keys*))
-                                        t)
-                                       ((and (member x *reg-op-keys*)
-                                             (member y *load-op-keys*))
-                                        t)
-                                       ((and (member x *reg-op-keys*)
-                                             (member y *store-op-keys*))
-                                        t)
-                                       ((and (member x *jmp-op-keys*)
-                                             (member y *load-op-keys*))
-                                        t)
-                                       ((and (member x *jmp-op-keys*)
-                                             (member y *store-op-keys*))
-                                        t)
-                                       ((and (member x *load-op-keys*)
-                                             (member y *store-op-keys*))
-                                        t)
-                                       (t nil)))))
-    
-    (setf *operations*
-          (concatenate 'vector
-                       (mapcar #'(lambda (x) (cdr (assoc x *operation-keys*)))
-                               *ops*)
-                       (loop repeat (expt 2 *opcode-bits*) collect #'MOV))))
-  
+      
   (setf *destination-register-bits*
          (max (ceiling (log (how-many-output-registers?) 2))
               *destination-register-bits*))
@@ -276,33 +293,33 @@
 
 (defun src? (inst)
   "Returns the source address."
-  (declare (type (signed-byte 32) inst))
-  (declare (type (cons (signed-byte 32)) *srcbits*))
+  ;;(declare (type (signed-byte 32) inst))
+  ;;(declare (type (cons (signed-byte 32)) *srcbits*))
   (the signed-byte (ldb *srcbits* inst)))
 
 (defun dst? (inst)
   "Returns the destination address."
-  (declare (type (signed-byte 32) inst))
-  (declare (type (cons (signed-byte 32)) *dstbits*))
+  ;;(declare (type (signed-byte 32) inst))
+  ;;(declare (type (cons (signed-byte 32)) *dstbits*))
   (the signed-byte (ldb *dstbits* inst)))
 
 (defun op? (inst)
   "Returns the actual operation, in the case of register ops, in 
 the form of a function."
-  (declare (type (signed-byte 32) inst))
-  (declare (type (cons (signed-byte 32)) *opbits*))
-  (declare (type (simple-array function) *operations*))
+  ;;(declare (type (signed-byte 32) inst))
+  ;;(declare (type (cons (signed-byte 32)) *opbits*))
+  ;;(declare (type (simple-array function) *operations*))
   (the function (aref *operations* (ldb *opbits* inst))))
 
 (defun opc? (inst)
   "Returns the numerical opcode."
-  (declare (type (signed-byte 32) inst))
-  (declare (type (cons (signed-byte 32)) *opbits*))
+  ;;(declare (type (signed-byte 32) inst))
+  ;;(declare (type (cons (signed-byte 32)) *opbits*))
   (the signed-byte (ldb *opbits* inst)))
 
- (defun jmp? (inst) ;; ad-hoc-ish...
-   (declare (type fixnum inst))
-   (the boolean (equalp (op? inst) #'JLE)))
+(defun jmp? (inst) ;; ad-hoc-ish...
+   ;;(declare (type fixnum inst))
+  (the boolean (= (opc? inst) 5))) ;; TEMPORARY STOPGAP
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -348,30 +365,30 @@ entries in the history stack, tracking changes to the registers."
                  (cond ((member (op? inst) *reg-ops-list*)
                         (format t " ;; now R~d = ~f; R~d = ~f~%" 
                                 (src? inst)
-                                (aref registers (src? inst))
+                                (elt registers (src? inst))
                                 (dst? inst)
-                                (aref registers (dst? inst))))
+                                (elt registers (dst? inst))))
                        ((member (op? inst) *jump-ops-list*)
-                        (if (<= (aref registers (src? inst))
-                                (aref registers (dst? inst)))
+                        (if (<= (elt registers (src? inst))
+                                (elt registers (dst? inst)))
                             (format t " ;; R~d <= R~d, so incrementing %PC~%"
                                     (src? inst) (dst? inst))
                             (format t " ;; R~d > R~d, no jump~%"
                                     (src? inst) (dst? inst))))
                        ((member (op? inst) *load-ops-list*)
                         (setf addr (mod (floor
-                                         (aref registers (src? inst)))
+                                         (elt registers (src? inst)))
                                         (length (getf line :seq)))
-                              data (aref (getf line :seq) addr)
+                              data (elt (getf line :seq) addr)
                               regnum (dst? inst))
                         (format t " ;; loading ~d from @~d into R~d~%"
                                 data addr regnum))
                        ((member (op? inst) *store-ops-list*)
                         (setf addr
-                              (mod (floor (aref registers (dst? inst)))
+                              (mod (floor (elt registers (dst? inst)))
                                         (length (getf line :seq)))
                               data (ldb (byte *wordsize* 0)
-                                        (floor (aref registers
+                                        (floor (elt registers
                                                      (src? inst))))
                               regnum (src? inst))
                         (format t " ;; storing ~d from R~d in @~d~%"
@@ -387,55 +404,7 @@ entries in the history stack, tracking changes to the registers."
 ;; The engine room
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun guard-val (val minval maxval)
-  "Formats values for registers: guards against overflow, and type casts."
-  (declare (type rational val minval maxval))
-  (let ((sign (if (< val 0) -1 1)))
-    (declare (type rational sign))
-    (the rational (coerce (cond ((< (abs val) minval) (* sign minval))
-                             ((> (abs val) maxval) (mod val maxval))
-                             (t val))
-                          'rational))))
 
-
-  
-
-;; Some anaphoric macros for quickly dispatching instructions
-;; and clarifying code, without costly stack operations
-;;
-;; NB: variables prefixed with the % sigil are free, and should be bound
-;; +++ in the environment into which these macros are injected (presumably,
-;;     just execute-sequence).
-
-(defmacro exec-reg-inst (inst)
-  "Executes a register-manipulation instruction."
-  `(setf (aref %reg (dst? ,inst))
-         (guard-val (apply (op? ,inst) 
-                           (list (aref %reg (src? ,inst))
-                                 (aref %reg (dst? ,inst))))
-                    *minval* *maxval*)))
-
-(defmacro exec-jmp-inst (inst)
-  "Executes a jump-type instruction (anaphorically modifies %pc,
-according to operation (op? inst)."
-  `(setf %pc
-         (guard-val (apply (op? ,inst)
-                           (list (aref %reg (src? ,inst))
-                                 (aref %reg (dst? ,inst))
-                                 %pc))
-                    *minval* *maxval*)))
-
-(defmacro exec-load-inst (inst)
-  "Loads contents of memory at address indexed by SRC register into
-DST register."
-  `(setf (aref %reg (dst? ,inst))
-         (aref %seq (mod (floor (aref %reg (src? ,inst))) (length %seq)))))
-
-(defmacro exec-store-inst (inst)
-  "Stores contents of DST register into memory address indexed by 
-SRC register -- potentially corrupting code."
-  `(setf (aref %seq (mod (floor (aref %reg (dst? ,inst))) (length %seq)))
-         (ldb (byte *wordsize* 0) (floor (aref %reg (src? ,inst))))))
 
 (defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*) (output nil)
@@ -447,56 +416,42 @@ list parameter, output."
   (declare (type fixnum *input-start-idx* *pc-idx*)
            (inline src? dst? op?)
            (type (cons integer) output)
-           (type (signed-byte 32)
-                 *regiops* *jumpops*
-                 *loadops* *storops*)
-           (type (simple-array rational 1) input registers seq)
-           (optimize (speed 2)))
-  (flet ((save-state (inst reg seq pc)
+           (type (or null (cons (unsigned-byte 64))) seq)
+           (type (simple-array rational 1) input registers)
+           (optimize (speed 3)))
+  (flet ((save-state (inst reg seq pc stk)
            (declare (type (simple-array rational 1) reg)
                     (type fixnum inst pc)
                     (type function =history=))
            (funcall =history= (list :inst inst
                                     :reg reg
-                                    :seq seq
-                                    :pc pc))))
-    (let ((%seq (copy-seq seq))
+                                    :seq seq                                    :pc pc
+                                    :stk stk))))
+    (let ((%seq (copy-seq seq)) ;; tmp: eventually switch to lists 
           (%reg (copy-seq registers))
           (%pc 0) ;; why bother putting the PC in the registers?
-          (seqlen (length seq))
-          (debugger (or debug *debug*))
-          (%stack '())) ;; let's add a stack! and get rid of LOD/STO
+          (%skip nil)
+          (%stk '()) ;; let's add a stack! and get rid of LOD/STO
+;;;          (seqlen (length seq))
+          (debugger (or debug *debug*)))
       ;; so that we can have our junk DNA back.
       (declare (type (simple-array rational 1) %reg)
-               (type fixnum seqlen %pc)
                (type boolean debugger))
       ;; the input values will be stored in read-only %reg
       (setf (subseq %reg *input-start-idx*
                     (+ *input-start-idx* (length input))) input)
-      (unless (zerop seqlen)
-        (loop do
-           ;; (format t "=== ~A ===~%" %reg)
-           ;; Fetch the next instruction
-             (let ((inst (aref %seq %pc)))
-               (declare (type (signed-byte 32) inst))
-               ;; Increment the programme counter
-               (incf %pc)
-               ;; Perform the operation and store the result in [dst]
-               (cond ((member (op? inst) *reg-ops-list*)
-                      (exec-reg-inst inst))
-                     ((member (op? inst) *jump-ops-list*)
-                      (exec-jmp-inst inst))
-                     ((member (op? inst) *load-ops-list*)
-                      (exec-load-inst inst))
-                     ((member (op? inst) *store-ops-list*)
-                      (exec-store-inst inst))
-                     (t (exec-reg-inst inst))) ;; NOP or MOV
-               ;; Save history for debugger
-               (and debugger (save-state inst %reg %seq %pc)
-                    (disassemble-history))
-               ;; Halt when you've reached the end of the sequence
-               (and (>= %pc seqlen)
-                    (return)))))
+
+      (loop for inst in %seq do
+           (cond (%skip
+                 (setf %skip nil))
+                 (T (exec inst)
+                    (and debugger (save-state inst %reg %seq %pc %stk)
+                         (disassemble-history)))))
+      ;; exec does all the work. funcs contain
+      ;; free variables that are captured by the % vars above.
+      ;; Save history for debugger
+      ;; Halt when you've reached the end of the sequence
+
       (and *debug* (hrule)) ;; pretty
       (mapcar #'(lambda (i) (aref %reg i)) output))))
 
@@ -516,3 +471,90 @@ list parameter, output."
                (format nil "[~a  R~d, R~d]"
                        (func->string (op? inst))
                        (src? inst) (dst? inst))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

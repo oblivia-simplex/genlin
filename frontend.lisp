@@ -55,7 +55,13 @@ keywords (prefixed by a colon) need no quotes.~%~%")
 
 (defun parse-command-line-args ()
   (let ((args (cdr sb-ext:*posix-argv*)))
-;;    (FORMAT T "ARGV = ~S~%" args)
+    ;;    (FORMAT T "ARGV = ~S~%" args)
+    (when (member (tweakable->posixopt '*params-path*) args)
+      (format t "READING PARAMETERS FROM ~A~%" *params-path*)
+      (read-parameter-file
+       (read-from-string
+        (get-opt-arg args (tweakable->posixopt '*params-path*)))))
+                                                          
     (cond ((or (member "--help" args :test #'equalp)
                (member "-h" args :test #'equalp))
            (print-help))
@@ -65,7 +71,7 @@ keywords (prefixed by a colon) need no quotes.~%~%")
                       ;; (FORMAT T "FOUND OPT: ~S = ~S~%"
                       ;; key (get-opt-arg args key))
                       (setf (symbol-value param)
-                   (read-from-string (get-opt-arg args key)))
+                            (read-from-string (get-opt-arg args key)))
                       (format t "Setting ~A to ~A...~%"
                               param (symbol-value param))))) T))))
 
@@ -134,6 +140,8 @@ launch setup and evolve."
 and eventually, sanitize the input."
   (when (or (eql *migration-size* 0) (eql *greedy-migration* 0))
     (setf *greedy-migration* nil))
+  (unless *sex*
+    (setf *mutation-rate* 1))
   (when *debug*
     (setf *parallel* nil)
     (when (eq *selection-method* :lexicase)
@@ -148,6 +156,23 @@ and eventually, sanitize the input."
           (init-population *population-size* *max-start-len*
                            :number-of-islands *number-of-islands*)))
 
+(defun read-parameter-file (param-path)
+  (load param-path))
+
+(defun write-parameter-file (param-path)
+  "Will append to existing file, allowing old settings to be retrieved if
+accidentally clobbered."
+  (with-open-file (stream param-path
+                          :direction :output
+                          :if-exists :append
+                          :if-does-not-exist :create)
+    (format stream "~%~A~%~%" (timestring))
+    (loop for param in *tweakables* do
+         (format stream "~S~%"
+                 `(setf ,param ,(symbol-value param))))))
+       
+    
+
 (defun main ()
   (format t "~A~%" (timestring))
   (when (parse-command-line-args)
@@ -159,7 +184,12 @@ and eventually, sanitize the input."
     (print-params)
     (format t "          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-~%")
     (hrule)
-    (evolve :target *target* :rounds *rounds*)))
+    (evolve :target *target* :rounds *rounds*)
+
+;    (handler-case
+        (progn (write-parameter-file *last-params-path*)
+               (format t "PARAMETERS SAVED IN ~A~%" *last-params-path*))))
+ ;;     (error () (format t "ERROR SAVING PARAMETERS.~%")))))
   
 
 ;; todo: write a generic csv datafile->hashtable loader, for
@@ -171,3 +201,4 @@ and eventually, sanitize the input."
 
 
 
+;;; 
