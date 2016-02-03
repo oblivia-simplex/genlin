@@ -66,7 +66,7 @@
                                                         :output out)))
                 (sum (reduce #'+ output))
                 (certainties (loop for guess in output collect
-                                  (* (div guess sum) 100)))
+                                  (* (divide guess sum) 100)))
                 (success (= (elt output v)
                             (reduce #'max output))))
            (hrule)
