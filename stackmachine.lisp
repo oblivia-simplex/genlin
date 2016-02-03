@@ -42,7 +42,13 @@
 
 (declaim (inline guard-val))
 
-;;(declaim (inline MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
+(declaim (inline LOD STO MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
+
+(declaim (inline exec))
+         
+(declaim (inline execute-sequence)) ;; ballsy. can't believe it worked.
+
+(declaim (inline dst? src? op? jmp?))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; master update function for VM parameters
@@ -61,6 +67,8 @@
 (defvar %stk)
 
 (defvar %pc)
+
+(defvar %skip)
 
 (defmacro grd* (expr)
   `(guard-val ,expr *minval* *maxval*))
@@ -81,33 +89,33 @@
 
 (defun MOV (inst)
   "Copy the contents in SRC to register DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst)) (elt %reg (src? inst))))
 
 
 (defun DIV (inst)
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (grd* (divide (elt %reg (dst? inst))
                       (elt %reg (src? inst))))))
 
 (defun XOR (inst) ;; xor integer parts
   "Performs a bitwise XOR on SRC and DST, storing the result in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (logxor (floor (elt %reg (dst? inst)))
                 (floor (elt %reg (src? inst))))))
 
 (defun CNJ (inst)
   "Performs a bitwise AND on SRC and DST, storing the result in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (logand (floor (elt %reg (dst? inst)))
                 (floor (elt %reg (src? inst))))))
 
 (defun DIS (inst)
   "Performs a bitwise OR on SRC and DST, storing the result in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (logorc1 (floor (elt %reg (dst? inst)))
                  (floor (elt %reg (src? inst))))))
@@ -115,7 +123,7 @@
 
 (defun PMD (inst)
   "Performs a protected SRC MOD DST, storing the result in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (if (zerop (elt %reg (dst? inst)))
             0
@@ -125,14 +133,14 @@
 
 (defun ADD (inst)
   "Adds the rational-valued contents of SRC and DST, storing result in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (+ (elt %reg (src? inst))
            (elt %reg (dst? inst)))))
 
 (defun SUB (inst)
   "Subtracts DST from SRC, storing the value in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (grd* (- (elt %reg (src? inst))
                  (elt %reg (dst? inst))))))
@@ -140,7 +148,7 @@
 
 (defun MUL (inst)
   "Multiplies SRC and DST, storing the value in DST."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (grd* (* (elt %reg (src? inst))
                  (elt %reg (dst? inst))))))
@@ -148,7 +156,7 @@
 
 (defun JLE (inst)
   "Stub. Really just here for consistent pretty printing."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (if (<= (elt %reg (src? inst)) (elt %reg (dst? inst)))
       (setf %skip T)))
 
@@ -158,27 +166,27 @@
 
 (defun LOD (inst)
   "Stub. Really just here for consistent pretty printing."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (elt %seq (safemod (floor (elt %reg (src? inst))) (length %seq)))))
 
 (defun STO (inst)
   "Stub. Really just here for consistent pretty printing."
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %seq (safemod (floor (elt %reg (dst? inst))) (length %seq)))
         (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))
 
 (defun PPR (inst) ;; pop to register
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (nil0 (pop %stk))))
 
 (defun PSH (inst)
-  ;;(declare (type (unsigned-byte 64) inst))
+  (declare (type (unsigned-byte 64) inst))
   (push (elt %reg (src? inst)) %stk))
 
 (defun PPE (inst) ;; pop to execute
-  ;;(declare (ignore inst))
+  (declare (ignore inst))
   (exec (nil0 (pop %stk))))
 
 ;; just go ahead and use free variables 
@@ -293,32 +301,32 @@
 
 (defun src? (inst)
   "Returns the source address."
-  ;;(declare (type (signed-byte 32) inst))
-  ;;(declare (type (cons (signed-byte 32)) *srcbits*))
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 32)) *srcbits*))
   (the signed-byte (ldb *srcbits* inst)))
 
 (defun dst? (inst)
   "Returns the destination address."
-  ;;(declare (type (signed-byte 32) inst))
-  ;;(declare (type (cons (signed-byte 32)) *dstbits*))
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 32)) *dstbits*))
   (the signed-byte (ldb *dstbits* inst)))
 
 (defun op? (inst)
   "Returns the actual operation, in the case of register ops, in 
 the form of a function."
-  ;;(declare (type (signed-byte 32) inst))
-  ;;(declare (type (cons (signed-byte 32)) *opbits*))
-  ;;(declare (type (simple-array function) *operations*))
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 32)) *opbits*))
+  (declare (type (simple-array function) *operations*))
   (the function (aref *operations* (ldb *opbits* inst))))
 
 (defun opc? (inst)
   "Returns the numerical opcode."
-  ;;(declare (type (signed-byte 32) inst))
-  ;;(declare (type (cons (signed-byte 32)) *opbits*))
+  (declare (type (unsigned-byte 64) inst))
+  (declare (type (cons (unsigned-byte 32)) *opbits*))
   (the signed-byte (ldb *opbits* inst)))
 
 (defun jmp? (inst) ;; ad-hoc-ish...
-   ;;(declare (type fixnum inst))
+  (declare (type (unsigned-byte 64) inst))
   (the boolean (= (opc? inst) 5))) ;; TEMPORARY STOPGAP
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
