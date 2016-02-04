@@ -271,7 +271,7 @@
 
 
 
-(defparameter *case-storage* nil
+(defparameter *case-storage* t
   "For efficiency at the cost of memory allocation, set to T and have
      creatures store hash-tables of the testing cases they are able to
      correctly classify. Principally for use with the Lexicase selection

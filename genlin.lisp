@@ -705,13 +705,23 @@ fitness function."
 
 
 ;;;;;;;;;;; false confidence inducing w small testing sets
-(defun update-accuracy-log (crt island)
+(defun update-accuracy-log-2 (crt island)
   (let ((acc (gauge-accuracy crt :ht *training-hashtable*)))
     (setf (creature-fit crt) acc)
     (when (> acc (creature-fit (island-best island)))
       (setf (island-best island) crt)
       (funcall (island-logger island) (cons (island-era island)
                                             acc)))))
+
+(defun update-accuracy-log (crt island)
+  (let ((acc (/ (hash-table-size (creature-cas crt))
+                (hash-table-size *training-hashtable*))))
+    (setf (creature-fit crt) acc)
+    (when (> acc (creature-fit (island-best island)))
+      (setf (island-best island) crt)
+      (funcall (island-logger island) (cons (island-era island)
+                                            acc))))) 
+ 
 
 (defun update-best-if-better (crt island)
   ;; NB: When using lexicase selection, because island-best preserves a
