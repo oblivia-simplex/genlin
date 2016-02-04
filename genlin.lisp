@@ -703,8 +703,10 @@ fitness function."
         (mapcar #'bury-cases (list worst-one worst-two))
         children))))
 
+
+;;;;;;;;;;; false confidence inducing w small testing sets
 (defun update-accuracy-log (crt island)
-  (let ((acc (gauge-accuracy crt :ht *testing-hashtable*)))
+  (let ((acc (gauge-accuracy crt :ht *training-hashtable*)))
     (setf (creature-fit crt) acc)
     (when (> acc (creature-fit (island-best island)))
       (setf (island-best island) crt)
@@ -1391,3 +1393,6 @@ without incurring delays."
          nil)
         (t (gethash cas (creature-cas crt)))))
          
+;; gauge-accuracy isn't a good measure, as it stands.
+;; instead, go by the size of creature-cas, in lexicase.
+;; but creature-cas needs to be debugged, first

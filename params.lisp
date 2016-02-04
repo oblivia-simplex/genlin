@@ -319,7 +319,7 @@
     *training-ratio*
     *selection-method*
     *lexicase-combatant-ratio*
-    *case-storage*
+    *case-storage* ;;; case storage is buggy right now
     *number-of-islands*
     *population-size*
     *sex*
