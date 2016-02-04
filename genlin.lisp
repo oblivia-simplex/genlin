@@ -348,7 +348,10 @@ fitness function."
                      using (hash-value v)
                      collect
                        (unless (check-cas k crt)
-                         (funcall per-case crt (cons k v)))))
+                         (let ((score (funcall per-case crt (cons k v))))
+                           (if score (setf (gethash k (creature-cas crt))
+                                           score))
+                           score))))
 ;;    (print results)
     (/ (reduce #'+ (mapcar #'(lambda (x) (if x 1 0)) results))
        (length results))))
@@ -706,6 +709,7 @@ fitness function."
 
 ;;;;;;;;;;; false confidence inducing w small testing sets
 (defun update-accuracy-log (crt island)
+  ;; just look at a sample? otherwise VERY slow for large datasets
   (let ((acc (gauge-accuracy crt :ht *training-hashtable*)))
     (setf (creature-fit crt) acc)
     (when (> acc (creature-fit (island-best island)))
