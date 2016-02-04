@@ -38,7 +38,7 @@
 
 (declaim (inline exec))
          
-(declaim (inline execute-sequence)) ;; ballsy. can't believe it worked.
+;;(declaim (inline execute-sequence)) ;; ballsy. can't believe it worked.
 
 (declaim (inline dst? src? op? jmp?))
 
@@ -152,7 +152,6 @@ the form of a function."
         (logorc1 (floor (elt %reg (dst? inst)))
                  (floor (elt %reg (src? inst))))))
 
-
 (defun PMD (inst)
   "Performs a protected SRC MOD DST, storing the result in DST."
   (declare (type (unsigned-byte 64) inst))
@@ -161,7 +160,6 @@ the form of a function."
             0
             (mod (elt %reg (src? inst))
                  (elt %reg (dst? inst))))))
-
 
 (defun ADD (inst)
   "Adds the rational-valued contents of SRC and DST, storing result in DST."
@@ -177,7 +175,6 @@ the form of a function."
         (grd* (- (elt %reg (src? inst))
                  (elt %reg (dst? inst))))))
 
-
 (defun MUL (inst)
   "Multiplies SRC and DST, storing the value in DST."
   (declare (type (unsigned-byte 64) inst))
@@ -185,30 +182,34 @@ the form of a function."
         (grd* (* (elt %reg (src? inst))
                  (elt %reg (dst? inst))))))
 
-
 (defun JLE (inst)
   "Stub. Really just here for consistent pretty printing."
   (declare (type (unsigned-byte 64) inst))
   (if (<= (elt %reg (src? inst)) (elt %reg (dst? inst)))
       (setf %skip T)))
 
-(defun safemod (x y)
-  (if (zerop y) x
-      (mod x y)))
-
+;; changing lod/sto so that they operate on the stack instead
+;; of on the code segment, so that we can recover intron detection
 (defun LOD (inst)
   "Stub. Really just here for consistent pretty printing."
   (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
-        (elt %seq (safemod (floor (elt %reg (src? inst))) (length %seq)))))
+        (if (null %stk)
+            0
+            (elt %stk (safemod (floor (elt %reg (src? inst)))
+                               (length %stk))))))
 
 (defun STO (inst)
   "Stub. Really just here for consistent pretty printing."
   (declare (type (unsigned-byte 64) inst))
-  (setf (elt %seq (safemod (floor (elt %reg (dst? inst))) (length %seq)))
-        (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))
+  (let ((stuff (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))
+    (if (null %stk)
+        (push stuff %stk)
+        (setf (elt %stk (safemod (floor (elt %reg (dst? inst)))
+                                 (length %stk)))
+              (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))))
 
-(defun PPR (inst) ;; pop to register
+(defun PRG (inst) ;; pop to register
   (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
         (nil0 (pop %stk))))
@@ -217,17 +218,29 @@ the form of a function."
   (declare (type (unsigned-byte 64) inst))
   (push (elt %reg (src? inst)) %stk))
 
-(defun PPE (inst) ;; pop to execute
+;; but PEX still introduces arbitrary code execution, which
+;; prevents any sort of definitive intron detection -- but then,
+;; does it matter? Is anything lost if introns are only approximately
+;; introns, potentially activated by epigenetic factors?
+;; Biology got away with it. 
+(defun PEX (inst) ;; pop to execute
   (declare (ignore inst))
-  (exec (nil0 (pop %stk))))
+  (exec (floor (abs (nil0 (pop %stk))))))
+
+(defun PIN (inst)
+  (declare (type (unsigned-byte 64) inst))
+  (push (elt %seq
+             (safemod (floor (elt %reg
+                                  (src? inst))) (length %seq)))
+        %stk))
 
 ;; just go ahead and use free variables 
 ;; (defun PPR (&rest args)
 ;;   "
 
 (defparameter *reg-ops-list*
-  `(,#'DIV ,#'MUL ,#'SUB ,#'ADD
-         ,#'PMD ,#'XOR ,#'CNJ ,#'DIS ,#'MOV))
+  `(,#'ADD ,#'MUL ,#'SUB ,#'DIV
+         ,#'PMD ,#'XOR ,#'CNJ ,#'DIS))
 
 (defparameter *jump-ops-list*
   `(,#'JLE))
@@ -238,13 +251,32 @@ the form of a function."
 (defparameter *store-ops-list*
   `(,#'STO))
 
+(defparameter *stack-ops-list*
+  `(,#'PSH ,#'PEX ,#'PRG ,#'PIN))
+
+;; suggestion: prepare some combos that can be selected from at runtime.
+;; (using command line options, e.g.)
+(defparameter *slomachine-ops-list*
+  (concatenate 'vector
+               (subseq *reg-ops-list* 0 5)
+               *jump-ops-list*
+               *load-ops-list*
+               *store-ops-list*))
+
 (defparameter *operations*
   (remove-if #'null (concatenate 'vector
-                               (subseq *reg-ops-list* 0 5)
-                               *jump-ops-list*
-                               *load-ops-list*
-                               *store-ops-list*)))
-  
+                                 *reg-ops-list*
+                                 *load-ops-list*
+                                 *store-ops-list*
+                                 *stack-ops-list*
+                                 *jump-ops-list*
+                                 (loop repeat (expt 2 *opcode-bits*)
+                                      collect #'MOV))))
+
+                                 ;;*jump-ops-list*
+                                 ;;*load-ops-list*
+                                 ;;*store-ops-list*)))
+
 
 (defparameter *reg-op-keys*
   '(:DIV :MUL :SUB :ADD :PMD :XOR :CNJ :DIS :MOV))
@@ -408,6 +440,8 @@ entries in the history stack, tracking changes to the registers."
                                 data regnum addr)
                         (when (>= addr (getf line :pc))
                           (format t "*** SEQUENCE REWRITING ITSELF ***~%")))
+                       ((member (op? inst) *stack-ops-list*)
+                        (format t " ;; STK: ~A~%" (getf line :stk)))
                        (t (format t "  WTF?"))))
            (if static
                (format t "~%"))))
@@ -420,7 +454,9 @@ entries in the history stack, tracking changes to the registers."
 
 
 (defun execute-sequence (seq &key (registers *initial-register-state* )
-                               (input *default-input-reg*) (output nil)
+                               (input *default-input-reg*)
+                               (stack nil)
+                               (output nil)
                                (debug nil))
   "Takes a sequence of instructions, seq, and an initial register
 state vector, registers, and then runs the virtual machine, returning
@@ -429,6 +465,7 @@ list parameter, output."
   (declare (type fixnum *input-start-idx* *pc-idx*)
            (type (cons integer) output)
            (type (or null (cons (unsigned-byte 64))) seq)
+           (type (or null cons) stack)
            (type (simple-array rational 1) input registers)
            (optimize (speed 3)))
   (flet ((save-state (inst &key reg seq stk skip pc)
@@ -445,7 +482,7 @@ list parameter, output."
           (%reg (copy-seq registers))
           (%pc 0) ;; why bother putting the PC in the registers?
           (%skip nil)
-          (%stk '()) ;; let's add a stack! and get rid of LOD/STO
+          (%stk (copy-seq stack)) ;; let's add a stack! and get rid of LOD/STO
 ;;;          (seqlen (length seq))
           (debugger (or debug *debug*)))
       ;; so that we can have our junk DNA back.
@@ -455,11 +492,10 @@ list parameter, output."
       ;; the input values will be stored in read-only %reg
       (setf (subseq %reg *input-start-idx*
                     (+ *input-start-idx* (length input))) input)
-
       (loop for inst in %seq do
-           (incf %pc) 
+           (incf %pc) ;; not truly necessary. may suppress for speed. 
            (cond (%skip (setf %skip nil))
-                 (T (exec inst)
+                 (T (exec inst) ;; this expression does all the work
                     (and debugger (save-state inst
                                               :reg %reg
                                               :seq %seq
@@ -467,11 +503,6 @@ list parameter, output."
                                               :stk %stk
                                               :pc %pc)
                          (disassemble-history)))))
-      ;; exec does all the work. funcs contain
-      ;; free variables that are captured by the % vars above.
-      ;; Save history for debugger
-      ;; Halt when you've reached the end of the sequence
-
       (and *debug* (hrule) (history-flush))
       (mapcar #'(lambda (i) (aref %reg i)) output))))
 

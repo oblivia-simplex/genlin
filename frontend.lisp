@@ -1,7 +1,47 @@
+(load #p"~/Projects/genlin/package.lisp")
+
 (in-package :genlin)
+
+;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;;; Linear Genetic Algorithm
+;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter *project-path*
+  "~/Projects/genlin/")
+
+(defun loadfile (filename)
+  (load (merge-pathnames filename *load-truename*)))
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter *machine* :stackmachine)
+
+
+;; (defparameter *machine-file*
+;;   (case *machine*
+;;     ((:stackmachine "stackmachine.lisp"))
+;;     ((:slomachine) "slomachine.lisp")
+;;     ((:r-machine) "r-machine.lisp")))
+;; ;; slomachine is an unstable VM for self-modifying code
+
+(defun load-other-files ()
+  (loop for f in `("params.lisp"
+                   "auxiliary.lisp"
+                   "stackmachine.lisp"
+                   "datafiler.lisp"
+                   "tictactoe.lisp"
+                   "iris.lisp"
+                   "genlin.lisp") do
+       (loadfile (concatenate 'string *project-path* f))))
+
+
+(load-other-files)
+
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; A pretty front-end
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+
 
 (defun print-operations ()
   (let ((used #\*)
@@ -170,8 +210,56 @@ accidentally clobbered."
     (loop for param in *tweakables* do
          (format stream "~S~%"
                  `(setf ,param ,(symbol-value param))))))
-       
-    
+
+
+
+(defun setup-data (&key (ratio *training-ratio*)
+                     (dataset *dataset*)
+                     (selection-method *selection-method*)
+                     (fitfunc-name)
+                     (filename *data-path*))
+  (let ((hashtable)
+        (training+testing))
+    (setf *method* (case selection-method
+                     ((:tournement) #'tournement!)
+                     ((:roulette) #'roulette!)
+                     ((:greedy-roulette) #'greedy-roulette!)
+                     ((:lexicase) #'lexicase!)
+                     (otherwise (progn
+                                  (format t "WARNING: METHOD NAME NOT RECO")
+                                  (format t "GNIZED. USING #'TOURNEMENT!.~%")
+                                  #'tournement!))))
+
+    (setf *dataset* dataset)
+    (reset-records)
+    (funcall =label-scanner= 'flush)
+    (case dataset   ;; at some point, I'll have to clean up all of this
+      ((:tictactoe) ;; ad-hoc spaghetti code. 
+       (unless filename (setf filename *tictactoe-path*))
+       (unless fitfunc-name (setf fitfunc-name 'binary-1)))
+      (otherwise
+       (unless filename (setf filename *iris-path*))
+       (unless fitfunc-name (setf fitfunc-name 'n-ary))))
+    (setf hashtable (datafile->hashtable :filename filename))
+    (when *testing-data-path*
+      (setf training+testing (cons hashtable
+                                   (datafile->hashtable
+                                    :filename *testing-data-path*))))
+    (unless *split-data*
+      (setf training+testing (cons hashtable hashtable)))
+    (unless training+testing
+      (setf training+testing (partition-data hashtable ratio)))
+    (init-fitness-env :training-hashtable (car training+testing)
+                      :testing-hashtable  (cdr training+testing)
+                      :fitfunc-name fitfunc-name)
+
+    (case *sex*
+      ((:1pt) (setf *mating-func* #'shufflefuck-1pt))
+      ((:2pt) (setf *mating-func* #'shufflefuck-2pt-constant))
+      ((t) (setf *mating-func* #'shufflefuck-2pt-constant))
+      (otherwise (setf *mating-func* 'cloning)))
+         
+    training+testing))
 
 (defun main ()
   (format t "~A~%" (timestring))
@@ -202,3 +290,30 @@ accidentally clobbered."
 
 
 ;;; 
+
+(defun save-island-ring (island-ring filename)
+  (let ((copy (de-ring island-ring)))
+    (mapcar #'(lambda (x) (setf (island-lock x) 'mutex-unreadable
+                           (island-logger x) 'logger-unreadable))
+            copy)
+    (with-open-file (stream filename :direction :output)
+      (format stream "~A~%~%;; tweakable parameters are:~%'(" (timestring))
+      (loop for tweak in *tweakables* do
+           (format stream "~S ~S~%" tweak (symbol-value tweak)))
+      (format stream ")~%~%;; +ISLAND-RING+ below: ~%~%~S" +ISLAND-RING+))))
+
+(defun restore-island-ring (filename)
+  ;; todo
+  )
+
+;; Note: it should be simple enough to generalize the ttt data processing
+;; technique.
+;; - scan the dataset
+;; - count the possible values for each field, and if there are an equal
+;;   number of possibilities for each field, say n, formalize the key as
+;;   an m-digit base-n gray code integer.
+;; - this may, in some cases, even work when there is a maximum number
+;;   of possibilities per field. or if each field can have any of n
+;;   values, when unconstrained by other fields (the mutual constraints,
+;;   of course, are an impt aspect of the pattern that the algo's meant
+;;   to detect). 

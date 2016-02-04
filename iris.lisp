@@ -57,7 +57,7 @@
         (failures '())
         (iris-names '(SETOSA VERSICOLOR VIRGINICA)))
     (loop for k being the hash-keys in ht using (hash-value v) do
-         (let* ((output (mapcar #'abs (execute-sequence seq
+         (let* ((output (mapcar #'abs (execute-creature crt
                                                         :debug t
                                                         :input k
                                                         :output out)))

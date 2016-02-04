@@ -8,43 +8,6 @@
 
 
 
-;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;;; Linear Genetic Algorithm
-;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-(load #p"~/Projects/genlin/package.lisp")
-
-(in-package :genlin)
-
-(defparameter *project-path*
-  "~/Projects/genlin/")
-
-(defun loadfile (filename)
-  (load (merge-pathnames filename *load-truename*)))
-
-;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-(defparameter *machine* :stackmachine)
-
-
-;; (defparameter *machine-file*
-;;   (case *machine*
-;;     ((:stackmachine "stackmachine.lisp"))
-;;     ((:slomachine) "slomachine.lisp")
-;;     ((:r-machine) "r-machine.lisp")))
-;; ;; slomachine is an unstable VM for self-modifying code
-
-(defun load-other-files ()
-  (loop for f in `("params.lisp"
-                   "auxiliary.lisp"
-                   "stackmachine.lisp"
-                   "datafiler.lisp"
-                   "frontend.lisp"
-                   "tictactoe.lisp"
-                   "iris.lisp") do
-       (loadfile (concatenate 'string *project-path* f))))
-
-
-(load-other-files)
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Logging
@@ -126,12 +89,12 @@ register(s)."
                     (when (member (dst? inst) efr)
                       (push (src? inst) efr)
                       (push inst efseq)
-                   (when (and (not (zerop i)) (jmp? (elt seq (1- i))))
-                     ;; a jump immediately before an effective instruction
-                     ;; is also an effective instruction. 
-                     (let ((prevjmp (elt seq (1- i))))
-                       (push (src? prevjmp) efr)
-                       (push (dst? prevjmp) efr))))))
+                      (when (and (not (zerop i)) (jmp? (elt seq (1- i))))
+                        ;; a jump immediately before an effective instruction
+                        ;; is also an effective instruction. 
+                        (let ((prevjmp (elt seq (1- i))))
+                          (push (src? prevjmp) efr)
+                          (push (dst? prevjmp) efr))))))
              efseq))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -186,8 +149,7 @@ positive, -1 for negative."
            (loop for pattern
               being the hash-keys in ht collect
                 (sigmoid-error
-                 (car (execute-sequence seq
-                                        :registers *initial-register-state*
+                 (car (execute-creature crt
                                         :input pattern
                                         :output '(0) )) ;; raw
                  (gethash pattern ht))))) ;; goal
@@ -206,7 +168,8 @@ positive, -1 for negative."
     (loop for pattern being the hash-keys in ht
        using (hash-value v) do
          (let ((f ;; shooting in the dark, here. 
-                (tanh (/ (car (execute-sequence seq :input pattern
+                (tanh (/ (car (execute-creature crt
+                                                :input pattern
                                                 :output *out-reg*)) 300))))
            (if (> (* f v) .5) (incf hit) (incf miss))))
     (if (zerop miss) 1
@@ -238,7 +201,7 @@ positive (+1)."
       
       (loop for pattern being the hash-keys in ht
          using (hash-value val) do
-           (let ((output (execute-sequence seq
+           (let ((output (execute-creature crt
                                            :input pattern
                                            :output '(0 1))))
              ;; measure proportion of correct vote to total votes
@@ -270,7 +233,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
         (seq (creature-eff crt)))
     (loop for pattern being the hash-keys in ht
        using (hash-value i) do
-         (let ((output (execute-sequence seq
+         (let ((output (execute-creature crt
                                          :input pattern
                                          :output *out-reg*)))
            (incf acc (divide (abs (nth i output))
@@ -297,10 +260,10 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
 (defun per-case-binary (crt case-kv &key (case-storage *case-storage*))
   "Returns a boolean."
-  (cond ((gethash (car case-kv) (creature-cas crt))
+  (cond ((check-cas (car case-kv) crt)
          t)
         (t
-         (let ((output (execute-sequence (creature-eff crt)
+         (let ((output (execute-creature crt
                                          :output *out-reg*
                                          :input (car case-kv))))
            ;; the binary table has -1 for no, +1 for yes
@@ -310,29 +273,35 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                    (setf (gethash (car case-kv) (creature-cas crt)) t))
                nil)))))
 
+(defun square (x)
+  (expt x 2))
+
 (defun per-case-n-ary (crt case-kv)
   "Returns a boolean."
-  (let ((output (execute-sequence (creature-eff crt)
+  (let ((output (execute-creature crt
                                   :output *out-reg*
                                   :input (car case-kv))))
-    (= (register-vote output :comparator #'> :pre #'abs) ;; get lowest
+    (= (register-vote output :comparator #'> :pre #'square) ;; get lowest
        (cdr case-kv))))
 
 ;; -- real returning per-cases --
 
 (defun per-case-n-ary-proportional (crt case-kv)
   "Case-kv is a cons of key and value from hashtable."
-  (let ((output (execute-sequence (creature-eff crt)
-                                  :output *out-reg*
-                                  :input (car case-kv))))
-    (values (divide (elt output (register-vote output :comparator #'>))
-                    (reduce #'+  (mapcar #'abs output))) ;; problem when < 1!
-            (if (> (* (abs (nth (cdr case-kv) output))
-                      (length output))
-                   (reduce #'+ output))
-                1
-                0))))
-         
+  (cond ((check-cas (car case-kv) crt)
+         1)
+        (t
+         (let ((output (execute-creature crt
+                                         :output *out-reg*
+                                         :input (car case-kv))))
+           (values (divide (elt output (register-vote output :comparator #'>))
+                           (reduce #'+  (mapcar #'abs output))) 
+                   (if (> (* (abs (nth (cdr case-kv) output))
+                             (length output))
+                          (reduce #'+ output))
+                       1
+                       0))))))
+        
 (defun fitness-n-ary-classifier (crt &key (ht *training-hashtable*))
   "Where n is the target register, measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
@@ -377,7 +346,9 @@ fitness function."
                          #'per-case-n-ary)))
     (setf results (loop for k being the hash-keys in ht
                      using (hash-value v)
-                     collect (funcall per-case crt (cons k v))))
+                     collect
+                       (unless (check-cas k crt)
+                         (funcall per-case crt (cons k v)))))
 ;;    (print results)
     (/ (reduce #'+ (mapcar #'(lambda (x) (if x 1 0)) results))
        (length results))))
@@ -401,13 +372,12 @@ fitness function."
   (let ((delegation-reg (list (1- (expt 2 *destination-register-bits*)))))
     ;; let the delegation task use a distinct register, if available,
     ;; by setting its output register to the highest available R/W reg. 
-    (execute-sequence
-     (creature-eff
-      (elt pack (mod (car
-                      (execute-sequence (creature-eff (car pack))
-                                        :input input
-                                        :output delegation-reg))
-                     (length pack))))
+    (execute-creature
+     (elt pack (mod (car
+                     (execute-sequence (car pack)
+                                       :input input
+                                       :output delegation-reg))
+                    (length pack)))
      :input input
      :output output)))
 
@@ -457,6 +427,8 @@ fitness function."
                       (subseq underlings (length pack1))))
     (list pack1 pack2)))
 
+
+;; Note for pack mutations: do not mutate a creature without replacing it. otherwise eff, fit, cas, etc. are falsified. if not replacing, then reset these attributes. 
 
 (defun pack-mate (pack1 pack2)
   "Nondestructively mates the two packs, pairwise, producing two new packs."
@@ -560,7 +532,33 @@ fitness function."
       (random-mutation seq)
       seq))
 
-(defun shufflefuck (p0 p1)
+(defun shufflefuck-1pt (p0 p1)
+  "Crossover operator. Works just like it sounds."
+  ;; just replaced the old, two point, zero-growth crossover
+  ;; with one-point crossover that allows growth. 
+  (declare (type creature p0 p1))
+  (declare (optimize (speed 1)))
+  
+  (let* ((mates (shuffle (list p0 p1)))
+         (mother (creature-seq (car mates)))
+         (father (creature-seq (cadr mates)))
+         (idx0 (random (length mother)))
+         (idx1 (random (length father)))
+         (children))
+    (push
+     (concatenate 'list
+                  (subseq mother 0 idx0)
+                  (subseq father idx1))
+     children)
+    (push
+     (concatenate 'list
+                  (subseq father 0 idx1)
+                  (subseq mother idx0))
+     children)                       
+    (mapcar #'(lambda (genome) (make-creature :seq genome)) children)))
+
+
+(defun shufflefuck-2pt-constant (p0 p1)
   "Crossover operator. Works just like it sounds."
   (declare (type creature p0 p1))
   (declare (optimize (speed 1)))
@@ -589,6 +587,9 @@ fitness function."
     (setf children (list (make-creature :seq son)
                          (make-creature :seq daughter)))))
 
+
+     ;; run remove-intron naively, but (a) pass seq as stack to execute-sequence and (b) have instructions like LOD, STO, etc. operate on stack?
+     
 (defun metamutate (mut)
   (if (< (random 1.0) *metamutation-rate*)
       (min 1 (max 0
@@ -599,12 +600,12 @@ fitness function."
 
 (defun mate (p0 p1 &key (genealogy *track-genealogy*)
                      (output-registers *out-reg*)
-                     (sex *sex*))
+                     (sex *sex*)
+                     (mating-func #'shufflefuck-1pt))
   (let ((offspring (if sex
-                       (shufflefuck p0 p1) ;; sexual reproduction
+                       (funcall mating-func p0 p1) ;; sexual reproduction
                        (list (copy-structure p0)
                              (copy-structure p1))))) ;; asexual
-                       
     ;; mutation
     (loop for child in offspring do
        ;; now, let the mutation rate be linked to each creature, and
@@ -618,9 +619,11 @@ fitness function."
                                      (creature-seq child)
                                      :output output-registers))
          (loop for parent in (list p0 p1) do
-              (if (equalp (creature-eff child) (creature-eff parent))
-                  (setf (creature-fit child) (creature-fit parent))))
+              (when (equalp (creature-eff child) (creature-eff parent))
+                (setf (creature-fit child) (creature-fit parent))
+                (setf (creature-cas child) (creature-cas parent))))
          ;; genealogical records: costly in terms of memory space, but neat
+  
          (when genealogy
            (mapcar #'(lambda (x) (setf (creature-gen x) ;; update gen and parents
                                   (1+ (max (creature-gen p0)
@@ -639,6 +642,7 @@ fitness function."
                    &key (ht *training-hashtable*)
                      (per-case #'per-case-n-ary)
                      (case-storage *case-storage*)
+                     (pool-ratio *lexicase-pool-ratio*)
                      (combatant-ratio *lexicase-combatant-ratio*))
   "Note: per-case can be any boolean-returning fitness function."
   (flet ((set-eff (crt)
@@ -646,8 +650,10 @@ fitness function."
              (setf (creature-eff crt) (remove-introns (creature-seq crt)
                                                       :output *out-reg*)))
            crt))
-    (let* ((cases (shuffle (loop for k being the hash-keys in ht
-                              using (hash-value v) collect (cons k v))))
+    (let* ((cases (subseq (shuffle
+                           (loop for k being the hash-keys in ht
+                              using (hash-value v) collect (cons k v)))
+                          0 (floor (* pool-ratio (hash-table-count ht)))))
            (candidates (copy-seq (island-deme island)))
            (next-candidates candidates)
            ;; (total (length cases))
@@ -976,51 +982,6 @@ applying, say, mapcar or length to it, in most cases."
 ;; User interface functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defun setup-data (&key (ratio *training-ratio*)
-                     (dataset *dataset*)
-                     (selection-method *selection-method*)
-                     (fitfunc-name)
-                     (filename *data-path*))
-  (let ((hashtable)
-        (training+testing))
-    (setf *method* (case selection-method
-                     ((:tournement) #'tournement!)
-                     ((:roulette) #'roulette!)
-                     ((:greedy-roulette) #'greedy-roulette!)
-                     ((:lexicase) #'lexicase!)
-                     (otherwise (progn
-                                  (format t "WARNING: METHOD NAME NOT RECO")
-                                  (format t "GNIZED. USING #'TOURNEMENT!.~%")
-                                  #'tournement!))))
-    (setf *dataset* dataset)
-    (reset-records)
-    (funcall =label-scanner= 'flush)
-    (case dataset   ;; at some point, I'll have to clean up all of this
-      ((:tictactoe) ;; ad-hoc spaghetti code. 
-       (unless filename (setf filename *tictactoe-path*))
-       (unless fitfunc-name (setf fitfunc-name 'binary-1)))
-      (otherwise
-       (unless filename (setf filename *iris-path*))
-       (unless fitfunc-name (setf fitfunc-name 'n-ary))))
-    (setf hashtable (datafile->hashtable :filename filename))
-    (when *testing-data-path*
-      (setf training+testing (cons hashtable
-                                   (datafile->hashtable
-                                    :filename *testing-data-path*))))
-    (unless *split-data*
-      (setf training+testing (cons hashtable hashtable)))
-    (unless training+testing
-      (setf training+testing (partition-data hashtable ratio)))
-    (init-fitness-env :training-hashtable (car training+testing)
-                      :testing-hashtable  (cdr training+testing)
-                      :fitfunc-name fitfunc-name)
-    training+testing))
-;; note: I should have a separate label-scanner object for the
-;; testing and training sets, if they come from different files.
-;; copies, otherwise. right now, the same object is used, which
-;; is fine if the testing and training sets have the same attributes
-;; and classes, but which could lead to obsure bugs otherwise.  
-
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Runners
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -1045,8 +1006,6 @@ applying, say, mapcar or length to it, in most cases."
   (loop while (null *STOP*) do
        (when (eql #\k (read-char-no-hang))
          (setf *STOP* t))))
-
-
 
 (defun make-stopwatch ()
   (let ((start-time 0))
@@ -1403,34 +1362,6 @@ without incurring delays."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;
 
-(defun save-island-ring (island-ring filename)
-  (let ((copy (de-ring island-ring)))
-    (mapcar #'(lambda (x) (setf (island-lock x) 'mutex-unreadable
-                           (island-logger x) 'logger-unreadable))
-            copy)
-    (with-open-file (stream filename :direction :output)
-      (format stream "~A~%~%;; tweakable parameters are:~%'(" (timestring))
-      (loop for tweak in *tweakables* do
-           (format stream "~S ~S~%" tweak (symbol-value tweak)))
-      (format stream ")~%~%;; +ISLAND-RING+ below: ~%~%~S" +ISLAND-RING+))))
-
-(defun restore-island-ring (filename)
-  ;; todo
-  )
-
-;; Note: it should be simple enough to generalize the ttt data processing
-;; technique.
-;; - scan the dataset
-;; - count the possible values for each field, and if there are an equal
-;;   number of possibilities for each field, say n, formalize the key as
-;;   an m-digit base-n gray code integer.
-;; - this may, in some cases, even work when there is a maximum number
-;;   of possibilities per field. or if each field can have any of n
-;;   values, when unconstrained by other fields (the mutual constraints,
-;;   of course, are an impt aspect of the pattern that the algo's meant
-;;   to detect). 
-
-
 (defun bury (crt)
   (bury-cases crt)
   (bury-parents crt))
@@ -1444,4 +1375,19 @@ without incurring delays."
 ;; use tp, fp?
 ;;(dbg)
 
-(setf *parallel* nil)
+;;(setf *parallel* nil)
+;; BUG: some creature-cas instances are nil. should be empty hashtable at a minimum
+
+(defun execute-creature (crt &key (input) (output *out-reg*) (debug nil))
+  (execute-sequence (creature-eff crt) :stack (creature-seq crt)
+                    :input input :output output :debug debug))
+
+
+;;(setf *stop* t)
+
+(defun check-cas (cas crt)
+  (cond ((null (creature-cas crt))
+         (setf (creature-cas crt) (make-hash-table))
+         nil)
+        (t (gethash cas (creature-cas crt)))))
+         

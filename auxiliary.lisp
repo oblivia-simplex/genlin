@@ -250,3 +250,8 @@ must be disjoint."
                                 ((> (abs val) maxval) (mod val maxval))
                                 (t val))
                           'rational))))
+
+(defun safemod (x y)
+  (if (zerop y) y
+      (mod x y)))
+

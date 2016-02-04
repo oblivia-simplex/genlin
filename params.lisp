@@ -163,9 +163,9 @@
 
 ;; see if you can put the entire virtual machine in its own environment
 
-(defparameter *opcode-bits* 3
+(defparameter *opcode-bits* 4
   "The number of bits in an instruction used to determine the operation. 
-     Can be set to 1, 2, or 3.")   ;; size
+     Can be set to 1, 2, 3, or 4.")   ;; size
 
 (defparameter *source-register-bits* 3
   "The number of bits used to calculate the source register in each
@@ -257,9 +257,7 @@
   "Specify an independent testing dataset. If left as nil, then the
      main dataset will be partitioned according to --training-ratio.")
 
-
-
-(defparameter *mutation-rate* 15/100
+(defparameter *mutation-rate* 3/10
   "Chance of mutation per spawning event, expressed as percentage.")
 
 (defparameter *metamutation-rate* 1/10
@@ -290,6 +288,8 @@
   "Sexual reproduction used when set to T. Cloning, otherwise (with
      mutation).")
 
+(defparameter *mating-func* nil)
+
 (defparameter *max-pack-size* 8)
 
 (defparameter *lexicase-combatant-ratio* 1)
@@ -302,6 +302,9 @@
 
 (defparameter *last-params-path* "./last.params"
   "File in which to store the parameters used on the last run.")
+
+(defparameter *lexicase-pool-ratio* 1)
+
 
 
 (defparameter *tweakables*
@@ -339,3 +342,85 @@
     *target*
     *params-path*
     *last-params-path*))    
+
+
+;;; IDEA: replace registers with stacks
+;;; always hold at least one "anchor" element
+;;; register instruction set operates on cars or pops
+;;; new instruction: execstack, which executes a register
+
+;;; advantages: intron detection?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

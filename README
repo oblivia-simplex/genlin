@@ -5,12 +5,12 @@
 |_| \_\_____/_/   \_\____/|_|  |_|_____|
                                         
 
-GENLIN is an experimental linear genetic programming platform.
-The front-end only offers the opportunity to plug two, pre-supplied
-benchmark datasets into the thing -- tic-tac-toe endgames, and the 
-well-worn iris set -- but the code should be flexible enough to be
-put to work on other problem domains (not necessarily restricted to
-classification problems), if you don't mind hacking it a little. 
+GENLIN is an experimental linear genetic programming platform, which
+can be put to work on more or less any dataset of the appropriate
+formate (CSV files containing rows of numerical attributes, followed
+by a nominal label, work out of the box; a bit of hacking is needed
+to get the algo to play well with purely nominal datasets, like the
+included tic-tac-toe.data). 
 
 The code base is entirely written in Common Lisp (for SBCL, but it
 wouldn't be too much work to port it to, say, CLISP, so that it can
