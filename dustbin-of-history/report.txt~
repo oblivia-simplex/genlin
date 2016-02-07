@@ -1,0 +1,385 @@
+
+THE IMPLEMENTATION
+
+FITNESS AND PERFORMANCE
+
+At the nucleus of each of the individuals in the population -- its
+"genome" -- is a set of instructions for a virtual register machine,
+written in Lisp. The machine is set up to be very parameterizable: the
+user is able adjust the size and contents of the basic instruction
+set, the number of registers, and the partitioning of the register set
+into read/write and read-only registers easily, just by changing the
+values of a few dynamic variables (this can be done through a crude
+but fairly straightforward menu system that can be reached by calling
+(menu) from the REPL, or by compiling and running the genlin binary).
+
+The parameters used for the trials considered here are as follows:
+
+* each instruction is 8 bits long. This includes
+
+  ~ 3-bit opcode, enumerating 8 basic operations:
+    - protected division (division by zero equals zero)
+    - multiplication
+    - subtraction
+    - addition
+    - bitwise-xor
+    - protected mod (mod zero equals zero)
+    - bitwise-and
+    - conditional jump: increment programme counter when X < Y
+
+  ~ 3-bit source (primary operand) register address
+    - yielding 8 possible source registers, R0 - R7.
+
+  ~ 2-bit destination (secondary operand) register address
+    - yielding 4 possible destination registers R0 - R3.
+    - this leaves 4 registers (R4 - R7) as read-only. These, or a subset
+      of these, were used for loading input data. 
+
+* the number of registers is controlled directly by the size of the
+  register address fields in the instruction template (being equal to
+  max(source-field, destinaton-field), plus one, to make room for a
+  programme counter register (analogous to the RIP register on an
+  AMD64 architecture)).
+
+* no stack or VM process memory space, beyond the registers, has been
+  implemented as of yet, but this could be added fairly easily.
+
+The engine of the VM is the #'execute-sequence function, in
+genlin.lisp. This function takes parameters that specify an input, a
+sequence of instructions, and one or more output registers. It
+iterates over the sequence of instructions (represented as a series of
+integers), incrementing the programme counter, decoding the
+instructions by masking out the fields and indexing into register and
+operation arrays, and then excutes the instructio and updates the
+destination register, and repeats. The function then returns a list of
+the values stored in the output register(s), and these are then taken
+as input by the fitness functions (the typically callers of #'execute
+sequence). 
+
+GENLIN currently maintains two groups of fitness functions, which have
+been tailored to the two benchmark datasets with varying rates
+success. The two most successful -- the two for which the population
+converges most quickly, and succeeds in an accurate classification of
+the data -- are called #'fitness-binary-classifier-1 and
+#'fitness-ternary-classifier-2. The binary classifier works by passing
+an effective (intron-stripped) instruction sequence to the VM, and
+feeding an integer representation of the exemplar and then inspecting
+the value in R0. It maps this value onto the interval [-1, 1] using
+the sigmoid function (tanh (/ x 8)). The function then adds
+sigmoid(output) to the value mapped to the exemplar in the training
+hashtable, which encodes "positive" as +1 and "negative" as -1, and
+divides the result by 2. The idea is that if the output of the VM had
+the same sign as its input's label, then the function would return a
+result between 0.5 and 1, but a result between 0 and 0.5 otherwise.
+The sigmoid introduces a gradient into this otherwise abrupt
+distinction, and helps to nudge the course of evolution in the right
+direction. The divisor in the sigmoid function helps to keep a certain
+window of relevance open -- if the correct answer is "positive", then
+it's better to have a large positive output than a small one, but past
+a certain point size doesn't matter (the window of relevance, here,
+lies between -80 and +80). 
+
+The other fitness function, #'fitness-ternary-classifier-2, used for
+the iris dataset, works like a simple ballot box. The function passes
+a representation of the exemplar to the VM as input (this time as a
+four-element vector of floats, representing petal and sepal
+measurements, with virtually no pre-processing), and the individual's
+effective instruction sequence, and requests the values of R0, R1, and
+R2 in return. It looks at the absolute value of each output register,
+and considers the largest to be a vote in favour of the corresponding
+class (Setosa, Versicolour, Virginica, encoded in the training
+hashtable as 0, 1, and 2). It then takes the average of two functions
+applied to this result: a "first past the post" function, which simply
+awards 1 point for a correct 'vote', and 0 points for an incorrect
+vote, and a "proportional representation" function, which awards a
+float between 0 and 1 which represents the proportion of the absolute
+value in the correct register (the one corresponding to the correct
+class label) to the sum of absolute values in all three output
+registers. This results in a float between 0 and 1, with 0.33 as a
+baseline.
+
+Whichever fitness function is used, the fitness of an individual is
+taken to be the average of the image of that function over the entire
+training set (approximately 80% of the initial dataset).
+
+To speed things along, only the *effective instructions* of each
+individual -- the instructions that have a material impact on the
+output register(s) -- are passed to the VM for execution. These are
+filtered out using the #'remove-introns function, which implements a
+simple O(n) algorithm:
+
+LET R BE A REVERSAL OF THE INSTRUCTION SEQUENCE
+LET ER BE AN EMPTY LIST
+LET EFF BE AN EMPTY STACK
+INSERT OUTPUT REGISTER INDEX(ES) INTO ER
+FOR INSTRUCTION IN R:
+  IF DESTINATION-REGISTER(INSTRUCTION) IS IN ER, THEN:
+    PUSH INSTRUCTION ONTO EFF
+    INSERT SOURCE-REGISTER(INSTRUCTION) INTO ER
+RETURN EFF
+
+with only slight modifications needed to handle jump instructions. The
+resulting sequence EFF is stored in a field in the structure
+repesenting the individual, for quick access. Having this information
+on hand also comes in handy during the breeding process: when a child
+has an effective sequence that exactly matches one of their parents,
+then it is possible to simply copy over the matching parent's fitness
+score into the child's fitness field, potentially saving ourselves the
+trouble, later. 
+
+REPRODUCTION AND VARIATION
+
+The form of crossover used, in this programme, is two-point crossover.
+A clone P0' and P1' is made of each parent P0, P1, and then a
+subsequence in P0' of length n is replaced with a subsequence of
+length n in P1, and vice versa, yielding two offspring. There is then
+a fixed (but user-parameterizable) chance (currently set to 15%) that
+the child will mutate. Three kinds of mutation are currently possible,
+with 5% likelihood each:
+
+* an instruction-level mutation, whereby a single bit in the
+  instruction is flipped, changing either destination, source, or
+  operation;
+
+* a sequence-level mutation, whereby two randomly selected
+  instructions in a sequence are permuted;
+
+* another sequence-level mutation, whereby a new, randomly generated
+  instruction is appended to the end of the sequence.
+
+SELECTION AND POPULATION DYNAMICS
+
+Three modes of selection are made available by GENLIN: tournement
+(steady-state), roulette (generational), and greedy roulette
+(mixed). Tournement works by randomly selecting four individuals from
+the population, and measuring their fitness. The two least-fit
+individuals are destroyed, while the two fittest go on to sexually
+reproduce, using the crossover function just described. The victorious
+parents and their children are then returned to the population,
+leaving the size of the population unchanged.
+
+Roulette works by assigning to each individual a probability
+proportionate to their fitness, as compared to the fitness of their
+peers. These probabilities can be thought of as regions in a roulette
+wheel. The wheel is "spun" n times, where n = the size of the
+population, and the winners are paired off to mate, with each mating
+pair producing exactly two children. Up to this point, the roulette
+and greedy roulette algorithms are identical. Roulette proceeds to
+replace the *entire* population with the new generation, while greedy
+roulette concatenates the new population to the old, sorts by fitness,
+and populates the next generation with the top n candidates, again
+leaving the total size of the population unchanged.
+
+Each of these techniques carries with it the risk of eroding diversity
+in the population, with the attendant danger of trapping the
+evolutionary process in a local optimum (for example: when dealing
+with the unbalanced tic-tac-toe dataset, where X wins two out of three
+games, it is common for the population to converge on a fitness of
+0.666, which, of course, represents a ZeroR-like solution to the
+problem: just label every exemplar as positive!). One counter-measure
+to this, which I've found useful, is to subdivide the population into
+a collection of demes or "islands" (as recommended by Brameier and
+Banzhaf in Linear Genetic Programming). These islands are arranged in
+a ring, or circularly linked list, and are bridged only by periodic
+migration events. In the current set of experiments, twelve islands
+were used, with a population of 100 on each. The frequency and size of
+migrations is adjustable, and GENLIN supports both stochastic and
+elitist migrations. For the benchmark cases, I have migration set to
+occur every 1000 rounds of tournement selection, or every 100 rounds
+of roulette, with the 10% fittest individuals on any given island
+migrating to the next island in the ring. 
+
+This way, if a ZeroR-style genotype gains ascendance on one island,
+the other islands have time to produce a competing strain before their
+own diverse populations are wiped out by an invasive ZeroR species,
+which will take 12000 (or 1200) generations to creep around the entire
+island ring. The elitist character of both greedy roulette and
+tournement selection will stop the spread of ZeroR (at .666 fitness)
+the moment something better is available. 
+
+Until I had implemented the island architecture, the tic-tac-toe
+dataset was nearly unmanageable in its initial, unbalanced form, and
+so I had created a balanced, but abridged, version of it for
+development and testing purposes. The situation improved immensely
+upon dividing the population into separate islands, each with
+relatively small populations (100 denizens each, as compared to the
+500-individual population that I was using earlier on). Even now,
+there is a tendency of the evolution to gravitate towards the low
+hanging fruit of ZeroR -- something which could perhaps be mitigated
+by adding more islands, or by strongarming the fitness function in
+such a way as to penalize false positives more severely. 
+
+Since the three selection techniques differ so dramatically in
+structure, ensuring that each receives the same "computational budget"
+is somewhat tricky. It is easier to do the reverse: set a common
+target, and then gauge the computational resources that each technique
+needs to reach that target. I set the target at 0.97 fitness, across
+the board, for all datasets and selection methods. 
+
+PERFORMANCE REVIEW
+
+
+;;;; ON BUDGET ;;;;
+
+
+;; roulette, tournment, greedy-roulette
+   -> observations on differences
+   -> patterns in fitness, diversity
+   -> "computational budget"
+      - e.g. roulette achieved .97 fitness for ttt in 1453 "rounds"
+      while tournement took 4371. But "rounds" here just means: cycles
+      of the main execution loop, and tells little about what happens
+      inside the loop. (=\Each round is allocated to a given island (12
+      islands were used in all), to begin with.)
+
+      A round of roulette on a population of 100 involves 50 separate
+      mating events, and 100 fitness evaluations, while a rounds of
+      tournement involves only 1 mating event and four fitness
+      evaluations (complicated, somewhat, by the current setup, which
+      is configured to obtain a greater amount of genealogical data at
+      the expense of "performance" -- here, the children produced by a
+      mating event are also immediately evaluated for fitness, unless
+      it turns out that their effective instruction sequence entirely
+      coincides with one of their parents, in which case the fitness
+      of the corresponding parent is simply copied over. (This happens
+      also for roulette methods, when *track-genealogy* is set to T.)
+
+      (We could set a counter to count the number of fitness
+      evaluations that take place. That would probably be the simplest
+      way to compare the two different methods of selection.)
+
+      But there is an easier way to measure strict computational
+      overhead: LISP's #'time macro, which I wrapped around the main
+      execution loop in the #'evolve function. 
+
+
+-----------------------------------------------------------------------------
+RUNNING ROULETTE!...
+-----------------------------------------------------------------------------
+
+TARGET OF 0.97 REACHED AFTER 1453 ROUNDS
+Evaluation took:
+  126.180 seconds of real time
+  456.596621 seconds of total run time (453.176621 user, 3.420000 system)
+  [ Run times consist of 6.940 seconds GC time, and 449.657 seconds non-GC time. ]
+  361.86% CPU
+  314,423,276,964 processor cycles
+  36,381,492,512 bytes consed
+
+-----------------------------------------------------------------------------
+RUNNING TOURNEMENT!...
+-----------------------------------------------------------------------------
+
+TARGET OF 0.97 REACHED AFTER 4371 ROUNDS
+Evaluation took:
+  11.261 seconds of real time
+  39.399996 seconds of total run time (36.689996 user, 2.710000 system)
+  [ Run times consist of 0.370 seconds GC time, and 39.030 seconds non-GC time. ]
+  349.88% CPU
+  28,062,403,451 processor cycles
+  2,783,215,344 bytes consed
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; greedy-roulette: quite a bit faster than standard roulette, and
+   without nearly as much loss of diversity as you might think: the
+   "average similarity to best" statistic tended to be rather low on
+   most islands by the time the algorithm converged, and, more
+   interestingly, the island ecologies varied wildly -- with different
+   opcode preponderances, different "average similarity to best"
+   scores (ranging from virtual zero to nearly 90 %!), and so on.
+   Greedy roulette works the same as roulette, but with one major
+   difference: after the roulette brood has been generated, the new
+   and old populations are concatenated, and then sorted by fitness.
+   Only the fittest half is taken as the new population.
+
+
+
+;; genealogical data:
+   - propensity of offspring to be fitter, less fit, or as fit as
+   parents, and how this correlates -- roughly -- with selection
+   method. there seems to be a greater tendency, e.g., for the
+   children of a roulette mating event to be fitter than their
+   parents than we find with tournement, though I can't say I have
+   gathered a statistically significant number of trials on this
+   matter yet. 
+
+;; adjustable parameters
+;; params used
+
+
+--- Iris vs TTT:
+
+the most striking difference to be seen is in the shape of the fitness
+curves we find in each evolution. TTT tends to have a gradual build
+up, but an eventually very sharp, asymptotic curve -- concave. IRIS
+seems to almost always have a large convex improvement rate,
+characterized by a sharp initial spike, followed by slow and gradual
+improvement, and an eventual plateau. There are many factors
+differentiating the two datasets and their treatment by the algorithm:
+they differ greatly not only in the data itself, but in the fitness
+functions and representations used.
+
+IRIS                                                       TIC-TAC-TOE
+----------------------------------------------------------------------
+Numeric data                                            Symbolic data
+
+rather transparent representation                 somewhat convoluted 
+  -- each field was simply copied            -- boards represented as 
+  into an input registers                   ternary graycode integers
+
+fitness function:                           
+three output registers treated as           positive: x wins    
+'ballot boxes', each representing           negative: x loses
+a class. absolute value taken as            sigmoid function over axis
+"votes" for that class. fitness             fitness: sigmoid(correctness)
+measured as proportional correctness
+
+
+ADDITIONAL NOTES ABOUT DATA AND REPRESENTATION
+
+The choice of representation seemed to have an interesting impact on
+the course the evolutions took. To represent the tic-tac-toe boards, I
+used ternary Gray-code integers between #3r000000000 and #3r222222222,
+with each ternary 'bit' representing a cell on the board (0 for blank,
+1 for O, 2 for X). This fared substantially better, on average, than
+the standard ternary integer encoding -- where the evolution would
+tend to get snagged somewhere around 60-odd percent, as compared to
+the 98% accuracy typically scored when using Gray code. I wasn't able
+to reap any of the benefits conferred by Gray-coding, however, until I
+adjusted the primitive instruction set of the virtual machine I'd
+built to include a (protected) modulus operation -- it seemed to be
+what the algorithm needs to extract perninent information about the
+board from its ternary Gray code representation.
+
+One interesting, qualitative difference seen in the performance of the
+algorithm with these two datasets and fitness functions is in the
+shape of their respective fitness curves. The fitness curve (of
+fitness mapped against generations) seen in the tic-tac-toe trials --
+regardless of what selection method was used -- had a roughly
+exponential, or asymptotic, shape to it -- a long, slow buildup,
+wherein the fitness would hover around .66, followed by a rapid ascent
+as soon as it crossed a threshold of around .75 or so, soaring to .97
+within seconds. The iris curves, by contast, showed a steep, convex
+improvement at the beginning, followed by a slow, almost logarithmic
+quasi-plateau. (See attached log files -- ASCII-art graphs can be
+found near the end of the output.)
+
+OVERVIEW OF RESULTS
+
+
+;; insert a few ASCII graphs here.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

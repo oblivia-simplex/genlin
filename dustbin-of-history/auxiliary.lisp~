@@ -2,10 +2,10 @@
 ;; General Mathematical Helper Functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defpackage :genlin
+(defpackage :genetic.linear
   (:use :common-lisp))
 
-(in-package :genlin)
+(in-package :genetic.linear)
 
 
 (defun reverse-hash-table (hash-table &key (test 'eql))
@@ -15,15 +15,6 @@
     newtable))
 
 
-(defun roman (n)
-  (cond ((null n) "NULL")
-        ((= 0 n) "ZERO")
-        (t (format nil "~@R" n))))
-
-
-(defun divide (&rest args)
-  (if (some #'zerop args) 0
-      (reduce #'/ args)))
 
 (defun to-gray-vec (base digits value)
   ;; adapted from C programme found in Wikipedia's Gray Code entry
@@ -78,18 +69,17 @@ must be disjoint."
 
 
 (defun shuffle (seq)
-  (sort seq #'(lambda (x y) (declare (ignore x y))(= 0 (random 2)))))
+  (sort seq #'(lambda (x y) (= 0 (random 2)))))
 
-(defun n-rnd (low high &key (n 4))
+(defun n-rnd (low high &optional (r '()) (n 4))
   "Returns a list of n distinct random numbers between low and high."
-  (let ((r '()))
-    (declare (type fixnum low high n))
-    (declare (optimize speed))
-    (when (< (- high low) n)
-      (error "Error in n-rnd: interval too small: infinite loop"))
-   (loop (when (= (length r) n)
-            (return r))
-       (setf r (remove-duplicates (cons (+ low (random high)) r))))))
+  (declare (type fixnum low high n))
+  (declare (optimize speed))
+  (when (< (- high low) n)
+    (error "Error in n-rnd: interval too small: infinite loop"))
+  (loop (when (= (length r) n)
+          (return r))
+     (setf r (remove-duplicates (cons (+ low (random high)) r)))))
 
 ;; a helper:
 (defun sieve-of-eratosthenes (maximum) "sieve for odd numbers"
@@ -122,18 +112,13 @@ must be disjoint."
 (defun hrule ()
   (format t "-----------------------------------------------------------------------------~%"))
 
-(defun nil0 (n)
-  (if (null n) 0 n))
 
 (defun func->string (func)
-  (flet ((nil+1 (n)
-           (if (null n) 0 (1+ n))))
   (let* ((fm (format nil "~a" func))
          (i (mismatch fm "#<FUNCTION __"))
-         (o (subseq fm i (1- (length fm))))
-         (plain (subseq o (nil+1 (position #\: o :from-end t)))))
-    #+sbcl plain
-    #+clisp (subseq plain 0 (position #\space plain)))))
+         (o (subseq fm i (1- (length fm)))))
+    #+sbcl o
+    #+clisp (subseq o 0 (position #\space o))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; data processing tools
@@ -178,32 +163,6 @@ must be disjoint."
     (rec x nil)))
 
 
-(defun circularp (list)
-  "Checks to see if a list is circular."
-  ;; from stackoverflow
-  (loop for tortoise on list
-     for hare on (cdr list) by #'cddr
-     thereis (eq tortoise hare)))
-
-(defun de-ring (ring)
-  (let ((idx 0))
-    (loop for cell on (cdr ring) do
-         (incf idx)
-         (when (eq cell ring) (return)))
-    (subseq ring 0 idx)))
-
-(defun copy-circ (circle)
-  (circular (copy-seq (de-ring circle))))
-
-(defun circlen (circ)
-  (length (de-ring circ)))
-
-(defun subcirc (circ i j)
-  (values (subseq circ i (if (< j i) (+ j (circlen circ)) j))
-          (subseq circ j (if (< i j) (+ i (circlen circ)) i))))
-  
-
-
 (defun circular (list)
   (setf *print-circle* t)
   (setf (cdr (last list)) list))
@@ -211,49 +170,3 @@ must be disjoint."
 (defun make-iter (list)
   (lambda ()
     (pop list)))
-
-
-(defun rnd (integer)
-  (if (zerop integer) 0 (random integer)))
-
-(defmacro pick (seq)
-  `(elt ,seq (random (length ,seq))))
-
-
-        
-(defun timestring ()
-  (let ((day-names
-         '("Monday" "Tuesday" "Wednesday"
-           "Thursday" "Friday" "Saturday"
-           "Sunday")))
-    (multiple-value-bind
-          (second minute hour date month year day-of-week dst-p tz)
-        (get-decoded-time)
-      (declare (ignore dst-p))
-      (format nil ";; It is now ~2,'0d:~2,'0d:~2,'0d on ~a, ~d/~2,'0d/~d (GMT~@d)"
-              hour
-              minute
-              second
-              (nth day-of-week day-names)
-              date
-              month
-              year
-              (- tz)))))
-
-(defun guard-val (val minval maxval)
-  "Formats values for registers: guards against overflow, and type casts."
-  ;;(declare (type rational val minval maxval))
-  (let ((sign (if (< val 0) -1 1)))
-    ;;(declare (type rational sign))
-    (the real (cond ((zerop val) val)
-                            ((< (abs val) minval) (* sign minval))
-                            ((> (abs val) maxval) (mod val maxval))
-                            (t val)))))
-
-(defun safemod (x y)
-  (if (zerop y) y
-      (mod x y)))
-
-
-(defun square (x)
-  (expt x 2))

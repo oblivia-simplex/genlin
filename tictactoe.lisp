@@ -112,8 +112,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
   ;; this report function is turning into an awful piece of spaghetti code!
   (defun ttt-classification-report (&key (crt *best*) (ht) (out '0))
     (print-creature crt)
-    (let ((seq (creature-eff crt))
-          (correct 0)
+    (let ((correct 0)
           (incorrect 0)
           (failures '())
           (fitf (if (equalp '(0) out)
@@ -139,7 +138,7 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
                      (mapcar #'(lambda (x) (* (divide x sum) 100)) output)))
                (format t "~%~a~%" (int->board i))
              (cond ((eq fitf 'FB1)
-                    (cond ((fb1-correct output v)
+                    (cond ((per-case-binary crt (cons k v))
                            (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%"
                                      i (car output))
                            (incf correct))
@@ -248,3 +247,4 @@ which can be used to provide more training cases for the GP."
     
     
 ) ;; end of tictactoe environment
+(setf *stop* t)

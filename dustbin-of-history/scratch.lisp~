@@ -1,0 +1,31 @@
+
+;; bad code repetition here. once it's working, merge it with
+;; the main evolve loop, and parameterize away the difference between
+;; evolving hives and evolving individuals. 
+(defun evolve-hives (&key (hive-ring)
+                       (h-rounds)
+                       (h-smethod #'tournement!))
+  ;; no real reason to use lexicase for hives
+  (let ((h-stopwatch (make-stopwatch)))
+    (funcall h-stopwatch 'set)
+    (handler-case
+        (loop for i from 1 to (* h-rounds *number-of-islands*) do
+             (let ((hive (pop hive-ring)))
+               (labels ((dispatcher ()
+                          (when *parallel*
+                            (sb-thread:grab-mutex
+                             (hive-lock hive)))
+                          (funcall h-smethod hive)
+                          (when *parallel*
+                            (sb-thread:release-mutex (hive-lock hive))))
+                        (dispatch ()
+                          (incf (hive-era hive))
+                          (if *parallel*
+                              (sb-thread:make-thread #'dispatcher)
+                              (dispatcher))))
+                 (dispatch) ;; main event
+               
+              ))))))
+
+
+;;; alternative coverage algo

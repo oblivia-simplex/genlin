@@ -28,7 +28,8 @@
         (loop for i from 0 to (1- (length (funcall =label-scanner= 'get)))
            collect i)))
 
-(defun datafile->hashtable (&key filename)
+(defun datafile->hashtable (&key filename (rescaler *scale-data*))
+  
   (cond ((eq *dataset* :tictactoe)
          (ttt-datafile->hashtable :filename filename))
         (t (format t "FILENAME: ~a~%" filename)
@@ -41,8 +42,16 @@
                     (data-hash line ht)
                     (and *debug* (format t "READ|  ~a~%" line)))
                (close input))
-             ;;    (set-out-reg) ;; set the output registers, knowing the classes
-             ht))))
+             (case rescaler
+               ((:mean-variance)
+                (rescale-data ht
+                              :scaling-function
+                              #'listwise-mean-variances))
+               ((:linear-transform)
+                (rescale-data ht
+                              :scaling-function
+                              #'listwise-linear-transforms))
+               (otherwise ht))))))
 
 (defun attribute-string (vec)
   (let ((str ""))
@@ -52,37 +61,39 @@
                                         i #\Tab (aref vec (1- i)))))) str))
 
 ;; use the helper functions in the fitness section in here, instead. 
-(defun data-classification-report  (&key (crt *best*) (ht) (out '(0 1 2)))
+(defun data-classification-report  (&key (crt *best*) (ht) (out '(0 1 2))
+                                      (verbose *verbose-report*))
   (print-creature crt)
-  (let ((seq (creature-eff crt))
-        (correct 0)
+  (let ((correct 0)
         (incorrect 0)
         (names (mapcar #'string-upcase (funcall =label-scanner= 'get)))
         (failures '()))
     (loop for k being the hash-keys in ht using (hash-value v) do
          (let* ((output (mapcar #'abs (execute-creature crt
-                                                        :debug t
+                                                        :debug verbose
                                                         :input k
                                                         :output out)))
-                (sum (reduce #'+ output))
-                (certainties (loop for guess in output collect
-                                  (* (divide guess sum) 100)))
-                (success (= (elt output v)
-                            (reduce #'max output))))
+                (vote (register-vote output))
+                (success (= vote v))
+                (certainties
+                 (mapcar #'(lambda (x) (divide x (reduce #'+ output))) output)))
+                                                      
            (hrule)
            (format t "~A~%" (attribute-string k))
            (terpri)
            (loop for i from 0 to (1- (length output)) do
-                (format t "CLASS ~A: ~f%~%" (elt names i)
-                        (elt certainties i)))
+                (format t "CLASS ~A: ~5,2f %~%" (elt names i)
+                        (* 100 (elt certainties i))))
            (cond (success
-                  (format t "~%CORRECTLY CLASSIFIED AS ~A~%"
-                          (elt names v))
+                  (when verbose
+                    (format t "~%CORRECTLY CLASSIFIED AS ~A~%"
+                                        (elt names v)))
                   (incf correct))
                  ((not success)
-                  (format t "~%INCORRECTLY CLASSIFIED. ")
-                  (format t "WAS ACTUALLY ~A~%"
-                          (elt names v))
+                  (when verbose
+                    (format t "~%INCORRECTLY CLASSIFIED. ")
+                    (format t "WAS ACTUALLY ~A~%"
+                            (elt names v)))
                   (incf incorrect)
                   (push k failures))))
          (hrule))
@@ -144,3 +155,82 @@
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;; is there any reason why I'm using vecs instead of lists for
+;; the ht keys?
+
+(defun listwise-sums (list-of-lists &key (pre nil))
+  (when (null pre)
+    (setf pre (lambda (x) x))) ;; set pre to nop if nil
+  (reduce #'(lambda (x y) ;; create list of abs sums
+              (mapcar #'(lambda (a b) (+ (funcall pre a) (funcall pre b)))
+                      x y)) list-of-lists))
+
+(defun listwise-means (list-of-lists)
+  (mapcar #'(lambda (x) (divide x (length list-of-lists)))
+          (listwise-sums list-of-lists :pre #'abs)))
+
+(defun listwise-variances (list-of-lists)
+  (let* ( (meanlist (listwise-means list-of-lists))
+         (deviations (mapcar #'(lambda (l) (mapcar #'- l meanlist))
+                             list-of-lists))
+         (devmeans (listwise-means deviations))
+         (variancelists (loop for klist in list-of-lists collect
+                             (mapcar #'(lambda (x y) (expt (- x y) 2))
+                                     klist devmeans)))
+         (variances (listwise-means variancelists)))
+    variances))
+
+(defun listwise-stddevs (list-of-lists)
+  (mapcar #'(lambda (x) (expt x 1/2)) (listwise-variances list-of-lists)))
+         
+
+(defun listwise-mean-variances (list-of-lists)
+  (let ((meanlist (listwise-means list-of-lists))
+        (devilist (listwise-stddevs list-of-lists)))
+  (loop for list in list-of-lists collect
+       (mapcar #'(lambda (x y z)
+                   (divide (- x y) z))
+               list meanlist devilist))))
+
+
+(defun listwise-maxima (list-of-lists)
+  (reduce #'(lambda (x y) ;; create list of abs sums
+              (mapcar #'max x y)) list-of-lists))
+
+(defun listwise-minima (list-of-lists)
+  (reduce #'(lambda (x y) ;; create list of abs sums
+              (mapcar #'min x y)) list-of-lists))
+
+(defun listwise-linear-transforms (list-of-lists)
+  (let* ((maxes (listwise-maxima list-of-lists))
+         (mins (listwise-minima list-of-lists))
+         (rescaled (loop for list in list-of-lists collect
+                        (mapcar #'(lambda (initial maximum minimum)
+                                    (divide (- initial minimum)
+                                            (- maximum minimum)))
+                                list maxes mins))))
+         rescaled))
+
+(defun listwise-scale-by (list-of-lists factor)
+  (loop for list in list-of-lists collect
+       (mapcar #'(lambda (x) (* x factor)) list)))
+
+(defun rescale-data (ht &key (scaling-function
+                              #'listwise-linear-transforms)
+                          (scaling-factor 8))
+  (let* ((newht (make-hash-table))
+         (kvecs (loop for k being the hash-keys in ht collect k))
+         (klists (mapcar #'(lambda (x) (coerce x 'list)) kvecs))
+         (rescaled (listwise-scale-by
+                    (funcall scaling-function klists)
+                    scaling-factor)))
+    (mapcar #'(lambda (x y) (setf (gethash (coerce x 'vector) newht)
+                             (gethash y ht)))
+            rescaled kvecs)
+    (format t "[+] RESCALED DATA USING ~A~%"
+            (func->string scaling-function))
+    newht))
+
+
+

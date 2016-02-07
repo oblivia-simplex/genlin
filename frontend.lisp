@@ -30,7 +30,7 @@
                    "stackmachine.lisp"
                    "datafiler.lisp"
                    "tictactoe.lisp"
-                   "iris.lisp"
+;;                   "iris.lisp"
                    "genlin.lisp") do
        (loadfile (concatenate 'string *project-path* f))))
 
@@ -116,8 +116,8 @@ keywords (prefixed by a colon) need no quotes.~%~%")
                               param (symbol-value param))))) T))))
 
     ;;           (format t "~S = ~S~%" param (symbol-value param))))))
-    
-  (defun menu ()
+
+(defun menu ()
     "The front end and user interface of the programme. Allows the user
 to tweak a number of dynamically scoped, special variables, and then
 launch setup and evolve."
@@ -126,10 +126,7 @@ launch setup and evolve."
                (and (numberp n)
                     (<= 0 n)
                     (< n (length *tweakables*))))))    
-    (let ((sel)
-          (target)
-          (rounds)
-          (method))
+    (let ((sel))
       (loop do
            (hrule)
            (print-tweakables)
@@ -151,28 +148,6 @@ launch setup and evolve."
            (format t "~A IS NOW SET TO ~A~%"
                    (elt *tweakables* sel)
                    (symbol-value (elt *tweakables* sel)))))))
-           ;;(format t "ENTER :Q TO RUN WITH THE CHOSEN PARAMETERS, OR :C TO CONTINUE TWEAKING.~%~~ ")
-;           (clear-input)
-      ;;(when (eq (read) :Q) (return)))
-      ;; setup was here
-;;       (format t "THE EVOLUTION WILL RUN UNTIL EITHER A TARGET FITNESS IS~%")
-;;       (format t "REACHED, OR A MAXIMUM NUMBER OF CYCLES HAS BEEN EXCEEDED.~%~%")
-;;       (format t "ENTER TARGET FITNESS (A FLOAT BETWEEN 0 AND 1).~%~~ ")
-;; ;      (clear-input)
-;;       (setf target (read))
-;;       (format t "~%CHOOSE A SELECTION METHOD: TOURNEMENT, ROULETTE, OR GREEDY-ROULETTE?~%ENTER :T, :R, or :G.~%~~ ")
-;; ;      (clear-input)
-;;       (setf *selection-method* (read))
-;;       (format t "
-;; ENTER MAXIMUM NUMBER OF CYCLES (A CYCLE HAS TAKEN PLACE WHEN A
-;; BREEDING EVENT HAS ELAPSED ON EACH ISLAND. IN TOURNMENT MODE, THIS
-;; AMOUNTS TO TWO DEATHS, ONE INSTANCE OF SEXUAL REPRODUCTION, AND TWO
-;; BIRTHS. IN ROULETTE MODE, THIS AMOUNTS TO N DEATHS, N/2 INSTANCES OF
-;; SEXUAL REPRODUCTION, AND N BIRTHS, WHERE N = THE TOTAL POPULATION
-;; COUNT).~%~~ ")
-;; ;      (clear-input)
-;;       (setf *rounds* (read))
-;;       (format t "~%COMMENCING EVOLUTIONARY PROCESS. PLEASE STANDBY.~%~%"))))
 
 
 (defun sanity-check ()
@@ -187,7 +162,8 @@ and eventually, sanitize the input."
     (when (eq *selection-method* :lexicase)
       (format t "WARNING: *TRACK-GENEALOGY* CURRENTLY INCOMPATIBLE")
       (format t " WITH LEXICASE SELECTION.~%DISABLING.")
-      (setf *track-genealogy* nil))))
+      (setf *track-genealogy* nil)
+      (setf *case-storage* t))))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -213,14 +189,27 @@ accidentally clobbered."
 
 
 
+
 (defun setup-data (&key (ratio *training-ratio*)
                      (dataset *dataset*)
                      (selection-method *selection-method*)
+                     (pack-selection-method *pack-selection-method*)
                      (fitfunc-name)
                      (filename *data-path*))
   (let ((hashtable)
         (training+testing))
+
     (setf *method* (case selection-method
+                     ((:tournement) #'tournement!)
+                     ((:roulette) #'roulette!)
+                     ((:greedy-roulette) #'greedy-roulette!)
+                     ((:lexicase) #'lexicase!)
+                     (otherwise (progn
+                                  (format t "WARNING: METHOD NAME NOT RECO")
+                                  (format t "GNIZED. USING #'TOURNEMENT!.~%")
+                                  #'tournement!))))
+
+    (setf *pack-method* (case pack-selection-method
                      ((:tournement) #'tournement!)
                      ((:roulette) #'roulette!)
                      ((:greedy-roulette) #'greedy-roulette!)
@@ -261,24 +250,6 @@ accidentally clobbered."
          
     training+testing))
 
-(defun main ()
-  (format t "~A~%" (timestring))
-  (when (parse-command-line-args)
-    (when *menu* (menu))
-    (setup-data)   ;; load the dataset, build the hashtables
-    (update-dependent-machine-parameters)
-    (sanity-check) ;; makes things slightly less likely to explode
-    (setup-population)
-    (print-params)
-    (format t "          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-~%")
-    (hrule)
-    (evolve :target *target* :rounds *rounds*)
-
-;    (handler-case
-        (progn (write-parameter-file *last-params-path*)
-               (format t "PARAMETERS SAVED IN ~A~%" *last-params-path*))))
- ;;     (error () (format t "ERROR SAVING PARAMETERS.~%")))))
-  
 
 ;; todo: write a generic csv datafile->hashtable loader, for
 ;; deployment on arbitrary datasets. 
@@ -293,18 +264,20 @@ accidentally clobbered."
 
 (defun save-island-ring (island-ring filename)
   (let ((copy (de-ring island-ring)))
-    (mapcar #'(lambda (x) (setf (island-lock x) 'mutex-unreadable
-                           (island-logger x) 'logger-unreadable))
-            copy)
-    (with-open-file (stream filename :direction :output)
+    ;; (mapcar #'(lambda (x) (setf (island-lock x) 'mutex-unreadable
+    ;;                        (island-logger x) 'logger-unreadable
+    ;;                        (island-coverage x) 'coverage-unreadable))
+    ;;         copy)
+    (with-open-file (stream filename :direction :output :if-exists :overwrite
+                            :if-does-not-exist :create)
       (format stream "~A~%~%;; tweakable parameters are:~%'(" (timestring))
       (loop for tweak in *tweakables* do
            (format stream "~S ~S~%" tweak (symbol-value tweak)))
       (format stream ")~%~%;; +ISLAND-RING+ below: ~%~%~S" +ISLAND-RING+))))
 
-(defun restore-island-ring (filename)
-  ;; todo
-  )
+;; (defun restore-island-ring (filename)
+;;   ;; todo
+;;   )
 
 ;; Note: it should be simple enough to generalize the ttt data processing
 ;; technique.
@@ -317,3 +290,22 @@ accidentally clobbered."
 ;;   values, when unconstrained by other fields (the mutual constraints,
 ;;   of course, are an impt aspect of the pattern that the algo's meant
 ;;   to detect). 
+
+
+(defun main (&key (run t))
+  (format t "~A~%" (timestring))
+  (when (parse-command-line-args)
+    (when *menu* (menu))
+    (setup-data)   ;; load the dataset, build the hashtables
+    (update-dependent-machine-parameters)
+    (sanity-check) ;; makes things slightly less likely to explode
+    (setup-population)
+    (print-params)
+    (when run
+      (format t "          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-~%")
+      (hrule)
+      (evolve :target *target* :rounds *rounds*)
+      (write-parameter-file *last-params-path*)
+      (format t "PARAMETERS SAVED IN ~A~%" *last-params-path*)
+      (save-island-ring +island-ring+ "ISLAND-RING.SAV")
+      (format t "ISLAND-RING SAVED IN ISLAND-RING.SAV~%"))))

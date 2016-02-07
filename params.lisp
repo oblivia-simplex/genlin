@@ -27,10 +27,11 @@
 (defparameter *stat-interval* 1000
   "Number of cycles per verbose update on the evolutionary process.")
 
-(defparameter *dataset* :tictactoe
-  "Currently accepts only two values: :tictactoe and :iris. This tells
-     the programme which dataset to load, and which related data
-     processing functions to use.")
+(defparameter *dataset* :iris
+  "Just the name for your dataset. Mostly used for labelling output,
+     with the exception of :tictactoe, which tells the programme to use a
+     particular data-processing module. More a hook for customizaiton
+     than anything else.")
 
  
 (defparameter *data-path* (if (eq *dataset* :tictactoe)
@@ -44,11 +45,15 @@
 
 ;; Vars and types:
 
-(defstruct creature fit seq eff gen mut cas home parents) 
+(defstruct creature fit seq eff gen mut cas typ home parents pack) 
 
-(defstruct island id of deme packs best era logger lock)
+(defstruct island id of deme packs best era logger lock coverage method)
+
+
 
 (defvar +ISLAND-RING+)
+
+(defvar +HIVE-RING+)
 
 (setf +ISLAND-RING+ '())
 
@@ -271,7 +276,7 @@
 
 
 
-(defparameter *case-storage* t
+(defparameter *case-storage* nil
   "For efficiency at the cost of memory allocation, set to T and have
      creatures store hash-tables of the testing cases they are able to
      correctly classify. Principally for use with the Lexicase selection
@@ -284,7 +289,7 @@
 
 ;; lexicase is doing quite badly right now.
 
-(defparameter *sex* t
+(defparameter *sex* :1pt
   "Sexual reproduction used when set to T. Cloning, otherwise (with
      mutation).")
 
@@ -305,7 +310,43 @@
 
 (defparameter *lexicase-pool-ratio* 1)
 
+(defparameter *scale-data* nil
+  "Apply scaling function to keys in the hashtable, when using numeric
+     data. Accepts a keyword value of: :linear-transform,
+     or :mean-variance. Data used as-is if set to nil.")
 
+(defparameter *verbose-report* t
+  "Print a thorough report of GP results on the testing set. You might
+     want to disable this for very large datasets.")
+
+(defparameter *monitor-coverage* t)
+
+
+(defparameter *pack-count* 100)
+
+(defparameter *pack-thresh* 400
+  "If *PACKS* is set to T, then once the most difficult case has been
+     correctly classified *PACK-THRESH* times, a new population of pack
+     leaders will emerge, and coodinate the actions of its underlings.")
+
+(defparameter *packs* t)
+
+(defvar *pack-method*)
+
+(defparameter *pack-selection-method* :lexicase)
+
+(defparameter *mingle-rate* 2/3)
+
+(defparameter *lexicase-elitism* 3/4)
+
+(defparameter *remove-introns* nil)
+
+(defparameter *records* '())
+
+(defvar *ttl* nil
+  "How many instructions can be executed in a sequence before the
+     execution halts? Typically set to a multiple of *max-len* ((*
+     *max-len* 1), for example).)")
 
 (defparameter *tweakables*
   '(*menu*
@@ -316,14 +357,21 @@
     *data-path*
     *testing-data-path*
     *split-data*
+    *scale-data*
     *training-ratio*
     *selection-method*
     *lexicase-combatant-ratio*
+    *lexicase-elitism*
     *case-storage* ;;; case storage is buggy right now
     *number-of-islands*
     *population-size*
+    *packs*
+    *pack-count*
+    *pack-thresh*
+    *pack-selection-method*
     *sex*
     *mutation-rate*
+    *mingle-rate*
     *metamutation-rate*
     *migration-rate*
     *migration-size*
@@ -332,7 +380,9 @@
     *track-genealogy*
     *min-len*
     *max-len*
+    *ttl* 
     *max-start-len*
+    *remove-introns*
     *maxval*
     *opstring*
     *opcode-bits*
@@ -340,6 +390,7 @@
     *destination-register-bits*
     *rounds*
     *target*
+    *verbose-report*
     *params-path*
     *last-params-path*))    
 
@@ -351,72 +402,15 @@
 
 ;;; advantages: intron detection?
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;;; global dynamic variables -- not sure if they should be saved here
+;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+;;; how to do it: when the # of times the HARDEST problem has been solved
+;;; reaches a certain threshold, make the transition to hives.
+;;; populate the queens field of the islands with fresh populations.
+;;; their jump is to delegate exemplars to the trained population.
+;;; migration can occur only between queened islands, if at all.
 
 
 
