@@ -24,6 +24,10 @@ The problems that the current version works with are not, in any
 sense, interesting problems, but tweaking and observing an evolving
 population of algorithms can be fun. 
 
+UPDATE: an extended set of thirty-some machine instructions has been
+added, along with support for breeding 'packs' of algorithms that
+operate in a hierarchical fashion. 
+
 To compile a standalone binary (assuming you have SBCL installed
 somewhere on your system):
 
@@ -43,8 +47,9 @@ code for details.
 
 Beware of cruft.
 
+;; It is now 18:17:37 on Tuesday, 9/02/2016 (GMT-4)
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-                             HELP MESSAGE
+                                 GENLIN
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 Many of the dynamic (global) parameters in GENLIN can be set using
@@ -61,70 +66,166 @@ keywords (prefixed by a colon) need no quotes.
      verbose, live disassembly of the instructions being excuted in the
      virtual machine, along with a few other pieces of information. Do
      not use in conjunction with *parallel.*
-[2] --stat-interval  1000
+[2] --gc  NIL
+     NIL
+[3] --stat-interval  200
      Number of cycles per verbose update on the evolutionary process.
-[3] --parallel  T
+[4] --parallel  NIL
      Enables multithreading when set to T, allotting the evolutionary
      process on each island its own thread.
-[4] --dataset  :TICTACTOE
-     Currently accepts only two values: :tictactoe and :iris. This tells
-     the programme which dataset to load, and which related data
-     processing functions to use.
-[5] --data-path  "./datasets/TicTacToe/tic-tac-toe.data"
+[5] --dataset  :IRIS
+     Just the name for your dataset. Mostly used for labelling output,
+     with the exception of :tictactoe, which tells the programme to use a
+     particular data-processing module. More a hook for customizaiton
+     than anything else.
+[6] --data-path  "~/Projects/genlin/datasets/Iris/iris.data"
      Path to the data file. Mismatching *data-path* and *dataset* will
      almost certainly break something, at the moment.
-[6] --training-ratio  4/5
+[7] --testing-data-path  NIL
+     Specify an independent testing dataset. If left as nil, then the
+     main dataset will be partitioned according to --training-ratio.
+[8] --split-data  T
+     Set to nil to use the same dataset for both training and testing. I
+     won't judge. *TRAINING-RATIO* is ignored if this is to set to nil.
+[9] --scale-data  NIL
+     Apply scaling function to keys in the hashtable, when using numeric
+     data. Accepts a keyword value of: :linear-transform,
+     or :mean-variance. Data used as-is if set to nil.
+[10] --training-ratio  4/5
      The ratio of training cases to total cases (the remainder being
      reserved for testing.
-[7] --method-key  :TOURNEMENT
+[11] --selection-method  :LEXICASE
      Determines which selection method will be used to select the parents 
     of each subsequent generation. Accepts as values the keywords: 
-    :tournement, :roulette, or :greedy-roulette.
-[8] --number-of-islands  12
+    :tournement, :roulette, :greedy-roulette, or :lexicase.
+[12] --lexicase-combatant-ratio  1
+     NIL
+[13] --lexicase-elitism  3/4
+     NIL
+[14] --case-storage  NIL
+     For efficiency at the cost of memory allocation, set to T and have
+     creatures store hash-tables of the testing cases they are able to
+     correctly classify. Principally for use with the Lexicase selection
+     method.
+[15] --number-of-islands  8
      Islands are relatively isolated pockets in the population, linked
      in a ring structure and bridged by occasional migration. Can be set
      to any integer > 0.
-[9] --population-size  1200
+[16] --population-size  800
      Remains constant throughout the evolution. Should be > 40.
-[10] --mutation-rate  15
+[17] --packs  T
+     NIL
+[18] --pack-count  100
+     The number of packs to establish on an island, once pack-formation
+     begins.
+[19] --pack-thresh-by-fitness  0.9
+     If *PACKS* is set to T, then pack formation will begin on an island
+     when its best fitness score surpasses *PACK-THRESH-BY-FITNESS*.
+[20] --pack-thresh-by-era  2000
+     If *PACKS* is T, then pack-formation will begin on an island once
+    it surpasses this era.
+[21] --pack-thresh-by-difficulty  100
+     If *PACKS* and *CASE-STORAGE* are both set to T, then pack
+     formation will begin on an island when it has witnessed
+     *PACK-THRESH-BY-DIFFICULTY* successful classifications of its most
+     difficult (least-often-correctly-classified) case.
+[22] --pack-selection-method  :LEXICASE
+     NIL
+[23] --sex  :1PT
+     Sexual reproduction used when set to T. Cloning, otherwise (with
+     mutation).
+[24] --mutation-rate  3/10
      Chance of mutation per spawning event, expressed as percentage.
-[11] --migration-rate  1000
-     Frequency of migrations, measured in main loop cycles.
-[12] --migration-size  10
-     Percentage of population that leaves one deme for the next, 
-     per migration event.
-[13] --greedy-migration  T
-     If set to T, migrants are always the fittest in their deme.
-     Otherwise random.
-[14] --track-genealogy  T
+[25] --mingle-rate  2/3
+     NIL
+[26] --metamutation-rate  1/10
+     If over 0, then the rate of mutation is localized for each creature, and is     itself susceptible to mutation.
+[27] --migration-rate  200
+     Frequency of migrations, measured in generations.
+[28] --migration-size  1/10
+     Fraction of population that leaves one deme for the next, per
+     migration event.
+[29] --greedy-migration  1
+     If set to 1, migrants are always the fittest in their deme. If set to a
+     fraction lesser than 1, then migrants will be the top *migration-size*
+     percent of a randomly-selected *greedy-migration* fraction of the
+     deme.
+[30] --max-pack-size  8
+     NIL
+[31] --track-genealogy  NIL
      If set to T, then genealogical lineage and statistics are computed
      at runtime. Informative, but increases overhead.
-[15] --min-len  2
+[32] --min-len  2
      The minimum creature length, measured in instructions.
-[16] --max-len  256
+[33] --max-len  256
      The maximum creature length, measured in instructions.
-[17] --max-start-len  25
+[34] --ttl  256
+     How many instructions can be executed in a sequence before the
+     execution halts? Typically set to a multiple of *max-len* ((*
+     *max-len* 1), for example).)
+[35] --max-start-len  25
      The maximum length of creatures in the initial population.
-[18] --opcode-bits  3
+[36] --remove-introns  NIL
+     NIL
+[37] --maxval  65536
+     NIL
+[38] --opstring  NIL
+     The user may supply a list of opcode mnemonics to reconfigure the
+     virtual machine's primitive instruction set. These operations
+     should be entered as keywords, separated by commas, with no
+     spaces. (UNSTABLE.)
+[39] --opcode-bits  4
      The number of bits in an instruction used to determine the operation. 
-     Can be set to 1, 2, or 3.
-[19] --source-register-bits  3
+     Can be set to 1, 2, 3, or 4.
+[40] --operations  #(#<FUNCTION GENLIN::ADD> #<FUNCTION GENLIN::SUB>
+                     #<FUNCTION GENLIN::DIV> #<FUNCTION GENLIN::MUL>
+                     #<FUNCTION GENLIN::BIN> #<FUNCTION GENLIN::NIB>
+                     #<FUNCTION GENLIN::NBN> #<FUNCTION GENLIN::CAL>
+                     #<FUNCTION GENLIN::LOD> #<FUNCTION GENLIN::STO>
+                     #<FUNCTION GENLIN::LEA> #<FUNCTION GENLIN::MOV>
+                     #<FUNCTION GENLIN::XOR> #<FUNCTION GENLIN::IOR>
+                     #<FUNCTION GENLIN::CNJ> #<FUNCTION GENLIN::PMD>
+                     #<FUNCTION GENLIN::CMP> #<FUNCTION GENLIN::JMP>
+                     #<FUNCTION GENLIN::JLE> #<FUNCTION GENLIN::HLT>
+                     #<FUNCTION GENLIN::PSH> #<FUNCTION GENLIN::PRG>
+                     #<FUNCTION GENLIN::PEX> #<FUNCTION GENLIN::PIN>
+                     #<FUNCTION GENLIN::CLR> #<FUNCTION GENLIN::HLT>
+                     #<FUNCTION GENLIN::NOP> #<FUNCTION GENLIN::NOP>
+                     #<FUNCTION GENLIN::NOP> #<FUNCTION GENLIN::NOP>
+                     #<FUNCTION GENLIN::NOP> #<FUNCTION GENLIN::NOP>)
+     NIL
+[41] --source-register-bits  3
      The number of bits used to calculate the source register in each
      instruction. 2^n readable registers will be allocated where n is the
      value of this parameter.
-[20] --destination-register-bits  2
+[42] --destination-register-bits  2
      The number of bits used to calculate the destination register. If
      left smaller than *source-register-bits* then there will be 2^(n-m)
      read-only registers, where n is the value of *source-register-bits*
      and m is the value of this parameter.
-[21] --rounds  10000
+[43] --max-cal-depth  1
+     Determines how many nested function calls are permitted, though CAL
+     and BIN, in the virtual machine. What is gained in expressive
+     power is paid for in time and island desynchronization.
+[44] --rounds  10000
      The evolution will run until either a total number of mating events
      have elapsed on each island, or a pre-established fitness target
      has been reached. This determines the former.
-[22] --target  0.95
+[45] --target  0.95
      The evolution will run until either a total number of mating events
      have elapsed on each island, or a pre-established fitness target
      has been reached. This determines the latter.
-
-To see this help menu, use the "-h" option. "--help" will bring up
-SBCL's help menu. 
+[46] --verbose-report  T
+     Print a thorough report of GP results on the testing set. You might
+     want to disable this for very large datasets.
+[47] --save-every  1000
+     Save the island ring every *SAVE-EVERY* rounds. Not a bad idea, so
+     long as memory fault bugs persist.
+[48] --restore-island-ring  NIL
+     Loads a saved island ring from supplied path name.
+[49] --params-path  NIL
+     An parameter file can be supplied, if desired. It should consist of
+     a series of Lisp S-expressions of the form 
+     (setf *PARAMETER-NAME* parameter-value)
+[50] --last-params-path  "LAST-PARAMS.SAV"
+     File in which to store the parameters used on the last run.
