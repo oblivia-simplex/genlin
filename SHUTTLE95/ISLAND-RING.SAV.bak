@@ -215,7 +215,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24=#<FUNCTION GENLIN::LEXICASE!>)
     #S(GENLIN::ISLAND
        :ID 1
        :OF 8
@@ -668,7 +668,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     #S(GENLIN::ISLAND
        :ID 2
        :OF 8
@@ -830,7 +830,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     #S(GENLIN::ISLAND
        :ID 3
        :OF 8
@@ -1183,7 +1183,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     #S(GENLIN::ISLAND
        :ID 4
        :OF 8
@@ -1503,7 +1503,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     #S(GENLIN::ISLAND
        :ID 5
        :OF 8
@@ -1781,7 +1781,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     #S(GENLIN::ISLAND
        :ID 6
        :OF 8
@@ -2015,7 +2015,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     #S(GENLIN::ISLAND
        :ID 7
        :OF 8
@@ -2360,7 +2360,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #24#)
     . #1#)
 )             :TYP NIL
                  :HOME 7
@@ -2447,7 +2447,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #32#)
     . #1#)
 )       :HOME 7
                  :PARENTS NIL
@@ -2531,7 +2531,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #26#)
     . #1#)
 )RENTS NIL
                       :PACK NIL)
@@ -2594,7 +2594,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #42#)
     . #1#)
 )    :EFF #340#
                       :GEN 70
@@ -2710,7 +2710,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #55#)
     . #1#)
 )    :SEQ #358=#(780 903 903 897 897 385 385 715 897 897 897 897
                              897 524 524 780 780)
@@ -2902,7 +2902,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #57#)
     . #1#)
 )EFF #385#
                  :GEN 53
@@ -3071,7 +3071,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #54#)
     . #1#)
 )7#
                  :GEN 48
@@ -3234,7 +3234,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #48#)
     . #1#)
 )ACK NIL)
               #415# #415# #415# #415# #415#
@@ -3424,7 +3424,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #67#)
     . #1#)
 )               :PACK NIL)
               #444=#S(GENLIN::CREATURE
@@ -3624,7 +3624,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #70#)
     . #1#)
 )24
                              780)
@@ -3920,7 +3920,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #80#)
     . #1#)
 )      #S(GENLIN::CREATURE
                  :FIT NIL
@@ -4127,7 +4127,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #79#)
     . #1#)
 )                   :SEQ #529=#(897 715 603 385 715 715 897 897 897 897 897
                                   524 780)
@@ -4533,7 +4533,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #88#)
     . #1#)
 )IN::CREATURE
                  :FIT NIL
@@ -4624,7 +4624,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #80#)
     . #1#)
 )        :FIT NIL
                       :SEQ #578=#(0 897 1309 667 524 524 524 516 548 548)
@@ -4899,7 +4899,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #82#)
     . #1#)
 ) #602=#(731 897 1309 667 524 524 524 1821 516)
                       :EFF #602#
@@ -5437,7 +5437,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #80#)
     . #1#)
 )     #S(GENLIN::CREATURE
                  :FIT NIL
@@ -5965,7 +5965,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #92#)
     . #1#)
 )IL)
               #682=#S(GENLIN::CREATURE
@@ -6596,7 +6596,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #100#)
     . #1#)
 ) NIL)
               #S(GENLIN::CREATURE
@@ -6841,7 +6841,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #105#)
     . #1#)
 )IL
                  :SEQ #744=#(996 6 5 5 536 1130 2014 459 0)
@@ -7043,7 +7043,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #101#)
     . #1#)
 )                 :TYP NIL
                  :HOME 7
@@ -7319,7 +7319,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #97#)
     . #1#)
 )#735#
                  :GEN 1
@@ -7590,7 +7590,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #100#)
     . #1#)
 )          :EFF #743#
                  :GEN 0
@@ -7732,7 +7732,7 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #105#)
     . #1#)
 )           :GEN 1
                       :MUT 1
@@ -8205,6 +8205,6 @@
        :LOGGER NIL
        :LOCK NIL
        :COVERAGE NIL
-       :METHOD NIL
+       :METHOD #99#)
     . #1#)
 )
