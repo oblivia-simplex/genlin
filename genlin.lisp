@@ -560,8 +560,8 @@ fitness function."
 
 (defun solved? (exemplar creature island)
   "Returns nil if the creature has not solved that exemplar, on this island."
-  (gethash (creature-seq creature)
-           (gethash exemplar (island-coverage island))))
+  (and *case-storage* (gethash (creature-seq creature)
+                               (gethash exemplar (island-coverage island)))))
 
 
 (defun record-case (exemplar creature island)
@@ -1620,3 +1620,4 @@ without incurring delays."
          span)))
      
 
+(stop)
