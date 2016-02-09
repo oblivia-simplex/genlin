@@ -18,13 +18,13 @@
      virtual machine, along with a few other pieces of information. Do
      not use in conjunction with *parallel.*")
 
-(defparameter *parallel* t
+(defparameter *parallel* nil
   "Enables multithreading when set to T, allotting the evolutionary
      process on each island its own thread.")
 
 (defparameter *VERBOSE* nil)
 
-(defparameter *stat-interval* 1000
+(defparameter *stat-interval* 200
   "Number of cycles per verbose update on the evolutionary process.")
 
 (defparameter *dataset* :iris
@@ -45,7 +45,7 @@
 
 ;; Vars and types:
 
-(defstruct creature fit seq eff gen mut cas typ home parents pack) 
+(defstruct creature fit seq eff gen mut typ home parents pack) 
 
 (defstruct island id of deme packs best era logger lock coverage method)
 
@@ -83,8 +83,8 @@
   "Fraction of population that leaves one deme for the next, per
      migration event.") ;; percent
 
-(defparameter *migration-rate* 1000
-  "Frequency of migrations, measured in main loop cycles.")
+(defparameter *migration-rate* 200
+  "Frequency of migrations, measured in generations.")
 
 (defparameter *greedy-migration* 1
   "If set to 1, migrants are always the fittest in their deme. If set to a
@@ -92,7 +92,7 @@
      percent of a randomly-selected *greedy-migration* fraction of the
      deme.")
 
-(defparameter *track-genealogy* t
+(defparameter *track-genealogy* nil
   "If set to T, then genealogical lineage and statistics are computed
      at runtime. Informative, but increases overhead.")
   
@@ -122,7 +122,7 @@
      have elapsed on each island, or a pre-established fitness target
      has been reached. This determines the latter.")
 
-(defparameter *selection-method* :tournement
+(defparameter *selection-method* :lexicase
   "Determines which selection method will be used to select the parents 
     of each subsequent generation. Accepts as values the keywords: 
     :tournement, :roulette, :greedy-roulette, or :lexicase.")
@@ -274,8 +274,6 @@
   "Set to nil to use the same dataset for both training and testing. I
      won't judge. *TRAINING-RATIO* is ignored if this is to set to nil.")
 
-
-
 (defparameter *case-storage* nil
   "For efficiency at the cost of memory allocation, set to T and have
      creatures store hash-tables of the testing cases they are able to
@@ -304,7 +302,6 @@
      a series of Lisp S-expressions of the form 
      (setf *PARAMETER-NAME* parameter-value)")
 
-
 (defparameter *last-params-path* "./last.params"
   "File in which to store the parameters used on the last run.")
 
@@ -321,13 +318,23 @@
 
 (defparameter *monitor-coverage* t)
 
+(defparameter *pack-count* 100
+  "The number of packs to establish on an island, once pack-formation
+     begins.")
 
-(defparameter *pack-count* 100)
+(defparameter *pack-thresh-by-era* 2000
+  "If *PACKS* is T, then pack-formation will begin on an island once
+    it surpasses this era.")
 
-(defparameter *pack-thresh* 400
-  "If *PACKS* is set to T, then once the most difficult case has been
-     correctly classified *PACK-THRESH* times, a new population of pack
-     leaders will emerge, and coodinate the actions of its underlings.")
+(defparameter *pack-thresh-by-difficulty* 100
+  "If *PACKS* and *CASE-STORAGE* are both set to T, then pack
+     formation will begin on an island when it has witnessed
+     *PACK-THRESH-BY-DIFFICULTY* successful classifications of its most
+     difficult (least-often-correctly-classified) case.")
+
+(defparameter *pack-thresh-by-fitness* .9 
+  "If *PACKS* is set to T, then pack formation will begin on an island
+     when its best fitness score surpasses *PACK-THRESH-BY-FITNESS*.")
 
 (defparameter *packs* t)
 
@@ -343,14 +350,22 @@
 
 (defparameter *records* '())
 
-(defvar *ttl* nil
+(defvar *ttl* *max-len*
   "How many instructions can be executed in a sequence before the
      execution halts? Typically set to a multiple of *max-len* ((*
      *max-len* 1), for example).)")
 
+(defvar *gc* nil)
+
+(defvar *max-cal-depth* 1
+  "Determines how many nested function calls are permitted, though CAL
+     and BIN, in the virtual machine. What is gained in expressive
+     power is paid for in time and island desynchronization.")
+
 (defparameter *tweakables*
   '(*menu*
     *debug*
+    *gc*
     *stat-interval*
     *parallel*
     *dataset*
@@ -367,7 +382,9 @@
     *population-size*
     *packs*
     *pack-count*
-    *pack-thresh*
+    *pack-thresh-by-fitness*
+    *pack-thresh-by-era*
+    *pack-thresh-by-difficulty*
     *pack-selection-method*
     *sex*
     *mutation-rate*
@@ -388,6 +405,7 @@
     *opcode-bits*
     *source-register-bits*
     *destination-register-bits*
+    *max-cal-depth*
     *rounds*
     *target*
     *verbose-report*
@@ -402,15 +420,8 @@
 
 ;;; advantages: intron detection?
 
-;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-;;; global dynamic variables -- not sure if they should be saved here
-;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-;;; how to do it: when the # of times the HARDEST problem has been solved
-;;; reaches a certain threshold, make the transition to hives.
-;;; populate the queens field of the islands with fresh populations.
-;;; their jump is to delegate exemplars to the trained population.
-;;; migration can occur only between queened islands, if at all.
+
 
 
 

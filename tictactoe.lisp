@@ -8,6 +8,7 @@
 
 (in-package :genlin)
 
+(defparameter *01vs+-* t)
 
 ;; -- Tic-Tac-Toe Environment)
 
@@ -71,8 +72,9 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
     (grayvec->board key))
 
   (defun tictactoe-val (str)
-    (if (equalp str "positive") 1
-        -1))
+    (funcall =label-scanner= str))
+    ;; (if (equalp str "positive") 1
+    ;;     (if *01vs+-* 0 -1)))
 
   (defun tictactoe-hash-int (str hashtable &key (gray t))
     "Converts the tictactoe string into a base-3 number, and enters it into the hashtable."
@@ -109,67 +111,71 @@ just the board read as a base-3 numeral, with b = 0, x = 1, o = 2."
       (show-all-boards (1+ int))))
 
 
-  ;; this report function is turning into an awful piece of spaghetti code!
-  (defun ttt-classification-report (&key (crt *best*) (ht) (out '0))
-    (print-creature crt)
-    (let ((correct 0)
-          (incorrect 0)
-          (failures '())
-          (fitf (if (equalp '(0) out)
-                    'FB1
-                    'FB3)))
-      (labels ((deneg (n)
-                 (abs n)) ;; sometimes I just drop negative numbers.
-               (val-idx (v)
-                 (if (< v 0) 0 1))
-               (fb3-correct (o v)
-                 (< (deneg (elt o (val-idx v)))
-                    (deneg (elt o (! (val-idx v))))))
-               (fb1-correct (o v)
-                 (> (* v (car o)) 0)))
-        (loop for k being the hash-keys in ht using (hash-value v) do
-             (let* ((i (elt k 0))
-                    (output (execute-creature crt
-                                              :input k
-                                              :output out
-                                              :debug t))
-                    (sum (reduce #'+ (mapcar #'deneg output)))
-                    (certainties
-                     (mapcar #'(lambda (x) (* (divide x sum) 100)) output)))
-               (format t "~%~a~%" (int->board i))
-             (cond ((eq fitf 'FB1)
-                    (cond ((per-case-binary crt (cons k v))
-                           (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%"
-                                     i (car output))
-                           (incf correct))
-                          (t
-                           (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%"
-                                   i (car output))
-                           (incf incorrect)
-                           (push k failures))))
-                    ((eq fitf 'FB3)
-                     (format t "X WINS:  ~f%~%X LOSES: ~f%~%"
-                             (car certainties) (cadr certainties))
-                     (cond ((fb3-correct output v)
-                            (incf correct)
-                            (format t "CORRECTLY CLASSIFIED~%"))
-                           (t (incf incorrect)
-                              (format t "INCORRECTLY CLASSIFIED: X ~s~%"
-                                      (if (< v 0) 'LOST 'WON))
-                              (push k failures))))))))
+  (defun ttt-classification-report (&key (crt *best*) (ht) (out '(0 1)))
+    (data-classification-report :crt crt :ht ht :out out
+                                :artfunc #'draw-board))
+ 
+  ;; ;; this report function is turning into an awful piece of spaghetti code!
+  ;; (defun ttt-classification-report (&key (crt *best*) (ht) (out '(0 1)))
+  ;;   (print-creature crt)
+  ;;   (let ((correct 0)
+  ;;         (incorrect 0)
+  ;;         (failures '())
+  ;;         (fitf (if (equalp '(0) out)
+  ;;                   'FB1
+  ;;                   'FB3)))
+  ;;     (labels ((deneg (n)
+  ;;                (abs n)) ;; sometimes I just drop negative numbers.
+  ;;              (val-idx (v)
+  ;;                (if (< v 0) 0 1))
+  ;;              (fb3-correct (o v)
+  ;;                (< (deneg (elt o (val-idx v)))
+  ;;                   (deneg (elt o (! (val-idx v))))))
+  ;;              (fb1-correct (o v)
+  ;;                (> (* v (car o)) 0)))
+  ;;       (loop for k being the hash-keys in ht using (hash-value v) do
+  ;;            (let* ((i (elt k 0))
+  ;;                   (output (execute-creature crt
+  ;;                                             :input k
+  ;;                                             :output out
+  ;;                                             :debug t))
+  ;;                   (sum (reduce #'+ (mapcar #'deneg output)))
+  ;;                   (certainties
+  ;;                    (mapcar #'(lambda (x) (* (divide x sum) 100)) output)))
+  ;;              (format t "~%~a~%" (int->board i))
+  ;;            (cond ((eq fitf 'FB1)
+  ;;                   (cond ((per-case-binary crt (cons k v))
+  ;;                          (format t "CORRECTLY CLASSIFIED ~a -> ~f~%~%"
+  ;;                                    i (car output))
+  ;;                          (incf correct))
+  ;;                         (t
+  ;;                          (format t "INCORRECTLY CLASSIFIED ~a -> ~f~%~%"
+  ;;                                  i (car output))
+  ;;                          (incf incorrect)
+  ;;                          (push k failures))))
+  ;;                   ((eq fitf 'FB3)
+  ;;                    (format t "X WINS:  ~f%~%X LOSES: ~f%~%"
+  ;;                            (car certainties) (cadr certainties))
+  ;;                    (cond ((fb3-correct output v)
+  ;;                           (incf correct)
+  ;;                           (format t "CORRECTLY CLASSIFIED~%"))
+  ;;                          (t (incf incorrect)
+  ;;                             (format t "INCORRECTLY CLASSIFIED: X ~s~%"
+  ;;                                     (if (< v 0) 'LOST 'WON))
+  ;;                             (push k failures))))))))
   
-        (hrule)
-        (format t "FAILURES:~%")
-        (hrule)
-        (loop for fail in failures do
-             (format t "~%CODE ~d~%~a~%" fail (int->board (aref fail 0))))
+  ;;       (hrule)
+  ;;       (format t "FAILURES:~%")
+  ;;       (hrule)
+  ;;       (loop for fail in failures do
+  ;;            (format t "~%CODE ~d~%~a~%" fail (int->board (aref fail 0))))
         
-        (hrule)
-        (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
-                correct incorrect)
-        (hrule)
-        (values (cons correct incorrect)
-                failures))) ;; returns failures, as a convenience for retraining
+  ;;       (hrule)
+  ;;       (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
+  ;;               correct incorrect)
+  ;;       (hrule)
+  ;;       (values (cons correct incorrect)
+  ;;               failures))) ;; returns failures, as a convenience for retraining
     
 
   (defun show-search-space (ht &key (upto #3r222222222))

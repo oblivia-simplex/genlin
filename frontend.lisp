@@ -105,14 +105,15 @@ keywords (prefixed by a colon) need no quotes.~%~%")
     (cond ((or (member "--help" args :test #'equalp)
                (member "-h" args :test #'equalp))
            (print-help))
-          (t (loop for param in *tweakables* do
+          (t (hrule)
+             (loop for param in *tweakables* do
                   (let ((key (tweakable->posixopt param)))
                     (when (member key args :test #'equalp)
                       ;; (FORMAT T "FOUND OPT: ~S = ~S~%"
                       ;; key (get-opt-arg args key))
                       (setf (symbol-value param)
                             (read-from-string (get-opt-arg args key)))
-                      (format t "Setting ~A to ~A...~%"
+                      (format t "[+] SETTING ~A TO ~A...~%"
                               param (symbol-value param))))) T))))
 
     ;;           (format t "~S = ~S~%" param (symbol-value param))))))
@@ -225,7 +226,7 @@ accidentally clobbered."
     (case dataset   ;; at some point, I'll have to clean up all of this
       ((:tictactoe) ;; ad-hoc spaghetti code. 
        (unless filename (setf filename *tictactoe-path*))
-       (unless fitfunc-name (setf fitfunc-name 'binary-1)))
+       (unless fitfunc-name (setf fitfunc-name 'n-ary))) ;; slowly unifying
       (otherwise
        (unless filename (setf filename *iris-path*))
        (unless fitfunc-name (setf fitfunc-name 'n-ary))))

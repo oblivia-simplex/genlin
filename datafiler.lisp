@@ -32,7 +32,7 @@
   
   (cond ((eq *dataset* :tictactoe)
          (ttt-datafile->hashtable :filename filename))
-        (t (format t "FILENAME: ~a~%" filename)
+        (t (format t "[+] PATH TO DATA: ~a~%" filename)
            (let ((ht (make-hash-table :test 'equal))
                  (input (open filename :if-does-not-exist nil)))
              (when input
@@ -62,7 +62,8 @@
 
 ;; use the helper functions in the fitness section in here, instead. 
 (defun data-classification-report  (&key (crt *best*) (ht) (out '(0 1 2))
-                                      (verbose *verbose-report*))
+                                      (verbose *verbose-report*)
+                                      (artfunc #'attribute-string))
   (print-creature crt)
   (let ((correct 0)
         (incorrect 0)
@@ -79,7 +80,7 @@
                  (mapcar #'(lambda (x) (divide x (reduce #'+ output))) output)))
                                                       
            (hrule)
-           (format t "~A~%" (attribute-string k))
+           (format t "~A~%" (funcall artfunc k))
            (terpri)
            (loop for i from 0 to (1- (length output)) do
                 (format t "CLASS ~A: ~5,2f %~%" (elt names i)
@@ -103,7 +104,7 @@
     (loop for fail in failures do
          (format t "CLASS: ~A~%VECTOR: ~a~%"
                  (elt names (gethash fail ht)) fail)
-         (format t "~%~A" (attribute-string fail))
+         (format t "~%~A" (funcall artfunc fail))
          (hrule))
     (hrule)
     (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"

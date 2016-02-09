@@ -96,7 +96,12 @@ the form of a function."
 
 (defvar %ttl)
 
-(defvar %pexflag)
+;;(defvar %pexflag)
+
+(defvar %cal-depth)
+
+
+
 
 (defmacro grd* (expr)
   `(guard-val ,expr *minval* *maxval*))
@@ -257,7 +262,7 @@ the form of a function."
 ;; Biology got away with it. 
 (defun PEX (inst) ;; pop to execute
   (declare (ignore inst))
-  (setf %pexflag t)
+;;  (setf %pexflag t)
   (exec (floor (abs (nil0 (pop %stk))))))
 
 (defun PIN (inst)
@@ -270,24 +275,59 @@ the form of a function."
 ;; module building instructions. Focussing on using just ONE module for
 ;; now, but this could be extended to a linked list or array of modules. 
 (defun BIN (inst)
-  "Grabs an instruction (+/-) n steps away and pushes it into %module.
+  "Grabs an instruction (+/-) n steps away and pushes it into %bin.
 Fetching mechanism is relative, like JMP's jumping mechanism, as
 opposed to LOD and STO's absolute instruction location mechanism."
   (declare (type (unsigned-byte 64) inst))
-  (let ((n (ldb (byte *wordsize* 0) (ash inst (- (1+ *opcode-bits*)))))
-        (d (expt -1
-                 (logand 1 (ash inst (- *opcode-bits*))))))
-    (push (elt %seq (mod (* n d) (length %seq))) %module)))
+  (let ((n (floor (elt %reg (src? inst)))))
+  ;; (let ((n (ldb (byte *wordsize* 0) (ash inst (- (1+ *opcode-bits*)))))
+  ;;       (d (expt -1
+  ;;                (logand 1 (ash inst (- *opcode-bits*))))))
+    (unless %bin
+      (push '() %bin))
+    (push (elt %seq (mod (+ n %pc) (length %seq)))
+          (elt %bin (mod (dst? inst) (length %bin))))))
+
+(defun NIB (inst)
+  "Pops the top item in %bin into the DST register."
+  (declare (type (unsigned-byte 64) inst))
+  (let ((thebin (when %bin (elt %bin (safemod (src? inst) (length %bin))))))
+    (when thebin
+      (setf (elt %reg (dst? inst)) (pop thebin)))
+    (setf %bin (remove-if #'null %bin))))
+
+
+(defun NBN (inst)
+  "Create a new bin, if there is room for one to be allocated (i.e. if
+the number of bins has not yet exceeded the maximum DST index), and
+push the instruction indexed by the SRC register into the bin."
+  (declare (type (unsigned-byte 64) inst))
+  (let ((n (floor (elt %reg (src? inst)))))
+    (unless (>= (length %bin) (expt 2 *destination-register-bits*))
+      (push '() %bin))
+    (push (elt %seq (mod (+ n %pc) (length %seq)))
+          (car %bin))))
+
 
 (defun CLR (inst)
+  "Delete the topmost bin."
   (declare (ignore inst))
-  (setf %bin nil))
+  (pop %bin))
              
 (defun CAL (inst)
-  (declare (ignore inst))
-  (loop for m-inst in %bin do
-       (decf %ttl)   ;; since loops can form in modules, via bin
-       (exec m-inst))) ;; even if JMP will still return you to %seq
+  "Call a function that has been composed with BIN."
+  (when %bin
+    (incf %cal-depth)
+    (loop
+       for m-inst in (elt %bin (safemod (src? inst) (length %bin)))
+       while (and (< 0 %ttl) (not *stop*)) do
+;;         (print %cal-depth)
+         (unless (or (<= %ttl 0) (> %cal-depth *max-cal-depth*)
+                     (eq (op? inst) #'BIN) (eq (op? inst) #'NIB)
+                     (eq (op? inst) #'CLR) (eq (op? inst) #'NBN))
+           (decf %ttl)   ;; since loops can form in modules, via bin
+           (exec m-inst)))
+    (decf %cal-depth)))
 
 (defun NOP (inst)
   (declare (ignore inst)))
@@ -312,11 +352,11 @@ opposed to LOD and STO's absolute instruction location mechanism."
 (defparameter *store-ops-list*
   `(,#'STO))
 
-(defparameter *absolute-ops-inst*
+(defparameter *absolute-ops-list*
   `(,#'HLT))
 
-(defparameter *module-ops-inst*
-  `(,#'BIN ,#'CLR ,#'CAL))
+(defparameter *module-ops-list*
+  `(,#'BIN ,#'NIB ,#'CLR ,#'CAL ,#'NBN))
 
 (defparameter *stack-ops-list*
   `(,#'PSH ,#'PEX ,#'PRG ,#'PIN))
@@ -332,11 +372,16 @@ opposed to LOD and STO's absolute instruction location mechanism."
 
 (defparameter *NOP-INST* 0) 
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; SET THE INSTRUCTION SET HERE.
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 (defparameter *suggested-ops-list*
-  `(,#'ADD ,#'MUL ,#'SUB ,#'DIV ,#'PMD
-           ,#'PSH ,#'PRG ,#'CMP ,#'JMP
-           ,#'LEA ,#'BIN ,#'CAL ,#'CLR
-           ,#'MOV ,#'XOR ,#'NOP ,#'NOP))
+  `(,#'ADD ,#'MUL ,#'SUB ,#'DIV
+           ,#'LEA ,#'CAL ,#'NBN ,#'BIN
+           ,#'PMD ,#'NIB ,#'XOR ,#'LOD
+           ,#'PRG ,#'PSH ,#'HLT ,#'MOV))
+           
 
 ;; (setf *operations*
 ;;       (remove-if #'null (concatenate 'vector
@@ -356,20 +401,8 @@ opposed to LOD and STO's absolute instruction location mechanism."
                                  ;;*load-ops-list*
                                  ;;*store-ops-list*)))
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defparameter *reg-op-keys*
-  '(:DIV :MUL :SUB :ADD :PMD :XOR :CNJ :DIS :MOV))
-
-(defparameter *jmp-op-keys*
-  '(:JLE))
-
-(defparameter *store-op-keys*
-  '(:STO))
-
-(defparameter *load-op-keys*
-  '(:LOD))
-
-(defvar *operation-keys*)
 
 (defun shuffle-operations ()
   (setf *operations* (coerce (shuffle (coerce *operations* 'list)) 'vector)))
@@ -486,17 +519,16 @@ entries in the history stack, tracking changes to the registers."
   (labels ((strip-parens (str)
              (remove #\( (remove #\) str)))
            (reg-op-comment (inst line)
-             (format t " ;; now R~d = ~f; R~d = ~f~%" 
+             (format t " ;; R~D = ~F; R~D = ~F~%" 
                      (src? inst)
                      (elt (getf line :reg) (src? inst))
                      (dst? inst)
                      (elt (getf line :reg) (dst? inst))))
            (jmp-op-comment (inst line)
-             (format t " ;; R~d = ~5,2F  R~d = ~5,2F, flag = ~a, pc = ~d~%"
+             (format t " ;; R~D = ~5,2F  R~D = ~5,2F, FLAG = ~A, PC = ~D~%"
                      (src? inst) (elt (getf line :reg) (src? inst))
                      (dst? inst) (elt (getf line :reg) (dst? inst))
                      (getf line :jmpflag) (getf line :pc)))
-             
            (lod-op-comment (inst line)
              (let* ((addr (mod (floor
                                 (elt (getf line :reg) (src? inst)))
@@ -512,16 +544,29 @@ entries in the history stack, tracking changes to the registers."
                                (floor (elt (getf line :reg)
                                            (src? inst)))))
                     (regnum (src? inst)))
-               (format t " ;; storing ~d from R~d in @~d~%"
+               (format t " ;; STORING ~D FROM R~D IN @~D~%"
                        data regnum addr)
                (when (>= addr (getf line :pc))
                  (format t "*** SEQUENCE REWRITING ITSELF ***~%"))))
            (bin-op-comment (inst line)
              (let ((bin (getf line :bin)))
-               (format t " ;; BIN: ~A~%" bin)))
+               (cond ((eq #'BIN (op? inst))
+                      (format t " ;; BINNING ~A -> ~A~%"
+                              (inst->string (car (elt %bin (safemod (dst? inst) (length bin)))))
+                              bin))
+                     ((eq #'CAL (op? inst))
+                      (terpri)
+                      (when bin (loop for b-inst in
+                                     (elt bin (safemod (src? inst) (length bin))) do
+                                     (format t "|-BIN ~D-|  ~A~%"
+                                             (mod (src? inst) (length bin))
+                                             (inst->string b-inst)))))
+                     ((eq #'NBN (op? inst))
+                      (format t " ;; NEW BIN: ~A~%" bin))
+                     (:DEFAULT (format t " ;; BIN: ~A~%" bin)))))
            (stk-op-comment (inst line)
              (let* ((stack (getf line :stk)))
-                   ;; (stack (if (null stk) '(0) stk)))
+                               ;; (stack (if (null stk) '(0) stk)))
                (format t " ;; STACK TOP: ~A~A~%"
                        (strip-parens
                         (format nil "~A"
@@ -536,7 +581,7 @@ entries in the history stack, tracking changes to the registers."
                                   (inst->string (floor (car stack)))))))
            (imm-op-comment (inst line)
              (declare (ignore line))
-             (format t "  ;; LOADING ~D IN R~D~%"
+             (format t " ;; LOADING ~D IN R~D~%"
                      (src? inst) (dst? inst))))
     (let* ((history (funcall =history= all))
            (story (if static
@@ -587,7 +632,7 @@ list parameter, output."
            (type (or null cons) stack)
            (type (simple-array real 1) input registers))
 ;;           (optimize (speed 3)))
-  (flet ((save-state (inst &key reg seq stk bin skip pc pexflag jmpflag)
+  (flet ((save-state (inst &key reg seq stk bin skip pc jmpflag)
            (declare (type (simple-array real 1) reg)
                     (type boolean skip)
                     (type function =history=))
@@ -598,7 +643,6 @@ list parameter, output."
                                     :stk stk
                                     :bin bin
                                     :jmpflag jmpflag
-                                    :pexflag pexflag
                                     :pc pc))))
     (let ((%seq (coerce seq 'vector)) ;; shouldn't be more pricey than copy
           (%reg (copy-seq registers))
@@ -606,9 +650,10 @@ list parameter, output."
           (%ttl (* (length seq) 5))
           (%jmpflag nil)
           (%skip nil)
-          (%module nil)
+          (%bin nil)
+          (%cal-depth 0)
           (inst)
-          (%pexflag t)
+;;          (%pexflag t)
           (%stk (copy-seq stack))
 ;;;          (seqlen (length seq))
           (debugger (or debug *debug*)))
@@ -626,23 +671,22 @@ list parameter, output."
            (setf inst (aref %seq %pc))
            (incf %pc) ;; not truly necessary. may suppress for speed. 
            (decf %ttl)
-           (cond ((or %skip
-                      (and (intron? inst)
-                           %pexflag)) ;; missing the efficiency point now. 
+           (cond ((or %skip (intron? inst))
                   (setf %skip nil))
                  (:DEFAULT 
-                  (exec inst)
+                     (exec inst)
                      (and debugger (save-state inst
                                                :reg %reg
                                                :seq %seq
                                                :bin %bin
                                                :skip %skip
-                                               :pexflag %pexflag
+                                               ;;:pexflag %pexflag
                                                :jmpflag %jmpflag
                                                :stk %stk
                                                :pc %pc)
                           (disassemble-history)))))
 
+      (mapcar #'(lambda (x) (setf x nil)) (list %bin %stk %pc %seq %reg))
       (and *debug* (hrule) (history-flush))
       (mapcar #'(lambda (i) (aref %reg i)) output))))
 
@@ -722,3 +766,6 @@ register(s)."
   (if static (disassemble-history :static seq)
       (execute-sequence seq :debug t :input input :registers registers)))
 
+
+
+(setf *stop* t)
