@@ -69,12 +69,12 @@
 ;; Tweakables
 ;; ......................................................................
 
-(defparameter *number-of-islands* 12
+(defparameter *number-of-islands* 8
   "Islands are relatively isolated pockets in the population, linked
      in a ring structure and bridged by occasional migration. Can be set
      to any integer > 0.")
 
-(defparameter *population-size* 1200
+(defparameter *population-size* 800
   "Remains constant throughout the evolution. Should be > 40.")
 
 (defparameter *specimens* '())
@@ -302,7 +302,7 @@
      a series of Lisp S-expressions of the form 
      (setf *PARAMETER-NAME* parameter-value)")
 
-(defparameter *last-params-path* "./last.params"
+(defparameter *last-params-path* "LAST-PARAMS.SAV"
   "File in which to store the parameters used on the last run.")
 
 (defparameter *lexicase-pool-ratio* 1)
@@ -336,6 +336,11 @@
   "If *PACKS* is set to T, then pack formation will begin on an island
      when its best fitness score surpasses *PACK-THRESH-BY-FITNESS*.")
 
+(defparameter *pack-thresh-by-plateau* 1000
+  "If *PACKS* is T, then pack formation will begin once an island hits
+     a fitness plateau, understood as a span of n consecutive eras without
+     an increase it its best fitness.")
+
 (defparameter *packs* t)
 
 (defvar *pack-method*)
@@ -361,6 +366,13 @@
   "Determines how many nested function calls are permitted, though CAL
      and BIN, in the virtual machine. What is gained in expressive
      power is paid for in time and island desynchronization.")
+
+(defvar *save-every* 1000
+  "Save the island ring every *SAVE-EVERY* rounds. Not a bad idea, so
+     long as memory fault bugs persist.")
+
+(defparameter *restore-island-ring* nil
+  "Loads a saved island ring from supplied path name.")
 
 (defparameter *tweakables*
   '(*menu*
@@ -403,12 +415,15 @@
     *maxval*
     *opstring*
     *opcode-bits*
+    *operations*
     *source-register-bits*
     *destination-register-bits*
     *max-cal-depth*
     *rounds*
     *target*
     *verbose-report*
+    *save-every*
+    *restore-island-ring*
     *params-path*
     *last-params-path*))    
 

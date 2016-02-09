@@ -7,6 +7,9 @@
 
 (in-package :genlin)
 
+(defun avg (&rest args)
+  (divide (reduce #'+ args) (length args)))
+
 
 (defun reverse-hash-table (hash-table &key (test 'eql))
   (let ((newtable (make-hash-table :test test)))
@@ -119,8 +122,8 @@ must be disjoint."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; pretty printing
 
-(defun hrule ()
-  (format t "-----------------------------------------------------------------------------~%"))
+(defun hrule (&optional (stream *standard-output*))
+  (format stream "-----------------------------------------------------------------------------~%"))
 
 (defun nil0 (n)
   (if (null n) 0 n))

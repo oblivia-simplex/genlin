@@ -237,9 +237,10 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
 ;; -- boolean returning per-cases --
 
-(defun per-case-binary (crt case-kv island)
+(defun per-case-binary (crt case-kv &optional island)
   "Returns a boolean."
-  (cond ((solved? (car case-kv) crt island)
+  (declare (ignorable island))
+  (cond ((and *case-storage* (solved? (car case-kv) crt island))
          t)
         (:DEFAULT
          (let ((output (execute-creature crt
@@ -249,9 +250,10 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
                   T)
                  (:DEFAULT NIL))))))
 
-(defun per-case-n-ary (crt case-kv island)
+(defun per-case-n-ary (crt case-kv &optional island)
   "Returns a boolean."
-  (cond ((solved? (car case-kv) crt island)
+  (declare (ignorable island))
+  (cond ((and *case-storage* (solved? (car case-kv) crt island))
          t)
         (t
          (let ((output (execute-creature crt
@@ -267,6 +269,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
 (defun per-case-n-ary-proportional (crt case-kv island &key (out *out-reg*))
   "Case-kv is a cons of key and value from hashtable."
+  (declare (ignorable island))
   (cond ((solved? (car case-kv) crt island)
          1)
         (t
@@ -344,7 +347,7 @@ fitness function."
 
 (defun smutate-swap (seq)
   "Exchanges the position of two instructions in a sequence."
-  (declare (type cons seq))
+  (declare (type (simple-array integer) seq))
   (and *debug* (print "smutate-swap"))
   (let* ((len (length seq))
          (i (random len))
@@ -356,31 +359,31 @@ fitness function."
 
 (defun smutate-insert (seq)
   "Doubles a random element of seq."
-  (declare (type cons seq))
+  (declare (type (simple-array integer) seq))
   (let ((idx (random (length seq))))
   (and *debug* (print "smutate-append"))
-  (setf seq (concatenate 'list
+  (setf seq (concatenate 'vector
                          (subseq seq 0 idx)
-                         (list (elt seq idx))
+                         (vector (elt seq idx))
                          (subseq seq idx (length seq))))
   seq))
 
 (defun smutate-grow (seq)
   "Doubles a random element of seq."
-  (declare (type cons seq))
+  (declare (type (simple-array integer) seq))
   (and *debug* (print "smutate-append"))
-  (setf seq (concatenate 'list
+  (setf seq (concatenate 'vector
                          seq
-                         (list (random (expt 2 *wordsize*)))))
+                         (vector (random (expt 2 *wordsize*)))))
   seq)
 
 (defun smutate-shrink (seq)
-  "Doubles a random element of seq."
-  (declare (type cons seq))
+  "Removes a random element of seq."
+  (declare (type (simple-array integer) seq))
   (and *debug* (print "smutate-shrink"))
   (cond ((>= (length seq) (max 3 *min-len*))
          (let* ((tocut (random  (length seq)))
-                (newseq (concatenate 'list
+                (newseq (concatenate 'vector
                                      (subseq seq 0 tocut)
                                      (subseq seq (1+ tocut)))))
            newseq))
@@ -388,21 +391,21 @@ fitness function."
 
 (defun smutate-imutate (seq)
   "Applies imutate-flip to a random instruction in the sequence."
-  (declare (type cons seq))
+  (declare (type (simple-array integer) seq))
   (and *debug* (print "smutate-imutate"))
   (let ((idx (random (length seq))))
     (setf (elt seq idx) (imutate-flip (elt seq idx))))
   seq)
 
 (defparameter *mutations*
-  (vector #'smutate-insert #'smutate-shrink #'smutate-shrink #'smutate-grow #'smutate-imutate #'smutate-swap))
+  (vector #'smutate-insert #'smutate-shrink #'smutate-imutate #'smutate-swap))
 
 (defun random-mutation (seq)
-  (declare (type cons seq))
+  (declare (type (simple-array integer) seq))
   (apply (pick *mutations*) `(,seq)))
 
 (defun maybe-mutate (seq mutation-rate)
-  (declare (type cons seq))
+  (declare (type (simple-array integer) seq))
   (if (< (random 1.0) mutation-rate)
       (random-mutation seq)
       seq))
@@ -421,12 +424,12 @@ fitness function."
          (idx1 (random (length father)))
          (children))
     (push
-     (concatenate 'list
+     (concatenate 'vector
                   (subseq mother 0 idx0)
                   (subseq father idx1))
      children)
     (push
-     (concatenate 'list
+     (concatenate 'vector
                   (subseq father 0 idx1)
                   (subseq mother idx0))
      children)                       
@@ -511,7 +514,16 @@ fitness function."
       (when (and (< (random 1.0) mingle-rate))
         ;; (< (pack-coverage p0 island) 1)
         ;; (< (pack-coverage p1 island) 1)
-        (apply #'pack-mingle offspring)))
+        (apply #'pack-mingle offspring))
+      ;; let there be a chance for each underling to continue to
+      ;; mutate, but divide this chance among the underlings, to
+      ;; reduce step size. 
+      (loop for cub in offspring do
+           (loop for underling in (creature-pack cub) do
+                (setf (creature-seq underling)
+                      (maybe-mutate (creature-seq underling)
+                                    (/ (creature-mut underling)
+                                       (length (creature-pack cub))))))))
     ;; inheritance of attributes
 ;;    (when sex
       (loop for child in offspring do
@@ -521,6 +533,7 @@ fitness function."
                  (metamutate (/ (+ (creature-mut p0) (creature-mut p1)) 2)))
            (setf (creature-seq child) (maybe-mutate (creature-seq child)
                                                     (creature-mut child)))
+           (setf (creature-typ child) (creature-typ p0))
            (setf (creature-eff child) (remove-introns
                                        (creature-seq child)
                                        :output output-registers));; NB
@@ -563,6 +576,16 @@ fitness function."
 ;; HT2:  creature -> T
 
 
+
+(defun gauge-accuracy (crt)
+  (/ (reduce #'+
+             (loop for ex being the hash-keys in *training-hashtable*
+                using (hash-value v) collect
+                  (if (per-case-n-ary crt (cons ex v)  ) 1 0)))
+     (hash-table-count *training-hashtable*)))
+                       
+
+
 (defun f-lexicase (island
                    &key (ht *training-hashtable*)
                      (per-case #'per-case-n-ary))
@@ -570,23 +593,25 @@ fitness function."
   (let* ((cases (shuffle (loop for k being the hash-keys in ht
                                      using (hash-value v)
                                      collect (cons k v))))
-         (candidates (copy-seq (if (island-packs island)
-                                   (island-packs island)
+         (candidates (copy-seq (or (island-packs island)
                                    (island-deme island))))
          (next-candidates candidates)
          (worst))
-    (labels ((grade-fitness (creature cases-left)
-               (max (nil0 (creature-fit creature))
-                    (- 1 (divide (length cases-left)
-                                 (hash-table-count *training-hashtable*)))))
+    (labels ( ;; (grade-fitness (creature cases-left)
+              ;;  (let ((score
+              ;;         (- 1 (/ (length cases-left)
+              ;;                 (hash-table-count *training-hashtable*)))))
+              ;;    (if (creature-fit creature)
+              ;;        (avg (creature-fit creature) score)
+              ;;        score)))                 
              (case-eval (crt cas cases-left)
-                 (cond ((funcall per-case crt cas island)
-                        (when *case-storage*
-                          (record-case (car cas) crt island))
-                        T)
+               (declare (ignorable cases-left)) ;; kludge
+               (cond ((funcall per-case crt cas island)
+                      (when *case-storage*
+                        (record-case (car cas) crt island))
+                      T)
                        (:DEFAULT
-                        (setf (creature-fit crt) (grade-fitness crt cases-left))
-                           NIL))))
+                        NIL))))
       (loop while (and next-candidates cases) do
            (let ((the-case))
              (setf the-case (pop cases))
@@ -606,8 +631,7 @@ fitness function."
       ;; a new, less memory-expensive approach to calculating fitness
       ;; (but more time expensive, since we're abandoning case storage)
       ;; (mapc #'(lambda (x) (grade-fitness x)) candidates)
-      (loop for candidate in candidates do
-           (setf (creature-fit candidate) (grade-fitness candidate cases)))
+      ;;(grade-fitness candidate cases)))
       
       (when (null candidates)
         (setf candidates
@@ -649,22 +673,34 @@ conjunction with a stochastic selector, like f-lexicase."
              #'per-case-n-ary))
         (population (if (island-packs island)
                         (island-packs island)
-                        (island-deme island)))
-        (popsize (if (island-packs island)
-                     (length (island-packs island))
-                     (length (island-deme island)))))
+                        (island-deme island))))
+        ;; (popsize (if (island-packs island)
+        ;;              (length (island-packs island))
+        ;;              (length (island-deme island)))))
     
     (multiple-value-bind (best-one worst-one)
         (f-lexicase island :per-case per-case)
       (multiple-value-bind (best-two worst-two)
-          (cond (elitism (let* ((rarities (get-creatures-who-solved-the-hardest island))
-                                (unrarities (set-difference population rarities)))
-                           (cond ((< 0 (length rarities)
-                                     popsize)
-                                  (values (pick rarities);; :comparator #'>)
-                                          (pick unrarities)));; :comparator #'<)))
-                                 (:DEFAULT (f-lexicase island :per-case per-case)))))
+          (cond (elitism (let* ((rarity ;; unstable. use at own peril. 
+                                 (get-a-creature-who-solved-the-hardest
+                                  island))
+                                (unrarity (pick
+                                           (set-difference population
+                                                           (list rarity)))))
+                           (if rarity
+                               (values rarity unrarity))
+                           (f-lexicase island :per-case per-case)))
                 (:DEFAULT (f-lexicase island :per-case per-case)))
+
+        ;; a bit of a kludge: lacking any reliable and efficient way of
+        ;; extracting a fitness score from f-lexicase, we'll just measure
+        ;; accuracy the old fashioned way, but only for the f-lex winners.
+        ;; fitness, as such, will not be used for selection, but only for
+        ;; gauging the success of the evolution, and the choice of *best*
+        (loop for selected in (list best-one best-two) do
+             (setf (creature-fit selected)
+                   (or (creature-fit selected)
+                       (gauge-accuracy selected))))
         
         (update-best-if-better best-one island)
         (update-best-if-better best-two island)
@@ -684,9 +720,9 @@ conjunction with a stochastic selector, like f-lexicase."
                   :test #'equalp)
 
           ;; get rid of the creatures disposed of
-          (loop for worst in (list worst-one worst-two) do
-               (bury-cases worst island))
-          
+          (when *case-storage*
+            (loop for worst in (list worst-one worst-two) do
+                 (bury-cases worst island)))
           children)))))
   
 (defun update-best-if-better (crt island)
@@ -747,8 +783,7 @@ children replace the two least fit of the four. Disable genealogy to
 facilitate garbage-collection of the dead, at the cost of losing a
 genealogical record."  
   (labels ((popgetter (isle)
-             (if (island-packs isle)
-                 (island-packs isle)
+             (or (island-packs isle)
                  (island-deme isle)))
            (popsetter (isle p)
              (if (island-packs isle)
@@ -950,8 +985,9 @@ applying, say, mapcar or length to it, in most cases."
                                          :era 0
                                          ;; stave off <,> errors w null crt
                                          :best (make-creature :fit 0)
-                                         :coverage (init-cases-covered
-                                                    *training-hashtable*)
+                                         :coverage (if *case-storage*
+                                                       (init-cases-covered
+                                                        *training-hashtable*))
                                          :logger (make-logger)
                                          :lock (sb-thread:make-mutex
                                                 :name
@@ -973,7 +1009,7 @@ applying, say, mapcar or length to it, in most cases."
                                      (de-ring island-ring))))
 
 (defun spawn-sequence (len)
-  (concatenate 'list (loop repeat len collect (random *max-inst*))))
+  (concatenate 'vector (loop repeat len collect (random *max-inst*))))
 
 (defun spawn-creature (len)
   (make-creature :seq (spawn-sequence len)
@@ -1074,7 +1110,7 @@ applying, say, mapcar or length to it, in most cases."
 
 
 
-(defun print-fitness-by-gen (logger)
+(defun print-fitness-by-gen (logger &key (stream *standard-output*))
   (flet ((.*. (x y)
            (if (numberp y)
                (* x y)
@@ -1083,11 +1119,11 @@ applying, say, mapcar or length to it, in most cases."
     (loop
        for (e1 e2) on l by #'cddr
        for i from 1 to 5 do
-         (format t "~c~d:~c~5,4f %~c~c~d:~c~5,4f %~%" #\tab
+         (format stream "~c~d:~c~5,4f %~c~c~d:~c~5,4f %~%" #\tab
                  (car e1) #\tab (.*. 100 (cdr e1)) #\tab #\tab
                  (car e2) #\tab (.*. 100 (cdr e2)))))))
 
-(defun opcode-census (population)
+(defun opcode-census (population &key (stream *standard-output*))
   (let* ((buckets (make-array (expt 2 *opcode-bits*)))
          (instructions (reduce #'(lambda (x y) (concatenate 'list x y))
                                (mapcar #'creature-seq population)))
@@ -1097,12 +1133,12 @@ applying, say, mapcar or length to it, in most cases."
     (loop repeat (/ (length buckets) 2)
        for x = 0 then (+ x 2)
        for y = 1 then (+ y 2) do
-         (format t "~C~A: ~4D~C(~5,2f %)~C" #\tab
+         (format stream "~C~A: ~4D~C(~5,2f %)~C" #\tab
                  (func->string (elt *operations* x))
                  (elt buckets x)
                  #\tab
                  (* 100 (divide (elt buckets x) sum)) #\tab)
-         (format t "~C~A: ~4D~c(~5,2f %)~%" #\tab
+         (format stream "~C~A: ~4D~c(~5,2f %)~%" #\tab
                  (func->string (elt *operations* y))
                  (elt buckets y)
                  #\tab
@@ -1114,92 +1150,95 @@ applying, say, mapcar or length to it, in most cases."
                         (length (creature-eff crt)))
                 100))))
 
+;; start using this instead, for statistics
+(defun avg-property-population (population prop-p)
+  (apply #'avg (mapcar prop-p population)))
+
 (defun average-intron-rate (population)
-  (let ((eligible (remove-if-not #'(lambda (x) (and x (creature-eff x))) population)))
-    (divide (reduce #'+ (mapcar #'percent-introns eligible))
-            (length eligible))))
+  (avg-property-population (remove-if-not #'creature-eff population)
+                           #'percent-introns))
+                           
                                 
 (defun get-total-population (island-ring)
   (apply #'concatenate 'list (mapcar #'island-deme (de-ring island-ring))))
 
-(defun print-statistics (island-ring)
-  (mapc #'print-statistics-for-island
-          (subseq island-ring 0 (island-of (car island-ring))))
-  (hrule))
+(defun print-statistics (island-ring &key (stream *standard-output*))
+  (mapc #'(lambda (x) (print-statistics-for-island x :stream stream))
+        (de-ring island-ring))
+  (hrule stream))
 
 
-(defun print-statistics-for-island (island)
+(defun print-statistics-for-island (island &key (stream *standard-output*))
   ;; eventually, we should change *best* to list of bests, per deme.
   ;; same goes for logger. 
-  (hrule)
+  (hrule stream)
   (let ((intron-rate (average-intron-rate (island-deme island)))
-        (average-length (divide (reduce #'+
-                                        (mapcar #'(lambda (x) (length (creature-seq x)))
-                                                (island-deme island)))
-                                (length (island-deme island))))
-        (average-length-of-alphas (if (island-packs island)
-                                      (divide (reduce #'+
-                                                      (mapcar #'(lambda (x) (length (creature-seq x)))
-                                                              (island-packs island)))
-                                              (length (island-packs island)))
-                                      0)))
-    (format t "              *** STATISTICS FOR ISLAND ~A AT ERA ~D ***~%"
+        (alpha-intron-rate (average-intron-rate (island-packs island)))
+        (average-length
+         (divide (reduce #'+
+                         (mapcar #'(lambda (x) (length (creature-seq x)))
+                                 (island-deme island)))
+                 (length (island-deme island))))
+        (average-length-of-alphas
+         (if (island-packs island)
+             (apply #'avg (mapcar #'(lambda (x) (length (creature-seq x)))
+                          (island-packs island)))
+             0)))
+    
+    (format stream "              *** STATISTICS FOR ISLAND ~A AT ERA ~D ***~%"
             (roman (island-id island))
             (island-era island))
-    (hrule)
-    (format t "[*] DEVELOPMENTAL STAGE: ~A~%"
+    (hrule stream)
+    (format stream "[*] DEVELOPMENTAL STAGE: ~A~%"
             (if (island-packs island)
                 "PACKS"
                 "INDIVIDUALS"))
-    (format t "[*] SELECTION METHOD ON ISLAND: ~A~%"
+    (format stream "[*] SELECTION METHOD ON ISLAND: ~A~%"
             (func->string (island-method island)))
-    (format t "[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: ~5,4f %~%"
+    (format stream "[*] BEST FITNESS SCORE ACHIEVED ON ISLAND: ~5,4f %~%"
             (* 100 (creature-fit (island-best island))))
-    (format t "[*] AVERAGE FITNESS~A ON ISLAND: ~5,2f %~%"
+    (format stream "[*] AVERAGE FITNESS~A ON ISLAND: ~5,2f %~%"
             (if (island-packs island) " OF UNDERLINGS" "")
-            (* 100 (divide (reduce #'+
-                                   (remove-if #'null
-                                              (mapcar #'creature-fit
-                                                      (island-deme island))))
-                           (length (island-deme island)))))
+            (* 100 (apply #'avg (remove-if #'null
+                                   (mapcar #'creature-fit
+                                           (island-deme island))))))
     (when (island-packs island)
-      (format t "[*] AVERAGE FITNESS OF PACKS ON ISLAND: ~5,2f %~%"
-            (* 100 (divide (reduce #'+
-                                   (remove-if #'null
-                                              (mapcar #'creature-fit
-                                                      (island-packs island))))
-                           (length (island-packs island))))))
-    (format t "[*] BEST FITNESS BY GENERATION:  ~%")
-    (print-fitness-by-gen (island-logger island))
-    (format t "[*] AVERAGE SIMILARITY TO BEST:  ~5,2f %~%"
+      (format stream "[*] AVERAGE FITNESS OF PACKS ON ISLAND: ~5,2f %~%"
+              (* 100 (apply #'avg (remove-if #'null
+                                     (mapcar #'creature-fit
+                                             (island-packs island)))))))
+    (format stream "[*] BEST FITNESS BY GENERATION:  ~%")
+    (print-fitness-by-gen (island-logger island) :stream stream)
+    (format stream "[*] AVERAGE SIMILARITY TO BEST:  ~5,2f %~%"
           (* 100 (likeness-to-specimen (island-deme island) (island-best island))))
-    (format t "[*] STRUCTURAL INTRON FREQUENCY: ~5,2f %~%"
+    (format stream "[*] STRUCTURAL INTRON FREQUENCY: ~5,2f %~%"
             intron-rate)
   (when *case-storage*
     (let ((numcases (hash-table-count *training-hashtable*)))
-      (format t "[*] CREATURES TO SOLVE HARDEST CASE OF ~D:   ~D~%"
+      (format stream "[*] CREATURES TO SOLVE HARDEST CASE OF ~D:   ~D~%"
               numcases (difficulty-check island :reducer #'min) )
-      (format t "[*] CREATURES TO SOLVE EASIEST CASE OF ~D:   ~D~%"
+      (format stream "[*] CREATURES TO SOLVE EASIEST CASE OF ~D:   ~D~%"
               numcases (difficulty-check island :reducer #'max) )
-      (format t "[*] AVERAGE NUMBER OF CREATURES TO SOLVE EACH CASE: ~5,2F~%"
+      (format stream "[*] AVERAGE NUMBER OF CREATURES TO SOLVE EACH CASE: ~5,2F~%"
               (divide (difficulty-check island :reducer #'+) numcases))))
-  (format t "[*] AVERAGE LENGTH: ~5,2F INSTRUCTIONS (~5,2F EFFECTIVE)~%"
+  (format stream "[*] AVERAGE LENGTH: ~5,2F INSTRUCTIONS (~5,2F EFFECTIVE)~%"
           average-length (- average-length
                             (* average-length intron-rate 1/100)))
   (when (island-packs island)
-    (format t "[*] AVERAGE LENGTH OF ALPHAS: ~5,2F INSTRUCTIONS (~5,2F EFFECTIVE)~%"
-            average-length-of-alphas (- average-length
-                                        (* average-length-of-alphas intron-rate 1/100))))
-  (format t "[*] OPCODE CENSUS~A:~%"
+    (format stream "[*] AVERAGE LENGTH OF ALPHAS: ~5,2F INSTRUCTIONS (~5,2F EFFECTIVE)~%"
+            average-length-of-alphas (- average-length-of-alphas
+                                        (* average-length-of-alphas
+                                           alpha-intron-rate 1/100))))
+  (format stream "[*] OPCODE CENSUS~A:~%"
           (if (island-packs island) " OF UNDERLINGS" ""))
   (if (< *population-size* 2000)
-      (opcode-census (island-deme island))
-      (format t "    POPULATION TOO LARGE TO SURVEY EFFICIENTLY.~%"))
+      (opcode-census (island-deme island) :stream stream)
+      (format stream "    POPULATION TOO LARGE TO SURVEY EFFICIENTLY.~%"))
   (when (island-packs island)
-    (format t "[*] OPCODE CENSUS OF ALPHAS:~%")
+    (format stream "[*] OPCODE CENSUS OF ALPHAS:~%")
     (if (< *population-size* 2000)
-        (opcode-census (island-packs island))
-        (format t "    POPULATION TOO LARGE TO SURVEY EFFICIENTLY.~%")))))
+        (opcode-census (island-packs island) :stream stream)
+        (format stream "    POPULATION TOO LARGE TO SURVEY EFFICIENTLY.~%")))))
   
   
 (defun difficulty-check (island &key (reducer #'min))
@@ -1268,7 +1307,7 @@ applying, say, mapcar or length to it, in most cases."
       (loop
          for c in (creature-pack crt)
          for i from 0 do
-           (format t "[~D] FIT: ~F~%SEQ: ~A~%"
+           (format t "[~D] FIT: ~F~%    SEQ: ~A~%"
                    i (creature-fit c) (creature-seq c)))))
     
   (hrule)
@@ -1370,15 +1409,15 @@ without incurring delays."
     
     (divide (length (remove-if #'null tally)) (length tally))))
 
-(defun pack-coverage (alpha island)
-  ;; a bit expensive. don't use too often, or optimize.
-  ;; it would be nice to just mapcar #'or over the case-coverage
-  (let ((tally (mapcar #'
-                         (print (map 'list #'(lambda (x) (case-coverage-helper x island))
-                                 (creature-pack alpha))))))
+;; (defun pack-coverage (alpha island)
+;;   ;; a bit expensive. don't use too often, or optimize.
+;;   ;; it would be nice to just mapcar #'or over the case-coverage
+;;   (let ((tally (mapcar #'
+;;                          (print (map 'list #'(lambda (x) (case-coverage-helper x island))
+;;                                  (creature-pack alpha))))))
                          
-    (print tally)
-    (divide (length (remove-if #'null tally)) (length tally))))
+;;     (print tally)
+;;     (divide (length (remove-if #'null tally)) (length tally))))
 
 
 (defun populate-island-with-packs (isle)
@@ -1435,6 +1474,17 @@ without incurring delays."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; The main event
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defun time-for-packs (isle)
+  (and *packs*
+       (not (island-packs isle))
+       (or (< *pack-thresh-by-fitness*
+              (creature-fit (island-best isle)))
+           (and *case-storage*
+                (< *pack-thresh-by-difficulty*
+                   (difficulty-check isle :reducer #'min)))
+           (< *pack-thresh-by-era* (island-era isle))
+           (have-i-plateaued? isle :span *pack-thresh-by-plateau*))))
 
 (defun evolve (&key (method *method*)
                  (dataset *dataset*)
@@ -1500,24 +1550,21 @@ without incurring delays."
                                            (* 100 (creature-fit *best*))
                                            (roman (creature-home *best*))
                                            (if (creature-pack *best*)
-                                               (format nil "(PACK)");; CVRG: ~5,2F)"
-                                                     ;;  (pack-coverage *best* isle))
+                                               (format nil "(PACK)")  
                                                        "")
                                                (funcall stopwatch)
                                                (func->string method)
                                                *dataset*)
                                            (hrule))
-                                 (when (and *packs*
-                                            (not (island-packs isle))
-                                            (or (< *pack-thresh-by-fitness*
-                                                   (creature-fit (island-best isle)))
-                                                (and *case-storage*
-                                                     (< *pack-thresh-by-difficulty*
-                                                        (difficulty-check isle :reducer #'min)))
-                                                (< *pack-thresh-by-era* (island-era isle))))
+                                 
+                                 (when (time-for-packs isle)             
                                    (populate-island-with-packs isle)
                                    (setf use-migration nil))
-                                 (when (or (> (creature-fit (island-best isle))
+                                 (when (time-for *save-every*)
+                                   (format t "~%~%--- SAVING ISLAND-RING AND PARAMETERS ---~%~%")
+                                   (save-all +ISLAND-RING+))
+                                 (when (or (> (creature-fit
+                                               (island-best isle))
                                               target)
                                            *STOP*)
                                    (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
@@ -1536,7 +1583,11 @@ without incurring delays."
             (hrule)
             (if (creature-pack *best*)
                 (format t "PACK OF ISLAND ~A~%" (roman (creature-home *best*)))
-                (format t "DENIZEN OF ISLAND ~A~%" (roman (creature-home *best*))))
+                (format t "DENIZEN OF ISLAND ~A AT ERA ~D~%"
+                        (roman (creature-home *best*))
+                        (island-era (find (creature-home *best*)
+                                          +island-ring+
+                              :key #'island-id))))
             (format t "~D TESTS CLASSIFIED CORRECTLY, ~D INCORRECTLY.~%"
                     (car correct+incorrect) (cdr correct+incorrect))
             (hrule)
@@ -1545,25 +1596,27 @@ without incurring delays."
     (hrule))
           
 
+;; case storage is really hard on the heap for large datasets. but we
+;; don't need to store the entire exemplar. we could easily get by
+;; with a unique hash of it, using a cheap hashing algo. are
+;; hash-tables necessary, as opposed to sets? (I mean, hash tables
+;; consisting only of keys?)
 
-
-;; case storage is really hard on the heap for large datasets. but we don't need to store
-;; the entire exemplar. we could easily get by with a unique hash of it, using a cheap
-;; hashing algo. are hash-tables necessary, as opposed to sets? (I mean, hash tables consisting
-;; only of keys?)
-
-;; the problem is that there's such a huge, almost exponential maybe, redundancy of data.
-;; we need a new, different data structure for case storage. 
-
-
-
+;; the problem is that there's such a huge, almost exponential maybe,
+;; redundancy of data. we need a new, different data structure for
+;; case storage.
 
 
 (defun reset-best ()
   (setf *best* (make-creature :fit 0)))
 
-
 (defun stop ()
   (setf *stop* t))
 
-;;(stop)
+(defun have-i-plateaued? (island &key (span 1000))
+  (if (funcall (island-logger island))
+      (> (- (island-era island)
+            (caar (funcall (island-logger island))))
+         span)))
+     
+

@@ -34,7 +34,7 @@
 
 (declaim (inline guard-val))
 
-(declaim (inline HLT JMP PSH PRG PEX PIN CMP LOD STO MOV DIV MUL XOR CNJ DIS PMD ADD SUB MUL JLE)) 
+(declaim (inline HLT JMP PSH PRG PEX PIN CMP LOD STO MOV DIV MUL XOR CNJ IOR PMD ADD SUB MUL JLE)) 
 
 (declaim (inline exec))
          
@@ -159,7 +159,7 @@ the form of a function."
         (logand (floor (elt %reg (dst? inst)))
                 (floor (elt %reg (src? inst))))))
 
-(defun DIS (inst)
+(defun IOR (inst)
   "Performs a bitwise OR on SRC and DST, storing the result in DST."
   (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
@@ -231,20 +231,17 @@ the form of a function."
   "Stub. Really just here for consistent pretty printing."
   (declare (type (unsigned-byte 64) inst))
   (setf (elt %reg (dst? inst))
-        (if (null %stk)
+        (if (null %seq)
             0
-            (elt %stk (safemod (floor (elt %reg (src? inst)))
+            (elt %seq (safemod (floor (elt %reg (src? inst)))
                                (length %stk))))))
 
 (defun STO (inst)
-  "Stub. Really just here for consistent pretty printing."
+  "Store the contents of the SRC register at the specified location in %seq"
   (declare (type (unsigned-byte 64) inst))
-  (let ((stuff (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))
-    (if (null %stk)
-        (push stuff %stk)
-        (setf (elt %stk (safemod (floor (elt %reg (dst? inst)))
-                                 (length %stk)))
-              (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))))
+    (setf (elt %seq (safemod (floor (elt %reg (dst? inst)))
+                             (length %seq)))
+          (ldb (byte *wordsize* 0) (floor (elt %reg (src? inst))))))
 
 (defun PRG (inst) ;; pop to register
   (declare (type (unsigned-byte 64) inst))
@@ -338,7 +335,7 @@ push the instruction indexed by the SRC register into the bin."
 
 (defparameter *reg-ops-list*
   `(,#'ADD ,#'MUL ,#'SUB ,#'DIV
-         ,#'PMD ,#'XOR ,#'CNJ ,#'DIS ,#'MOV))
+         ,#'PMD ,#'XOR ,#'CNJ ,#'IOR ,#'MOV))
 
 (defparameter *imm-ops-list*
   `(,#'LEA))
@@ -376,10 +373,21 @@ push the instruction indexed by the SRC register into the bin."
 ;; SET THE INSTRUCTION SET HERE.
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+
+(defparameter *operations*
+  (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
+          #'BIN #'NIB #'NBN #'CAL   ;; module construction and invocation
+          #'LOD #'STO #'LEA #'MOV   ;; loading, storing, moving
+          #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
+          #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
+          #'PSH #'PRG #'PEX #'PIN   ;; stack operations
+          #'CLR #'HLT #'NOP #'NOP   ;; destructive ops: clear module, halt
+          #'NOP #'NOP #'NOP #'NOP)) ;; the rest is NOP
+
 (defparameter *suggested-ops-list*
   `(,#'ADD ,#'MUL ,#'SUB ,#'DIV
-           ,#'LEA ,#'CAL ,#'NBN ,#'BIN
-           ,#'PMD ,#'NIB ,#'XOR ,#'LOD
+           ,#'LOD ,#'CAL ,#'NBN ,#'BIN
+           ,#'PMD ,#'NIB ,#'XOR ,#'LEA
            ,#'PRG ,#'PSH ,#'HLT ,#'MOV))
            
 
@@ -395,7 +403,7 @@ push the instruction indexed by the SRC register into the bin."
 ;;                                      (loop repeat (expt 2 *opcode-bits*)
 ;;                                         collect #'NOP))))
 
-(setf *operations* (coerce *suggested-ops-list* 'vector))
+;;(setf *operations* (coerce *suggested-ops-list* 'vector))
 
                                  ;;*jump-ops-list*
                                  ;;*load-ops-list*
@@ -616,7 +624,6 @@ entries in the history stack, tracking changes to the registers."
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-
 (defun execute-sequence (seq &key (registers *initial-register-state* )
                                (input *default-input-reg*)
                                (stack nil)
@@ -628,7 +635,8 @@ the resulting value in the registers indexed by the integers in the
 list parameter, output."
   (declare (type fixnum *input-start-idx* *pc-idx*)
            (type (cons integer) output)
-           (type (or null (cons (unsigned-byte 64))) seq)
+           (type (simple-array integer) seq)
+           ;;(type (or null (cons (unsigned-byte 64))) seq)
            (type (or null cons) stack)
            (type (simple-array real 1) input registers))
 ;;           (optimize (speed 3)))
@@ -741,7 +749,7 @@ register(s)."
                   (when (and nopops (eq (op? inst) #'PSH))
                     (nsubst (mark-intron-bit inst) inst efseq)))))
            (:DEFAULT (setf efseq seq)))
-    efseq))
+    (coerce efseq 'vector)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; debugging functions

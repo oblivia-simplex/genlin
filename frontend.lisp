@@ -176,17 +176,6 @@ and eventually, sanitize the input."
 (defun read-parameter-file (param-path)
   (load param-path))
 
-(defun write-parameter-file (param-path)
-  "Will append to existing file, allowing old settings to be retrieved if
-accidentally clobbered."
-  (with-open-file (stream param-path
-                          :direction :output
-                          :if-exists :append
-                          :if-does-not-exist :create)
-    (format stream "~%~A~%~%" (timestring))
-    (loop for param in *tweakables* do
-         (format stream "~S~%"
-                 `(setf ,param ,(symbol-value param))))))
 
 
 
@@ -219,7 +208,7 @@ accidentally clobbered."
                                   (format t "WARNING: METHOD NAME NOT RECO")
                                   (format t "GNIZED. USING #'TOURNEMENT!.~%")
                                   #'tournement!))))
-
+    
     (setf *dataset* dataset)
     (reset-records)
     (funcall =label-scanner= 'flush)
@@ -258,27 +247,73 @@ accidentally clobbered."
 ;; it's not convenient, yet, to select the VM at runtime. this choice needs
 ;; to be made at compile time, for the time being. 
 
+(defun save-all (island-ring)
+  (with-open-file (stream "STATISTICS.SAV"
+                          :direction :output
+                          :if-exists :append
+                          :if-does-not-exist :create)
+    (format stream "~A~%~%" (timestring))
+    (print-statistics island-ring :stream stream))
+  (save-parameters)
+  (save-island-ring))
 
+(defun save-parameters (&optional (param-path *last-params-path*))
+  "Will append to existing file, allowing old settings to be retrieved if
+accidentally clobbered."
+  (with-open-file (stream param-path
+                          :direction :output
+                          :if-exists :overwrite
+                          :if-does-not-exist :create)
+    (format stream "~%~A~%~%" (timestring))
+    (loop for param in *tweakables* do
+         (format stream "~S~%"
+                 `(setf ,param ,(symbol-value param))))))
 
-
-;;; 
-
-(defun save-island-ring (island-ring filename)
-  (let ((copy (de-ring island-ring)))
-    ;; (mapcar #'(lambda (x) (setf (island-lock x) 'mutex-unreadable
-    ;;                        (island-logger x) 'logger-unreadable
-    ;;                        (island-coverage x) 'coverage-unreadable))
-    ;;         copy)
-    (with-open-file (stream filename :direction :output :if-exists :overwrite
+(defun save-island-ring (&key (filename "ISLAND-RING.SAV")
+                           (bury-parents t)
+                           (island-ring +ISLAND-RING+))
+  (let ((copy (island-ring-writeable-copy island-ring
+                                          :bury-parents bury-parents)))
+    (with-open-file (stream filename
+                            :direction :output
+                            :if-exists :overwrite
                             :if-does-not-exist :create)
-      (format stream "~A~%~%;; tweakable parameters are:~%'(" (timestring))
-      (loop for tweak in *tweakables* do
-           (format stream "~S ~S~%" tweak (symbol-value tweak)))
-      (format stream ")~%~%;; +ISLAND-RING+ below: ~%~%~S" +ISLAND-RING+))))
+      (setf *print-circle* T)
+      (format stream
+              "~A~%;; +ISLAND-RING+ below: ~%~%~S~%)"
+              (timestring)
+              copy))))
 
-;; (defun restore-island-ring (filename)
-;;   ;; todo
-;;   )
+(defun island-ring-writeable-copy (island-ring &key (bury-parents t))
+  (let ((copy (mapcar #'copy-structure (de-ring island-ring))))
+    (loop for isle in copy do
+         (when bury-parents
+           (mapc #'bury-parents (island-deme isle))
+           (mapc #'bury-parents (island-packs isle)))
+         (setf (island-lock isle) nil)
+         (setf (island-logger isle) nil)
+         (setf (island-coverage isle) nil))
+    (circular copy)))
+
+
+
+(defun restore-island-ring (&key (filename "ISLAND-RING.SAV"))
+  (let ((copy))
+    (format t "[-] RESTORING ISLAND-RING FROM ~A..." filename)
+    (with-open-file (stream filename :direction :input
+                            :if-does-not-exist nil)
+      (and (setf copy (read stream))
+           (format t "    ISLAND-RING SUCCESSFULLY RESTORED!")))
+    (loop for isle in (de-ring copy) do
+         (setf (island-logger isle) (make-logger))
+         (setf (island-lock isle) (sb-thread:make-mutex
+                                   :name (format nil "isle-~d-lock"
+                                                 (island-id isle))))
+         (if *case-storage*
+             (setf (island-coverage isle) (init-cases-covered
+                                           *training-hashtable*))))
+    (setf +island-ring+ copy)))
+
 
 ;; Note: it should be simple enough to generalize the ttt data processing
 ;; technique.
@@ -300,13 +335,30 @@ accidentally clobbered."
     (setup-data)   ;; load the dataset, build the hashtables
     (update-dependent-machine-parameters)
     (sanity-check) ;; makes things slightly less likely to explode
-    (setup-population)
+    (if *restore-island-ring*
+        (restore-island-ring :filename *restore-island-ring*)
+        (setup-population))
     (print-params)
     (when run
       (format t "          -oO( COMMENCING EVOLUTIONARY PROCESS, PLEASE STANDBY )Oo-~%")
       (hrule)
       (evolve :target *target* :rounds *rounds*)
-      (write-parameter-file *last-params-path*)
+      (save-parameters *last-params-path*)
       (format t "PARAMETERS SAVED IN ~A~%" *last-params-path*)
-      (save-island-ring +island-ring+ "ISLAND-RING.SAV")
+      (save-island-ring :filename "ISLAND-RING.SAV"
+                        :island-ring +ISLAND-RING+)
       (format t "ISLAND-RING SAVED IN ISLAND-RING.SAV~%"))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
