@@ -188,7 +188,6 @@ and eventually, sanitize the input."
                      (filename *data-path*))
   (let ((hashtable)
         (training+testing))
-
     (setf *method* (case selection-method
                      ((:tournement) #'tournement!)
                      ((:roulette) #'roulette!)
@@ -198,7 +197,6 @@ and eventually, sanitize the input."
                                   (format t "WARNING: METHOD NAME NOT RECO")
                                   (format t "GNIZED. USING #'TOURNEMENT!.~%")
                                   #'tournement!))))
-
     (setf *pack-method* (case pack-selection-method
                      ((:tournement) #'tournement!)
                      ((:roulette) #'roulette!)
@@ -224,6 +222,7 @@ and eventually, sanitize the input."
       (setf training+testing (cons hashtable
                                    (datafile->hashtable
                                     :filename *testing-data-path*))))
+    (setf *number-of-classes* (funcall =label-scanner= 'count))
     (unless *split-data*
       (setf training+testing (cons hashtable hashtable)))
     (unless training+testing
@@ -262,7 +261,7 @@ and eventually, sanitize the input."
 accidentally clobbered."
   (with-open-file (stream param-path
                           :direction :output
-                          :if-exists :overwrite
+                          :if-exists :supersede
                           :if-does-not-exist :create)
     (format stream "~%~A~%~%" (timestring))
     (loop for param in *tweakables* do
@@ -276,13 +275,14 @@ accidentally clobbered."
                                           :bury-parents bury-parents)))
     (with-open-file (stream filename
                             :direction :output
-                            :if-exists :overwrite
+                            :if-exists :supersede 
                             :if-does-not-exist :create)
-      (setf *print-circle* T)
+      (setf *print-circle* nil)
       (format stream
               "~A~%;; +ISLAND-RING+ below: ~%~%~S~%)"
               (timestring)
-              copy))))
+              copy)
+      (setf *print-circle* T))))
 
 (defun island-ring-writeable-copy (island-ring &key (bury-parents t))
   (let ((copy (mapcar #'copy-structure (de-ring island-ring))))
@@ -290,29 +290,54 @@ accidentally clobbered."
          (when bury-parents
            (mapc #'bury-parents (island-deme isle))
            (mapc #'bury-parents (island-packs isle)))
+         (setf (island-method isle) nil)
          (setf (island-lock isle) nil)
          (setf (island-logger isle) nil)
          (setf (island-coverage isle) nil))
-    (circular copy)))
+    copy))
 
-
+;; ;; placeholders
+;; (defun tournement! ())
+;; (defun roulette! ())
+;; (defun greedy-roulette! ())
+;; (defun lexicase! ())
 
 (defun restore-island-ring (&key (filename "ISLAND-RING.SAV"))
-  (let ((copy))
+  (let ((copy)
+        (method-chooser))
     (format t "[-] RESTORING ISLAND-RING FROM ~A..." filename)
     (with-open-file (stream filename :direction :input
                             :if-does-not-exist nil)
       (and (setf copy (read stream))
            (format t "    ISLAND-RING SUCCESSFULLY RESTORED!")))
-    (loop for isle in (de-ring copy) do
+    (loop for isle in copy do
          (setf (island-logger isle) (make-logger))
          (setf (island-lock isle) (sb-thread:make-mutex
                                    :name (format nil "isle-~d-lock"
                                                  (island-id isle))))
-         (if *case-storage*
+         (setf (island-era isle) 0) ;; necessary to prevent certain bugs
+         ;; but admittedly a bit of a kludge
+         (if *case-storage* 
              (setf (island-coverage isle) (init-cases-covered
-                                           *training-hashtable*))))
-    (setf +island-ring+ copy)))
+                                           *training-hashtable*)))
+         
+         (setf method-chooser
+               (if (island-packs isle)
+                         *pack-selection-method*
+                         *selection-method*))
+         
+         (setf (island-method isle)
+               (case method-chooser                        
+                 ((:tournement) #'tournement!)
+                 ((:roulette) #'roulette!)
+                 ((:greedy-roulette) #'greedy-roulette!)
+                 ((:lexicase) #'lexicase!)
+                 (otherwise (progn
+                              (format t "WARNING: METHOD NAME NOT RECO")
+                              (format t "GNIZED. USING #'TOURNEMENT!.~%")
+                              #'tournement!)))))
+
+    (setf +island-ring+ (circular copy))))
 
 
 ;; Note: it should be simple enough to generalize the ttt data processing

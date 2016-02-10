@@ -60,12 +60,32 @@
                                 (format nil "ATTRIBUTE ~@R:~C~F~%"
                                         i #\Tab (aref vec (1- i)))))) str))
 
+(defun ugly-max-array (arr)
+  (reduce #'max (loop for i in
+                     (loop for k below
+                          (apply #'* (array-dimensions arr))
+                        collect (row-major-aref cm k)) collect i)))
+
+
+(defun build-confusion-matrix (classes)
+  (make-array `(,(length classes) ,(length classes)) :initial-element 0))
+  
+
+(defun print-confusion-matrix (cm)
+  (let* ((s (ugly-max-array cm))
+         (fmt (format nil "~~~dd" (+ 2 (ceiling (/ s 10))))))
+           (loop for i from 0 below (car (array-dimensions cm)) do
+       (loop for j from 0 below (cadr (array-dimensions cm)) do  
+            (format t fmt (aref cm j i)))
+       (terpri))))
+            
 ;; use the helper functions in the fitness section in here, instead. 
-(defun data-classification-report  (&key (crt *best*) (ht) (out '(0 1 2))
+(defun data-classification-report  (&key (crt *best*) (ht) (out)
                                       (verbose *verbose-report*)
                                       (artfunc #'attribute-string))
   (print-creature crt)
-  (let ((correct 0)
+  (let ((cm (build-confusion-matrix out))
+        (correct 0)
         (incorrect 0)
         (names (mapcar #'string-upcase (funcall =label-scanner= 'get)))
         (failures '()))
@@ -85,30 +105,36 @@
            (loop for i from 0 to (1- (length output)) do
                 (format t "CLASS ~A: ~5,2f %~%" (elt names i)
                         (* 100 (elt certainties i))))
-           (cond (success
-                  (when verbose
-                    (format t "~%CORRECTLY CLASSIFIED AS ~A~%"
-                                        (elt names v)))
-                  (incf correct))
-                 ((not success)
-                  (when verbose
-                    (format t "~%INCORRECTLY CLASSIFIED. ")
-                    (format t "WAS ACTUALLY ~A~%"
-                            (elt names v)))
-                  (incf incorrect)
-                  (push k failures))))
-         (hrule))
-    (format t "                            ~@(~R~) Failures:~%"
-            (length failures))
-    (hrule)
-    (loop for fail in failures do
-         (format t "CLASS: ~A~%VECTOR: ~a~%"
-                 (elt names (gethash fail ht)) fail)
-         (format t "~%~A" (funcall artfunc fail))
-         (hrule))
-    (hrule)
-    (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
+           (incf (aref cm v vote)) ;; confusion matrix entry
+           (if success (incf correct) (progn
+                                        (incf incorrect)
+                                        (push k failures)))
+           (when verbose
+             (cond (success
+                    (when verbose
+                      (format t "~%CORRECTLY CLASSIFIED AS ~A~%"
+                                        (elt names v))))
+                   ((not success)
+                    (when verbose
+                      (format t "~%INCORRECTLY CLASSIFIED. ")
+                      (format t "WAS ACTUALLY ~A~%"
+                              (elt names v))))))
+           (hrule)
+           (format t "                            ~@(~R~) Failures:~%"
+                   (length failures))
+           (hrule)
+           (loop for fail in failures do
+                (format t "CLASS: ~A~%VECTOR: ~a~%"
+                        (elt names (gethash fail ht)) fail)
+                (format t "~%~A" (funcall artfunc fail))
+                (hrule))
+           (hrule)
+           (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
             correct incorrect)
+    (hrule)))
+    (format t "CONFUSION MATRIX: X-AXIS = TRUE CLASS, Y-AXIS = GUESSED CLASS~%")
+    (hrule)
+    (print-confusion-matrix cm)
     (hrule)
     (values (cons correct incorrect)
             failures)))

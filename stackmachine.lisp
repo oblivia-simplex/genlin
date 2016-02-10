@@ -316,7 +316,7 @@ push the instruction indexed by the SRC register into the bin."
   (when %bin
     (incf %cal-depth)
     (loop
-       for m-inst in (elt %bin (safemod (src? inst) (length %bin)))
+       for m-inst in (elt %bin (safemod (dst? inst) (length %bin)))
        while (and (< 0 %ttl) (not *stop*)) do
 ;;         (print %cal-depth)
          (unless (or (<= %ttl 0) (> %cal-depth *max-cal-depth*)
@@ -381,8 +381,19 @@ push the instruction indexed by the SRC register into the bin."
           #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
           #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
           #'PSH #'PRG #'PEX #'PIN   ;; stack operations
-          #'CLR #'HLT #'NOP #'NOP   ;; destructive ops: clear module, halt
+          #'CLR #'NOP #'NOP #'NOP   ;; destructive ops: clear module, halt
           #'NOP #'NOP #'NOP #'NOP)) ;; the rest is NOP
+
+(defun op->opcode (op)
+  (position op *operations*))
+  
+
+(defparameter *complementary-ops*
+  (list (cons #'CAL #'BIN)
+        (cons #'CAL #'NBN)
+        (cons #'JMP #'CMP)
+        (cons #'PRG #'PSH)
+        (cons #'PEX #'PIN)))
 
 (defparameter *suggested-ops-list*
   `(,#'ADD ,#'MUL ,#'SUB ,#'DIV

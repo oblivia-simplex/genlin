@@ -36,19 +36,7 @@
     (unless (creature-eff alpha-crt)
       (setf (creature-eff alpha-crt)
             (remove-introns (creature-seq alpha-crt) :output pack-reg)))
-
-    ;; (execute-sequence (creature-eff 
-    ;;                    (elt (creature-pack alpha-crt) 
-    ;;                        (register-vote
-    ;;                          (execute-sequence
-    ;;                           (creature-eff alpha-crt)
-    ;;                           :debug debug
-    ;;                           :input input
-    ;;                           :output pack-reg))))
-    ;; :debug debug
-    ;; :input input
-    ;; :output output)))
-
+    (assert input)
     (setf choice (register-vote
                   (execute-sequence
                    (creature-eff alpha-crt)
@@ -228,6 +216,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
 (defun register-vote (output &key (comparator #'>) (pre #'abs))
   "Return the index of the register with the highest or lowest value."
+  (assert output)
   (reduce #'(lambda (x y) (if (funcall comparator
                                   (funcall pre (nth x output))
                                   (funcall pre (nth y output))) 
@@ -345,6 +334,36 @@ fitness function."
 ;; them as if they were purely functional, and combine them with an
 ;; setf to mutate their target. 
 
+(defun smutate-comp (seq)
+  ;; smutate-insert with bias towards complementary instructions
+  (let ((shuffle-ops (shuffle (copy-seq *complementary-ops*))))
+    (flet ((rnd-inst-w-op (op)
+             (logior (ash (random
+                           (expt 2 (- *wordsize* *opcode-bits*)))
+                        *opcode-bits*)
+                     (op->opcode op))))
+      (loop for idx from 0 to (1- (length seq)) do
+           (let ((inst.pair nil))
+             (cond ((setf inst.pair (assoc (op? (elt seq idx)) shuffle-ops))
+                    (if (> idx 0)
+                        (setf (elt seq (random idx))
+                              (rnd-inst-w-op (cdr inst.pair)))
+                        (setf seq (concatenate 'vector
+                                               (vector (rnd-inst-w-op
+                                                        (cdr inst.pair)))
+                                               seq)))
+                    (return))
+                   ((setf inst.pair (rassoc (op? (elt seq idx)) shuffle-ops))
+                    (if (= idx (1- (length seq)))
+                        (setf (elt seq (+ idx (random (- (length seq) idx))))
+                              (rnd-inst-w-op (car inst.pair)))
+                        (setf seq (concatenate 'vector seq
+                                               (vector (rnd-inst-w-op
+                                                        (car inst.pair))))))
+                    (return))
+                   (t nil))))
+      seq)))
+
 (defun smutate-swap (seq)
   "Exchanges the position of two instructions in a sequence."
   (declare (type (simple-array integer) seq))
@@ -398,11 +417,18 @@ fitness function."
   seq)
 
 (defparameter *mutations*
-  (vector #'smutate-insert #'smutate-shrink #'smutate-imutate #'smutate-swap))
+  (vector #'smutate-insert #'smutate-shrink #'smutate-imutate))
+         
+
+(defparameter *rare-mutations*
+  (vector #'smutate-swap #'smutate-comp))
 
 (defun random-mutation (seq)
   (declare (type (simple-array integer) seq))
-  (apply (pick *mutations*) `(,seq)))
+  (let ((mutation (if (< (random 1.0) 0.1)
+                      (pick *rare-mutations*)
+                      (pick *mutations*))))
+    (funcall mutation seq)))
 
 (defun maybe-mutate (seq mutation-rate)
   (declare (type (simple-array integer) seq))
@@ -564,6 +590,7 @@ fitness function."
                                (gethash exemplar (island-coverage island)))))
 
 
+
 (defun record-case (exemplar creature island)
   ;; can we afford to maintain a set of hashes of creatures who have solved each
   ;; problem, globally per island? See if this can be done more cheaply than creature-cas
@@ -576,23 +603,74 @@ fitness function."
 ;; HT2:  creature -> T
 
 
+(defun fit-in-list (lst &key (comparator #'>))
+  (reduce #'(lambda (x y) (if (funcall comparator
+                                  (nil0 (creature-fit x))
+                                  (nil0 (creature-fit y))) x y))
+          lst))
 
-(defun gauge-accuracy (crt)
+(defun get-a-creature-who-solved-the-hardest (isle)
+  "A greedy parent selection function, to be used, ideally, in
+conjunction with a stochastic selector, like f-lexicase."
+  (let ((seqs (loop for crt being the hash-keys in
+                   (car (sort
+                         (remove-if #'(lambda (x) (zerop (hash-table-count x))) ;; ignore empty tables
+                                    (loop for crtset being the hash-values in (island-coverage isle)
+                                       collect crtset))
+                         #'(lambda (x y) (if (< (hash-table-count x) ;; sorting function
+                                           (hash-table-count y)) x y))))
+                 collect crt)))
+    (mapcar #'(lambda (x) (find x (island-deme isle) ;; should be deme or packs
+          :key #'creature-seq :test #'equalp)) seqs)))
+;; seems inefficient. no need to sort the entire set when we just want the min
+                                                        
+
+(defun gauge-accuracy (crt &key (island) (ht *training-hashtable*))
+  ;; should gauge accuracy obey the sampling policy as well?
+  ;; doing so seems to lead to premature termination of the evolution
+  ;; in the case of iris, at least. 
+  (declare (ignorable island)
+           (ignorable ht))
   (/ (reduce #'+
-             (loop for ex being the hash-keys in *training-hashtable*
-                using (hash-value v) collect
-                  (if (per-case-n-ary crt (cons ex v)  ) 1 0)))
-     (hash-table-count *training-hashtable*)))
-                       
+             ;;(loop for exemplar in (island-sample island) collect
+             (loop for k being the hash-keys in ht using (hash-value v)
+                  collect 
+                  (if (per-case-n-ary crt (cons k v)) 1 0)))
+     ;;     (length (island-sample island))))
+     (hash-table-count ht)))
 
+(defun invoke-sampling-policy (ht &key
+                             (format 'alist)
+                             (policy *sampling-policy*))
+  (declare (ignorable format)) ;; a stub to expand on later, if needed
+  (case policy
+    ((:div-by-class-num-shuffle)
+     (subseq (shuffle (loop for k being the hash-keys in ht
+                         using (hash-value v) collect (cons k v)))
+             0 (ceiling (/ (hash-table-count ht) *number-of-classes*))))
+    ((:full-shuffle)
+     (shuffle (loop for k being the hash-keys in ht
+                 using (hash-value v) collect (cons k v))))
+    (:otherwise (error "Request for unimplemented sampling policy."))))
+    
 
+(defun refresh-sample-if-needed (island &key
+                                          (ht *training-hashtable*)
+                                          (sp *sampling-policy*))
+  (when (or (not (island-sample island))
+            (= 0 (mod (island-era island) ;; when full gen elapsed
+                      (/ (length (or (island-packs island)
+                                     (island-deme island))) 2))))
+    (setf (island-sample island)
+          (invoke-sampling-policy ht
+                                  :format 'alist
+                                  :policy sp))))
+    
 (defun f-lexicase (island
-                   &key (ht *training-hashtable*)
-                     (per-case #'per-case-n-ary))
+                   &key (per-case #'per-case-n-ary))
   "Note: per-case can be any boolean-returning fitness function."
-  (let* ((cases (shuffle (loop for k being the hash-keys in ht
-                                     using (hash-value v)
-                                     collect (cons k v))))
+  (let* ((cases (copy-seq (island-sample island)))
+         (sample-size (length cases))
          (candidates (copy-seq (or (island-packs island)
                                    (island-deme island))))
          (next-candidates candidates)
@@ -627,12 +705,10 @@ fitness function."
                  (setf worst (pick (if (island-packs island)
                                        (island-packs island)
                                        (island-deme island))))))))
-
       ;; a new, less memory-expensive approach to calculating fitness
       ;; (but more time expensive, since we're abandoning case storage)
       ;; (mapc #'(lambda (x) (grade-fitness x)) candidates)
       ;;(grade-fitness candidate cases)))
-      
       (when (null candidates)
         (setf candidates
               (list (elt (island-deme island)
@@ -642,27 +718,7 @@ fitness function."
       (values (car candidates)
               worst)))) ;; return just one parent
 
-(defun fit-in-list (lst &key (comparator #'>))
-  (reduce #'(lambda (x y) (if (funcall comparator
-                                  (nil0 (creature-fit x))
-                                  (nil0 (creature-fit y))) x y))
-          lst))
 
-(defun get-a-creature-who-solved-the-hardest (isle)
-  "A greedy parent selection function, to be used, ideally, in
-conjunction with a stochastic selector, like f-lexicase."
-  (let ((seqs (loop for crt being the hash-keys in
-                   (car (sort
-                         (remove-if #'(lambda (x) (zerop (hash-table-count x))) ;; ignore empty tables
-                                    (loop for crtset being the hash-values in (island-coverage isle)
-                                       collect crtset))
-                         #'(lambda (x y) (if (< (hash-table-count x) ;; sorting function
-                                           (hash-table-count y)) x y))))
-                 collect crt)))
-    (mapcar #'(lambda (x) (find x (island-deme isle) ;; should be deme or packs
-          :key #'creature-seq :test #'equalp)) seqs)))
-;; seems inefficient. no need to sort the entire set when we just want the min
-                                                        
 (defun lexicase! (island &key (elite-prob 0 )) ;; under construction*lexicase-elitism*))
   ;; make elitism a probability, instead of a boolean
   "Selects parents by lexicase selection." ;; stub, ex
@@ -677,7 +733,9 @@ conjunction with a stochastic selector, like f-lexicase."
         ;; (popsize (if (island-packs island)
         ;;              (length (island-packs island))
         ;;              (length (island-deme island)))))
-    
+    (refresh-sample-if-needed island
+                              :ht *training-hashtable*
+                              :sp *sampling-policy*)
     (multiple-value-bind (best-one worst-one)
         (f-lexicase island :per-case per-case)
       (multiple-value-bind (best-two worst-two)
@@ -700,7 +758,8 @@ conjunction with a stochastic selector, like f-lexicase."
         (loop for selected in (list best-one best-two) do
              (setf (creature-fit selected)
                    (or (creature-fit selected)
-                       (gauge-accuracy selected))))
+                       (gauge-accuracy selected :island island
+                                       :ht *training-hashtable*))))
         
         (update-best-if-better best-one island)
         (update-best-if-better best-two island)
@@ -1104,6 +1163,7 @@ applying, say, mapcar or length to it, in most cases."
   (format t "[+] # of TEST CASES:      ~d~%"
           (hash-table-count *testing-hashtable*))
 ;;  (format t "[+] FITNESS FUNCTION:     ~s~%" (get-fitfunc))
+  (format t "[+] NUMBER OF CLASSES:    ~D~%" (funcall =label-scanner= 'count))
   (format t "[+] SELECTION FUNCTION:   ~s~%" *method*)
   (format t "[+] OUTPUT REGISTERS:     ~a~%" *out-reg*)
   (hrule))
@@ -1432,7 +1492,8 @@ without incurring delays."
             (loop repeat *pack-count*
                collect
                  (make-creature
-                  :seq (spawn-sequence *max-start-len*)
+                  :seq (spawn-sequence (+ *min-len*
+                                          (random *max-start-len*)))
                   :typ :alpha
                   :gen 0
                   :home (island-id isle)
@@ -1519,10 +1580,18 @@ without incurring delays."
                                                     interval)))
 
                                         (parallel-dispatcher ()
-                                          (with-mutex ((island-lock isle) :wait-p nil)
-                                            (incf (island-era isle))
-                                            (funcall (island-method isle) isle)
-                                            (sb-ext:gc)))
+                                          (handler-case 
+                                              (with-mutex ((island-lock isle)
+                                                           :wait-p nil)
+                                                (incf (island-era isle))
+                                                (funcall (island-method isle)
+                                                         isle)
+                                                (sb-ext:gc))
+                                            (sb-sys:memory-fault-error ()
+                                              (progn (format t "ENCOUNTERED MEMORY FAULT. WILL TRY TO EXIT GRACEFULLY.~%")
+                                                   (setf *STOP* t)))))
+                                            
+                                            
 
                                         (serial-dispatcher ()
                                           (incf (island-era isle))
@@ -1573,9 +1642,10 @@ without incurring delays."
                       (sb-sys:interactive-interrupt () (setf *STOP* t)))))))
           (print-statistics +island-ring+)
           (best-of-all island-ring)
-          (setf correct+incorrect (classification-report *best* dataset))
+
           (loop for isle in (de-ring island-ring) do
                (plot-fitness isle))
+          (setf correct+incorrect (classification-report *best* dataset))
           (when *track-genealogy* (genealogical-fitness-stats))
           (hrule)
           (when (not (zerop (creature-fit *best*)))
@@ -1586,7 +1656,7 @@ without incurring delays."
                 (format t "DENIZEN OF ISLAND ~A AT ERA ~D~%"
                         (roman (creature-home *best*))
                         (island-era (find (creature-home *best*)
-                                          +island-ring+
+                                          (de-ring +island-ring+)
                               :key #'island-id))))
             (format t "~D TESTS CLASSIFIED CORRECTLY, ~D INCORRECTLY.~%"
                     (car correct+incorrect) (cdr correct+incorrect))
@@ -1621,3 +1691,6 @@ without incurring delays."
      
 
 (stop)
+;; Start distinguishing between true positives, false positives, true
+;; negatives, false negatives in the data-classification-report
+;; section.

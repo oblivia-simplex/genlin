@@ -1,12 +1,23 @@
 (in-package :genlin)
 
 
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+;; types and structs
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defstruct creature fit seq eff gen mut typ home parents pack) 
+
+(defstruct island id of deme packs best era logger lock coverage method sample)
+
+;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 (defparameter *tictactoe-path*
   (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe.data"))
 
 (defparameter *iris-path*
   (concatenate 'string *project-path* "datasets/Iris/iris.data"))
 
+(defvar *number-of-classes*)
 
 (defparameter *STOP* nil)
 
@@ -42,12 +53,6 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Genetic Parameters
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-;; Vars and types:
-
-(defstruct creature fit seq eff gen mut typ home parents pack) 
-
-(defstruct island id of deme packs best era logger lock coverage method)
 
 
 
@@ -341,7 +346,7 @@
      a fitness plateau, understood as a span of n consecutive eras without
      an increase it its best fitness.")
 
-(defparameter *packs* t)
+(defparameter *packs* nil)
 
 (defvar *pack-method*)
 
@@ -374,6 +379,11 @@
 (defparameter *restore-island-ring* nil
   "Loads a saved island ring from supplied path name.")
 
+(defparameter *sampling-policy*
+  :div-by-class-num-shuffle
+  "Currently only implemented for lexicase.
+     Accepts: :div-by-class-num-shuffle, :full-shuffle [STUB]")
+
 (defparameter *tweakables*
   '(*menu*
     *debug*
@@ -385,6 +395,7 @@
     *testing-data-path*
     *split-data*
     *scale-data*
+    *sampling-policy*
     *training-ratio*
     *selection-method*
     *lexicase-combatant-ratio*
