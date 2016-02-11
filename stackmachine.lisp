@@ -376,8 +376,8 @@ push the instruction indexed by the SRC register into the bin."
 
 (defparameter *operations*
   (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
-          #'BIN #'NIB #'NBN #'CAL   ;; module construction and invocation
-          #'LOD #'STO #'LEA #'MOV   ;; loading, storing, moving
+          #'BIN #'CAL #'NBN #'LEA   ;; module construction and invocation
+          #'LOD #'STO #'NIB #'MOV   ;; loading, storing, moving
           #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
           #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
           #'PSH #'PRG #'PEX #'PIN   ;; stack operations

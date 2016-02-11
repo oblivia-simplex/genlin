@@ -686,6 +686,12 @@ conjunction with a stochastic selector, like f-lexicase."
     ((:full-shuffle)
      (shuffle (loop for k being the hash-keys in ht
                  using (hash-value v) collect (cons k v))))
+    ((:balanced)
+     (shuffle (loop for k being the hash-keys in
+                   (car (partition-data (sb-impl::copy-hash-table
+                                         *training-hashtable*)
+                                        (/ *number-of-classes*)))
+                   using (hash-value v) collect (cons k v))))
     (:otherwise (error "Request for unimplemented sampling policy."))))
     
 
@@ -1700,8 +1706,8 @@ without incurring delays."
                                                        interval))))
 
                                         (parallel-dispatcher ()
-                                          (when (<= (island-era isle)
-                                                   *rounds*)
+                                          ;; (when (<= (island-era isle)
+                                          ;;          *rounds*)
                                             (handler-case 
                                                 (with-mutex ((island-lock isle)
                                                              :wait-p nil)
@@ -1714,7 +1720,7 @@ without incurring delays."
                                                   (sb-ext:gc))
                                               (sb-sys:memory-fault-error ()
                                                 (progn (format t "ENCOUNTERED MEMORY FAULT. WILL TRY TO EXIT GRACEFULLY.~%")
-                                                       (setf *STOP* t))))))
+                                                       (setf *STOP* t)))))
                                             
                                             
 
