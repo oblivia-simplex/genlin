@@ -182,6 +182,21 @@ the form of a function."
         (+ (elt %reg (src? inst))
            (elt %reg (dst? inst)))))
 
+(defun EPT (inst) ;; unstable
+  "Raises DST to SRC and stores in DST."
+  (declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (grd* (expt (elt %reg (dst? inst))
+                    (elt %reg (src? inst))))))
+
+(defun LUG (inst)
+  "LOG. But that name's taken."
+  (declare (type (unsigned-byte 64) inst))
+  (setf (elt %reg (dst? inst))
+        (grd* (log (max 2 (elt %reg (dst? inst)))
+                   (max 2 (elt %reg (src? inst)))))))
+  
+
 (defun SUB (inst)
   "Subtracts DST from SRC, storing the value in DST."
   (declare (type (unsigned-byte 64) inst))
@@ -251,6 +266,8 @@ the form of a function."
 (defun PSH (inst)
   (declare (type (unsigned-byte 64) inst))
   (push (elt %reg (src? inst)) %stk))
+
+
 
 ;; but PEX still introduces arbitrary code execution, which
 ;; prevents any sort of definitive intron detection -- but then,
@@ -335,7 +352,7 @@ push the instruction indexed by the SRC register into the bin."
 
 (defparameter *reg-ops-list*
   `(,#'ADD ,#'MUL ,#'SUB ,#'DIV
-         ,#'PMD ,#'XOR ,#'CNJ ,#'IOR ,#'MOV))
+           ,#'EPT ,#'PMD ,#'XOR ,#'CNJ ,#'IOR ,#'MOV))
 
 (defparameter *imm-ops-list*
   `(,#'LEA))
@@ -358,6 +375,8 @@ push the instruction indexed by the SRC register into the bin."
 (defparameter *stack-ops-list*
   `(,#'PSH ,#'PEX ,#'PRG ,#'PIN))
 
+
+
 ;; suggestion: prepare some combos that can be selected from at runtime.
 ;; (using command line options, e.g.)
 (defparameter *slomachine-ops-list*
@@ -376,12 +395,12 @@ push the instruction indexed by the SRC register into the bin."
 
 (defparameter *operations*
   (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
-          #'BIN #'CAL #'NBN #'LEA   ;; module construction and invocation
-          #'LOD #'STO #'NIB #'MOV   ;; loading, storing, moving
+          #'BIN #'CAL #'LUG #'LEA   ;; module construction and invocation
+          #'LOD #'STO #'NBN #'MOV   ;; loading, storing, moving
           #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
           #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
           #'PSH #'PRG #'PEX #'PIN   ;; stack operations
-          #'CLR #'NOP #'NOP #'NOP   ;; destructive ops: clear module, halt
+          #'CLR #'NIB #'NOP #'NOP   ;; destructive ops: clear module, halt
           #'NOP #'NOP #'NOP #'NOP)) ;; the rest is NOP
 
 (defun op->opcode (op)
