@@ -7,6 +7,18 @@
 
 (in-package :genlin)
 
+;; moved here from params. may cause bug. 
+(defparameter =label-scanner=
+  ;; Enumerates labels, keeping track of labels it's already seen. 
+  (let ((seen '()))
+    (lambda (lbl)
+      (cond ((eq lbl 'flush) (setf seen '()))
+            ((not (member lbl seen :test #'equalp)) (push lbl seen)))         
+      (cond ((eq lbl 'get) (pop seen) (reverse seen)) ;; return seen, w/o 'get
+            ((eq lbl 'count) (pop seen) (length seen))
+            (t (position lbl (reverse seen) :test #'equalp :from-end t))))))
+
+
 (defun parse-numeric-csv-key (k)
   (coerce (mapcar #'rational
                   (read-from-string
@@ -64,26 +76,38 @@
   (reduce #'max (loop for i in
                      (loop for k below
                           (apply #'* (array-dimensions arr))
-                        collect (row-major-aref cm k)) collect i)))
+                        collect (row-major-aref arr k)) collect i)))
 
 
 (defun build-confusion-matrix (classes)
   (make-array `(,(length classes) ,(length classes)) :initial-element 0))
   
 
-(defun print-confusion-matrix (cm)
+(defun print-confusion-matrix (cm &optional (stream *standard-output*))
   (let* ((s (ugly-max-array cm))
-         (fmt (format nil "~~~dd" (+ 2 (ceiling (/ s 10))))))
-           (loop for i from 0 below (car (array-dimensions cm)) do
-       (loop for j from 0 below (cadr (array-dimensions cm)) do  
-            (format t fmt (aref cm j i)))
-       (terpri))))
-            
+         (names (mapcar #'string-upcase (funcall =label-scanner= 'get)))
+         (fmt (format nil "~~~dd" (+ 2 (ceiling (log s 10)))))
+         (longest (reduce #'max (mapcar #'length names)))
+         (padded-names (mapcar
+                        #'(lambda (x) (concatenate
+                                  'string x
+                                  (loop repeat (- longest
+                                                  (length x))
+                                     collect #\space))) names)))
+    
+           (loop for row from 0 below (car (array-dimensions cm)) do
+                (format stream "~A  " (elt padded-names row))
+                (loop for col from 0 below (cadr (array-dimensions cm)) do  
+                     (format stream fmt (aref cm col row)))
+                (terpri))))
+
+
+
+
 ;; use the helper functions in the fitness section in here, instead. 
 (defun data-classification-report  (&key (crt *best*) (ht) (out)
                                       (verbose *verbose-report*)
                                       (artfunc #'attribute-string))
-  (print-creature crt)
   (let ((cm (build-confusion-matrix out))
         (correct 0)
         (incorrect 0)
@@ -98,18 +122,19 @@
                 (success (= vote v))
                 (certainties
                  (mapcar #'(lambda (x) (divide x (reduce #'+ output))) output)))
-                                                      
-           (hrule)
-           (format t "~A~%" (funcall artfunc k))
-           (terpri)
-           (loop for i from 0 to (1- (length output)) do
-                (format t "CLASS ~A: ~5,2f %~%" (elt names i)
-                        (* 100 (elt certainties i))))
-           (incf (aref cm v vote)) ;; confusion matrix entry
+           
+           
+           (incf (aref cm vote v)) ;; confusion matrix entry
            (if success (incf correct) (progn
                                         (incf incorrect)
                                         (push k failures)))
            (when verbose
+             (hrule)
+             (format t "~A~%" (funcall artfunc k))
+             (terpri)
+             (loop for i from 0 to (1- (length output)) do
+                  (format t "CLASS ~A: ~5,2f %~%" (elt names i)
+                        (* 100 (elt certainties i))))
              (cond (success
                     (when verbose
                       (format t "~%CORRECTLY CLASSIFIED AS ~A~%"
@@ -118,21 +143,21 @@
                     (when verbose
                       (format t "~%INCORRECTLY CLASSIFIED. ")
                       (format t "WAS ACTUALLY ~A~%"
-                              (elt names v))))))
-           (hrule)
-           (format t "                            ~@(~R~) Failures:~%"
-                   (length failures))
-           (hrule)
-           (loop for fail in failures do
-                (format t "CLASS: ~A~%VECTOR: ~a~%"
-                        (elt names (gethash fail ht)) fail)
-                (format t "~%~A" (funcall artfunc fail))
-                (hrule))
-           (hrule)
+                              (elt names v)))))
+             (hrule))))
+           (when verbose
+             (format t "                            ~@(~R~) Failures:~%"
+                     (length failures))
+             (hrule)
+             (loop for fail in failures do
+                  (format t "CLASS: ~A~%VECTOR: ~a~%"
+                          (elt names (gethash fail ht)) fail)
+                  (format t "~%~A" (funcall artfunc fail))
+                  (hrule)))
            (format t "TOTAL CORRECT:   ~d~%TOTAL INCORRECT: ~d~%"
             correct incorrect)
-    (hrule)))
-    (format t "CONFUSION MATRIX: X-AXIS = TRUE CLASS, Y-AXIS = GUESSED CLASS~%")
+    (hrule)
+    (format t "CONFUSION MATRIX: ROW = TRUE CLASS, COLUMN = GUESSED CLASS~%")
     (hrule)
     (print-confusion-matrix cm)
     (hrule)

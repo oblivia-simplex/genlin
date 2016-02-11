@@ -663,10 +663,10 @@ list parameter, output."
                                     :bin bin
                                     :jmpflag jmpflag
                                     :pc pc))))
-    (let ((%seq (coerce seq 'vector)) ;; shouldn't be more pricey than copy
+    (let ((%seq (copy-seq seq)) ;; shouldn't be more pricey than copy
           (%reg (copy-seq registers))
           (%pc 0) ;; why bother putting the PC in the registers?
-          (%ttl (* (length seq) 5))
+          (%ttl *ttl*)
           (%jmpflag nil)
           (%skip nil)
           (%bin nil)
@@ -683,7 +683,7 @@ list parameter, output."
                (type fixnum %pc))
       ;; the input values will be stored in read-only %reg
       (setf (subseq %reg *input-start-idx*
-                    (+ *input-start-idx* (length input))) input)
+                    (+ *input-start-idx* (length input))) input)          
       (loop
          while (< %pc (length %seq))
          while (> %ttl 0) do

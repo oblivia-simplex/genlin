@@ -1,5 +1,8 @@
 (load #p"~/Projects/genlin/package.lisp")
 
+(defpackage :genlin
+  (:use :common-lisp))
+
 (in-package :genlin)
 
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -156,8 +159,8 @@ launch setup and evolve."
 and eventually, sanitize the input."
   (when (or (eql *migration-size* 0) (eql *greedy-migration* 0))
     (setf *greedy-migration* nil))
-  (unless *sex*
-    (setf *mutation-rate* 1))
+  ;; (unless *sex*
+  ;;   (setf *mutation-rate* 1))
   (when *debug*
     (setf *parallel* nil)
     (when (eq *selection-method* :lexicase)
@@ -184,7 +187,7 @@ and eventually, sanitize the input."
                      (dataset *dataset*)
                      (selection-method *selection-method*)
                      (pack-selection-method *pack-selection-method*)
-                     (fitfunc-name)
+                     (fitfunc-name *fitfunc-name*)
                      (filename *data-path*))
   (let ((hashtable)
         (training+testing))
@@ -210,13 +213,7 @@ and eventually, sanitize the input."
     (setf *dataset* dataset)
     (reset-records)
     (funcall =label-scanner= 'flush)
-    (case dataset   ;; at some point, I'll have to clean up all of this
-      ((:tictactoe) ;; ad-hoc spaghetti code. 
-       (unless filename (setf filename *tictactoe-path*))
-       (unless fitfunc-name (setf fitfunc-name 'n-ary))) ;; slowly unifying
-      (otherwise
-       (unless filename (setf filename *iris-path*))
-       (unless fitfunc-name (setf fitfunc-name 'n-ary))))
+    
     (setf hashtable (datafile->hashtable :filename filename))
     (when *testing-data-path*
       (setf training+testing (cons hashtable
@@ -227,10 +224,12 @@ and eventually, sanitize the input."
       (setf training+testing (cons hashtable hashtable)))
     (unless training+testing
       (setf training+testing (partition-data hashtable ratio)))
+
+    ;; init-fitness-env sets up the training and testing hashtables,
+    ;; the fitness function, and the output registers. 
     (init-fitness-env :training-hashtable (car training+testing)
                       :testing-hashtable  (cdr training+testing)
                       :fitfunc-name fitfunc-name)
-
     (case *sex*
       ((:1pt) (setf *mating-func* #'shufflefuck-1pt))
       ((:2pt) (setf *mating-func* #'shufflefuck-2pt-constant))

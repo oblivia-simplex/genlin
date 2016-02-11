@@ -5,7 +5,7 @@
 ;; types and structs
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defstruct creature fit seq eff gen mut typ home parents pack) 
+(defstruct creature fit cm seq eff gen mut typ home parents pack) 
 
 (defstruct island id of deme packs best era logger lock coverage method sample)
 
@@ -91,6 +91,9 @@
 (defparameter *migration-rate* 200
   "Frequency of migrations, measured in generations.")
 
+(defparameter *migration-method* :free
+  "Can be :FREE or :CYCLIC.") ;; stub, explain
+
 (defparameter *greedy-migration* 1
   "If set to 1, migrants are always the fittest in their deme. If set to a
      fraction lesser than 1, then migrants will be the top *migration-size*
@@ -147,15 +150,6 @@
 (defvar *testing-hashtable*  (make-hash-table :test #'equalp))
 
 (defvar *out-reg* '())
-
-(defparameter =label-scanner=
-  ;; Enumerates labels, keeping track of labels it's already seen. 
-  (let ((seen '()))
-    (lambda (lbl)
-      (cond ((eq lbl 'flush) (setf seen '()))
-            ((not (member lbl seen :test #'equalp)) (push lbl seen)))         
-      (cond ((eq lbl 'get) (pop seen) (reverse seen))
-            (t (position lbl (reverse seen) :test #'equalp :from-end t))))))
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -292,9 +286,10 @@
 
 ;; lexicase is doing quite badly right now.
 
-(defparameter *sex* :1pt
-  "Sexual reproduction used when set to T. Cloning, otherwise (with
-     mutation).")
+(defparameter *sex* nil ;;:1pt
+  "One-point crossover when set to :1pt, two-point/fixed-length when
+     set to :2pt. Asexual reproduction (cloning, with certain
+     mutation) when set to nil.")
 
 (defparameter *mating-func* nil)
 
@@ -384,6 +379,15 @@
   "Currently only implemented for lexicase.
      Accepts: :div-by-class-num-shuffle, :full-shuffle [STUB]")
 
+;; (defparameter *fitness-by-detection-rate* t
+;;   "If set to T, then fitness will be measured in terms of detection
+;;      rate instead of accuracy. Currently only implemented for lexicase
+;;      selection.")
+
+(defparameter *fitfunc-name* :n-ary-prop-vote
+  "Accepted values: :n-ary-prop-vote, :detection-rate, :accuracy,
+     :avg-acc-dr.")
+
 (defparameter *tweakables*
   '(*menu*
     *debug*
@@ -395,6 +399,7 @@
     *testing-data-path*
     *split-data*
     *scale-data*
+    *fitfunc-name*
     *sampling-policy*
     *training-ratio*
     *selection-method*
