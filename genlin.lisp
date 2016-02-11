@@ -784,7 +784,7 @@ conjunction with a stochastic selector, like f-lexicase."
         (loop for selected in (list best-one best-two) do
              (setf (creature-fit selected)
                    (or (creature-fit selected)
-                       (fitness-dr selected)))) 
+                       (funcall *fitfunc* selected)))) 
         ;; ranking fitness by detection rate, which seems more to the point
         ;; than accuracy in most applications of lexicase, but this should
         ;; be parameterizable by the user.
@@ -1700,19 +1700,21 @@ without incurring delays."
                                                        interval))))
 
                                         (parallel-dispatcher ()
-                                          (handler-case 
-                                              (with-mutex ((island-lock isle)
-                                                           :wait-p nil)
-                                                (incf (island-era isle))
-                                                (funcall (island-method isle)
-                                                         isle)
-                                                (when (eq *migration-method*
+                                          (when (<= (island-era isle)
+                                                   *rounds*)
+                                            (handler-case 
+                                                (with-mutex ((island-lock isle)
+                                                             :wait-p nil)
+                                                  (incf (island-era isle))
+                                                  (funcall (island-method isle)
+                                                           isle)
+                                                  (when (eq *migration-method*
                                                           :free)
-                                                  (migrate-freely isle))
-                                                (sb-ext:gc))
-                                            (sb-sys:memory-fault-error ()
-                                              (progn (format t "ENCOUNTERED MEMORY FAULT. WILL TRY TO EXIT GRACEFULLY.~%")
-                                                   (setf *STOP* t)))))
+                                                    (migrate-freely isle))
+                                                  (sb-ext:gc))
+                                              (sb-sys:memory-fault-error ()
+                                                (progn (format t "ENCOUNTERED MEMORY FAULT. WILL TRY TO EXIT GRACEFULLY.~%")
+                                                       (setf *STOP* t))))))
                                             
                                             
 

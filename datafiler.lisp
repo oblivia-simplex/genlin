@@ -160,8 +160,10 @@
     (format t "CONFUSION MATRIX: ROW = TRUE CLASS, COLUMN = GUESSED CLASS~%")
     (hrule)
     (print-confusion-matrix cm)
-    (format t "~%DETECTION RATE: ~5,2F%~%" (cmatrix->detection-rate cm))
-    (format t "ACCURACY:       ~5,2F%~%" (cmatrix->accuracy cm))
+    (format t "~%DETECTION RATE: ~5,2F%~%"
+            (* 100 (cmatrix->detection-rate cm)))
+    (format t "ACCURACY:       ~5,2F%~%"
+            (* 100 (cmatrix->accuracy cm)))
     (hrule)
     (values (cons correct incorrect)
             failures)))
