@@ -395,7 +395,7 @@ push the instruction indexed by the SRC register into the bin."
 
 (defparameter *operations*
   (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
-          #'BIN #'CAL #'XOR #'LOD   ;; module construction and invocation
+          #'BIN #'CAL #'HLT #'JLE   ;; module construction and invocation
           #'LEA #'STO #'NBN #'MOV   ;; loading, storing, moving
           #'LEA #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
           #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
