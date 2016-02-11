@@ -388,6 +388,8 @@
   "Accepted values: :n-ary-prop-vote, :detection-rate, :accuracy,
      :avg-acc-dr.")
 
+(defparameter *sampling-ratio* 1/8)
+
 (defparameter *tweakables*
   '(*menu*
     *debug*
@@ -440,6 +442,7 @@
     *verbose-report*
     *save-every*
     *restore-island-ring*
+    *sampling-ratio*
     *params-path*
     *last-params-path*))    
 
