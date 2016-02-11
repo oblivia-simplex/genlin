@@ -862,7 +862,7 @@ genealogical record."
 
 
 (defun tournement! (island &key (genealogy *track-genealogy*)
-                             (fitfunc #'fitness-dr))
+                             (fitfunc *fitfunc*))
   "Tournement selction function: selects four combatants at random
 from the population provide, and lets the two fittest reproduce. Their
 children replace the two least fit of the four. Disable genealogy to
