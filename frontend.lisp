@@ -228,8 +228,7 @@ and eventually, sanitize the input."
     ;; init-fitness-env sets up the training and testing hashtables,
     ;; the fitness function, and the output registers. 
     (init-fitness-env :training-hashtable (car training+testing)
-                      :testing-hashtable  (cdr training+testing)
-                      :fitfunc-name fitfunc-name)
+                      :testing-hashtable  (cdr training+testing))
     (case *sex*
       ((:1pt) (setf *mating-func* #'shufflefuck-1pt))
       ((:2pt) (setf *mating-func* #'shufflefuck-2pt-constant))

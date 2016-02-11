@@ -35,7 +35,7 @@
 
 (defparameter *VERBOSE* nil)
 
-(defparameter *stat-interval* 200
+(defparameter *stat-interval* 500
   "Number of cycles per verbose update on the evolutionary process.")
 
 (defparameter *dataset* :iris

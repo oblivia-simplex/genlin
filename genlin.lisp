@@ -111,11 +111,11 @@
           ((:avg-acc-dr) #'fitness-avg-acc-dr)
           (otherwise (error "FITFUNC NICKNAME NOT RECOGNIZED. MUST BE ONE OF THE FOLLOWING: :N-ARY-PROP-VOTE, :DETECTION-RATE, :ACCURACY, :AVG-ACC-DR.")))))
 
-(defun init-fitness-env (&key fitfunc-name training-hashtable testing-hashtable)
+(defun init-fitness-env (&key training-hashtable testing-hashtable)
   "Works sort of like a constructor, to initialize the fitness 
 environment."
   (set-out-reg)
-  (set-fitfunc fitfunc-name)
+  (set-fitfunc)
   (setf *training-hashtable* training-hashtable)
   (setf *testing-hashtable* testing-hashtable))
 
@@ -1657,6 +1657,9 @@ without incurring delays."
            (< *pack-thresh-by-era* (island-era isle))
            (have-i-plateaued? isle :span *pack-thresh-by-plateau*))))
 
+(defun max-era (island-ring)
+  (reduce #'max (mapcar #'island-era (de-ring island-ring))))
+
 (defun evolve (&key (method *method*)
                  (dataset *dataset*)
                  (rounds *rounds*)
@@ -1686,8 +1689,8 @@ without incurring delays."
                                ;; island-ring is circular, so pop
                                ;; will cycle & not exhaust it
                                (labels ((time-for (interval)
-                                          (= 0 (mod (/ i *number-of-islands*)
-                                                    interval)))
+                                          (= 0 (mod (max-era +island-ring+)
+                                             interval)))
 
                                         (parallel-dispatcher ()
                                           (handler-case 
