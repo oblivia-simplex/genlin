@@ -241,11 +241,12 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
   "Returns a boolean."
   (declare (ignorable island))
   (if (and *case-storage* (solved? (car case-kv) crt island))
-      t
-      (= (cdr case-kv) (register-vote (execute-creature crt
+      t ;; Kludge: we shouldn't have to TEST to see if this is a number!
+      (and (numberp (cdr case-kv))  ;; some garbage is getting in via :balanced sp
+           (= (cdr case-kv) (register-vote (execute-creature crt
                                                         :output *out-reg*
                                                         :input (car case-kv))
-                                      :comparator #'> :pre #'abs))))
+                                           :comparator #'> :pre #'abs)))))
 
 
 ;; -- real returning per-cases --
@@ -688,11 +689,11 @@ conjunction with a stochastic selector, like f-lexicase."
                  using (hash-value v) collect (cons k v))))
     ((:balanced)
      (shuffle (loop for k being the hash-keys in
-                   (car (partition-data (sb-impl::copy-hash-table
-                                         *training-hashtable*)
-                                        (/ 1 *number-of-classes*)
-                                        :first-part-only t))
-                   using (hash-value v) collect (cons k v))))
+                          (car (partition-data (sb-impl::copy-hash-table
+                                                *training-hashtable*)
+                                               (/ 1 *number-of-classes*)
+                                               :first-part-only t))
+                        using (hash-value v) collect (cons k v))))
     (:otherwise (error "Request for unimplemented sampling policy."))))
     
 
