@@ -170,7 +170,7 @@
 
 ;; moved over here from genlin.lisp:
 
-(defun partition-data (hashtable ratio)
+(defun partition-data (hashtable ratio &key (first-part-only nil))
   ;; need to modify this so that the distribution of values in the test
   ;; set is at least similar to the distribution of values in the training
   (let* ((size (hash-table-count hashtable))
@@ -178,7 +178,7 @@
          (testing (make-hash-table :test 'equalp))
          (keys (shuffle (loop for k being the hash-keys in hashtable collect k)))
          (vals)
-           (keys-by-val)
+         (keys-by-val)
          (portions))
     (setf vals (remove-duplicates (loop
                                      for v being the hash-values
@@ -204,9 +204,10 @@
                 (setf k (pop keylist))
                 (setf (gethash k training)
                       (gethash k hashtable))))
-         (loop for k in keylist do
-              (setf (gethash k testing)
-                    (gethash k hashtable))))
+         (unless first-part-only
+           (loop for k in keylist do
+                (setf (gethash k testing)
+                      (gethash k hashtable)))))
     (cons training testing)))
 
 

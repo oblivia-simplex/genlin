@@ -690,7 +690,8 @@ conjunction with a stochastic selector, like f-lexicase."
      (shuffle (loop for k being the hash-keys in
                    (car (partition-data (sb-impl::copy-hash-table
                                          *training-hashtable*)
-                                        (/ 1 *number-of-classes*)))
+                                        (/ 1 *number-of-classes*)
+                                        :first-part-only t))
                    using (hash-value v) collect (cons k v))))
     (:otherwise (error "Request for unimplemented sampling policy."))))
     
