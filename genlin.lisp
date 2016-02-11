@@ -1750,7 +1750,7 @@ without incurring delays."
                                            (time-for *rounds*)
                                            *STOP*)
                                    (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
-                                           target i)
+                                           target (max-era +island-ring+))
                                    (return-from evolver)))))
                       (sb-sys:interactive-interrupt () (setf *STOP* t)))))))
           (print-statistics +island-ring+)
