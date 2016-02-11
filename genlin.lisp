@@ -1065,8 +1065,6 @@ shuffled in the process."
 (defun migrate-freely (island &key (pier *pier*)
                                            (emigrant-fraction *migration-size*)
                                            (greedy *greedy-migration*))
-
-  
     (with-mutex ((pier-lock pier))
       (cond ((and (>= (length (island-deme island)) *island-capacity*)
                   (= 0 (mod (island-era island) *migration-rate*)))
@@ -1083,9 +1081,10 @@ shuffled in the process."
                 while pier
                 while (< (length (island-deme island)) *island-capacity*) do
                   (incf *m-counter*)
-                  (FORMAT T "== MIGRATING CREATURE FROM ISLAND ~A TO ISLAND ~A ==~%"
-                  (roman (creature-home (car (pier-crowd pier))))
-                  (roman (island-id island)))
+                  (and *debug*
+                       (FORMAT T "== MIGRATING CREATURE FROM ISLAND ~A TO ISLAND ~A ==~%"
+                               (roman (creature-home (car (pier-crowd pier))))
+                               (roman (island-id island))))
                   (push (pop (pier-crowd pier)) (island-deme island)))))))
   
 
