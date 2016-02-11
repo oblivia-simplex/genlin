@@ -250,7 +250,8 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
 ;; -- real returning per-cases --
 
-(defun per-case-n-ary-proportional (crt case-kv island &key (out *out-reg*))
+(defun per-case-n-ary-proportional (crt case-kv  &key (island)
+                                                   (out *out-reg*))
   "Case-kv is a cons of key and value from hashtable."
   (declare (ignorable island))
   (cond ((solved? (car case-kv) crt island)
@@ -1683,8 +1684,7 @@ without incurring delays."
           (with-output-to-string (*trace-output*)
             (time (block evolver
                     (handler-case 
-                        (loop for i from 1 to (* rounds *number-of-islands*)
-                           do
+                        (loop for i from 1 do
                              (let ((isle (pop island-ring)))
                                ;; island-ring is circular, so pop
                                ;; will cycle & not exhaust it
@@ -1747,6 +1747,7 @@ without incurring delays."
                                  (when (or (> (creature-fit
                                                (island-best isle))
                                               target)
+                                           (time-for *rounds*)
                                            *STOP*)
                                    (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
                                            target i)
