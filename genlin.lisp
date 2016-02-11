@@ -1661,6 +1661,12 @@ without incurring delays."
 (defun max-era (island-ring)
   (reduce #'max (mapcar #'island-era (de-ring island-ring))))
 
+(defun avg-era (island-ring)
+  (floor (reduce #'avg (mapcar #'island-era (de-ring island-ring)))))
+
+(defun sum-era (island-ring)
+  (reduce #'+ (mapcar #'island-era (de-ring island-ring))))
+
 (defun evolve (&key (method *method*)
                  (dataset *dataset*)
                  (rounds *rounds*)
@@ -1689,7 +1695,7 @@ without incurring delays."
                                ;; island-ring is circular, so pop
                                ;; will cycle & not exhaust it
                                (labels ((time-for (interval)
-                                          (= 0 (mod (max-era +island-ring+)
+                                          (= 0 (mod (sum-era +island-ring+)
                                              interval)))
 
                                         (parallel-dispatcher ()
