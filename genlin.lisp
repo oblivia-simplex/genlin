@@ -1248,6 +1248,7 @@ applying, say, mapcar or length to it, in most cases."
   (loop for tweakable in *tweakables* do
        (format stream "[+] ~A: ~A~%"
                tweakable (symbol-value tweakable)))
+  (format stream "[+] *FITFUNC*: ~A~%" *fitfunc*)
   (hrule stream))
 
 
