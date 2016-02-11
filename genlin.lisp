@@ -1696,7 +1696,8 @@ without incurring delays."
                                ;; will cycle & not exhaust it
                                (labels ((time-for (interval)
                                           (= 0 (mod (sum-era +island-ring+)
-                                             interval)))
+                                                    (* *number-of-islands*
+                                                       interval))))
 
                                         (parallel-dispatcher ()
                                           (handler-case 
