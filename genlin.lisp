@@ -1084,7 +1084,7 @@ shuffled in the process."
                                 (emigrant-fraction *migration-size*)
                                 (greedy *greedy-migration*))
   (assert (listp (island-deme island)))
-    (with-mutex ((pier-lock pier))
+    (with-mutex ((pier-lock pier) :wait-p t :timeout 3)
       (cond ((and (>= (length (island-deme island)) *island-capacity*)
                   (= 0 (mod (island-era island) *migration-rate*)))
              (setf (island-deme island)
