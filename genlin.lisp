@@ -757,8 +757,7 @@ conjunction with a stochastic selector, like f-lexicase."
                        (:DEFAULT
                         NIL))))
       (loop while (and (> (length next-candidates) 2) cases) do
-           (let ((the-case))
-             (setf the-case (pop cases))
+           (let ((the-case (pop cases)))
              (setf candidates next-candidates)
              (setf next-candidates
                    (remove-if-not 
@@ -1774,9 +1773,9 @@ without incurring delays."
                                  (when (time-for-packs isle)             
                                    (populate-island-with-packs isle)
                                    (setf use-migration nil))
-                                 (when (and (time-for *save-every*) (not (= (sum-era +island-rings+) *saved-at*)))
+                                 (when (and (time-for *save-every*) (not (= (sum-era island-ring) *saved-at*)))
                                    (with-mutex (-save-lock- :wait-p nil)
-                                     (setf *saved-at* (sum-era +island-rings+))
+                                     (setf *saved-at* (sum-era +island-ring+))
                                      (format t "~%~%--- SAVING ISLAND-RING AND PARAMETERS ---~%~%")
                                      (save-all +ISLAND-RING+)))
                                  (when (or (> (creature-fit
@@ -1785,7 +1784,7 @@ without incurring delays."
                                            (time-for rounds)
                                            *STOP*)
                                    (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
-                                           target (max-era +island-ring+))
+                                           target (max-era island-ring))
                                    (return-from evolver))))
                       (sb-sys:interactive-interrupt () (setf *STOP* t)))))))
           (print-statistics +island-ring+)
