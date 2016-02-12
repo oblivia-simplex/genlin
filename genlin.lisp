@@ -107,6 +107,7 @@
         (case name
           ((:n-ary-prop-vote) #'fitness-n-ary-classifier)
           ((:detection-rate)  #'fitness-dr)
+          ((:worst-dr) #'fitness-worst-dr)
           ((:accuracy) #'fitness-acc)
           ((:avg-acc-dr) #'fitness-avg-acc-dr)
           (otherwise (error "FITFUNC NICKNAME NOT RECOGNIZED. MUST BE ONE OF THE FOLLOWING: :N-ARY-PROP-VOTE, :DETECTION-RATE, :ACCURACY, :AVG-ACC-DR.")))))
@@ -279,6 +280,11 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
   (unless (creature-cm crt)
     (compute-cmatrix crt :ht ht))
   (cmatrix->detection-rate (creature-cm crt)))
+
+(defun fitness-worst-dr (crt &key (ht *training-hashtable*))
+  (unless (creature-cm crt)
+    (compute-cmatrix crt :ht ht))
+  (cmatrix->worst-detection-rate (creature-cm crt)))
 
 (defun fitness-acc (crt &key (ht *training-hashtable*))
   (unless (creature-cm crt)
@@ -1722,7 +1728,7 @@ without incurring delays."
                                           ;;          *rounds*)
                                             (handler-case 
                                                 (with-mutex ((island-lock isle)
-                                                             :wait-p nil)
+                                                             :timeout 1)
                                                   (incf (island-era isle))
                                                   (funcall (island-method isle)
                                                            isle)
