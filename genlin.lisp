@@ -674,7 +674,28 @@ conjunction with a stochastic selector, like f-lexicase."
       (setf (creature-cm crt) cmatrix))
     cmatrix))
 
-
+(defun balanced-sample (ht nobiggerthan) ;;max-fraction)
+  (let ((sample-alist '())
+        (classquota (min (reduce #'min *label-counts*)
+                              (round (/ nobiggerthan *number-of-classes*))))
+        (valtally (make-hash-table :test #'equalp)))
+    (flet ((inctally (keyval)
+             (setf (gethash (cdr keyval) valtally)
+                   (1+ (nil0 (gethash (cdr keyval) valtally)))))
+           (okay (keyval)
+             (< (nil0 (gethash (cdr keyval) valtally)) classquota)))
+      (loop for kv in
+           (shuffle (loop for k being the hash-keys in ht
+                       using (hash-value v) collect (cons k v))) do
+           (when (okay kv)
+             ;;             (print (gethash (cdr kv) valtally))
+             ;; (FORMAT T "~%~A IS ~D UNDER QUOTA ~D SO ADDING.~%~%"
+             ;;         (cdr kv) (gethash (cdr kv) valtally) classquota)
+             (push kv sample-alist)
+             (inctally kv)))
+      (shuffle sample-alist))))
+    
+  
 (defun invoke-sampling-policy (ht &key
                              (format 'alist)
                              (policy *sampling-policy*))
@@ -688,6 +709,8 @@ conjunction with a stochastic selector, like f-lexicase."
      (shuffle (loop for k being the hash-keys in ht
                  using (hash-value v) collect (cons k v))))
     ((:balanced)
+     (balanced-sample *training-hashtable* )
+    ((:proportional)
      (shuffle (loop for k being the hash-keys in
                           (car (partition-data (sb-impl::copy-hash-table
                                                 *training-hashtable*)
@@ -713,11 +736,10 @@ conjunction with a stochastic selector, like f-lexicase."
                    &key (per-case #'per-case-n-ary))
   "Note: per-case can be any boolean-returning fitness function."
   (let* ((cases (copy-seq (island-sample island)))
-         (sample-size (length cases))
          (candidates (copy-seq (or (island-packs island)
                                    (island-deme island))))
          (next-candidates candidates)
-         (worst))
+         (worst (list (pick candidates) (pick candidates))))
     (labels ((case-eval (crt cas cases-left)
                (declare (ignorable cases-left)) ;; kludge
                (cond ((funcall per-case crt cas island)
@@ -726,7 +748,7 @@ conjunction with a stochastic selector, like f-lexicase."
                       T)
                        (:DEFAULT
                         NIL))))
-      (loop while (and next-candidates cases) do
+      (loop while (and (> (length next-candidates) 2) cases) do
            (let ((the-case))
              (setf the-case (pop cases))
              (setf candidates next-candidates)
@@ -734,30 +756,22 @@ conjunction with a stochastic selector, like f-lexicase."
                    (remove-if-not 
                     #'(lambda (x) (case-eval x the-case cases))
                     candidates))
-             (unless worst ;; somewhat better way to get worst
-               (setf worst
-                     (car (set-difference candidates next-candidates)))
-               (unless worst ;; if we STILL can't find a worst, random
-                 (setf worst (pick (if (island-packs island)
-                                       (island-packs island)
-                                       (island-deme island))))))))
-      ;; a new, less memory-expensive approach to calculating fitness
-      ;; (but more time expensive, since we're abandoning case storage)
-      ;; (mapc #'(lambda (x) (grade-fitness x)) candidates)
-      ;;(grade-fitness candidate cases)))
-      (when (null candidates)
-        (setf candidates
-              (list (elt (island-deme island)
-                         (random (length (island-deme island)))))))
-      (values (car candidates)
+             (unless (>= (length worst) 2) ;; somewhat better way to get worst
+               (push (car (set-difference candidates next-candidates))
+                     worst))))
+      
+      ;; (when (null candidates)
+      ;;   (setf candidates
+      ;;         (list (elt (island-deme island)
+      ;;                    (random (length (island-deme island)))))))
+      (values (subseq candidates 0 2)
               worst)))) ;; return just one parent
 
 
-(defun lexicase! (island &key (elite-prob 0 )) ;; under construction*lexicase-elitism*))
+(defun lexicase! (island)
   ;; make elitism a probability, instead of a boolean
   "Selects parents by lexicase selection." ;; stub, ex
-  (let ((elitism (< (random 1.0) elite-prob))
-        (per-case 
+  (let ((per-case 
          (if (= (length *out-reg*) 1)
              #'per-case-binary
              #'per-case-n-ary))
@@ -770,20 +784,12 @@ conjunction with a stochastic selector, like f-lexicase."
     (refresh-sample-if-needed island
                               :ht *training-hashtable*
                               :sp *sampling-policy*)
-    (multiple-value-bind (best-one worst-one)
+    (multiple-value-bind (best-pair worst-pair)
         (f-lexicase island :per-case per-case)
-      (multiple-value-bind (best-two worst-two)
-          (cond (elitism (let* ((rarity ;; unstable. use at own peril. 
-                                 (get-a-creature-who-solved-the-hardest
-                                  island))
-                                (unrarity (pick
-                                           (set-difference population
-                                                           (list rarity)))))
-                           (if rarity
-                               (values rarity unrarity))
-                           (f-lexicase island :per-case per-case)))
-                (:DEFAULT (f-lexicase island :per-case per-case)))
-
+      (let ((best-one (car best-pair))
+            (best-two (cadr best-pair))
+            (worst-one (car worst-pair))
+            (worst-two (cadr worst-pair)))
         ;; a bit of a kludge: lacking any reliable and efficient way of
         ;; extracting a fitness score from f-lexicase, we'll just measure
         ;; accuracy the old fashioned way, but only for the f-lex winners.
@@ -809,7 +815,8 @@ conjunction with a stochastic selector, like f-lexicase."
           (mapc #'(lambda (x) (setf (creature-home x)
                                (island-id island))) children)
 
-          (nsubst (car children) worst-one (island-deme island)
+          
+          (nsubst (car children) worst-one  (island-deme island)
                   :test #'equalp)
           (nsubst (cadr children) worst-two (island-deme island)
                   :test #'equalp)
@@ -1072,8 +1079,9 @@ shuffled in the process."
 
 ;; not ready for deployment yet. figure out what's meant by CASable places. 
 (defun migrate-freely (island &key (pier *pier*)
-                                           (emigrant-fraction *migration-size*)
-                                           (greedy *greedy-migration*))
+                                (emigrant-fraction *migration-size*)
+                                (greedy *greedy-migration*))
+  (assert (listp (island-deme island)))
     (with-mutex ((pier-lock pier))
       (cond ((and (>= (length (island-deme island)) *island-capacity*)
                   (= 0 (mod (island-era island) *migration-rate*)))
@@ -1083,11 +1091,11 @@ shuffled in the process."
                 do
                   (incf *m-counter*)
                   (push (pop (island-deme island)) (pier-crowd pier)))
-             (setf (pier-crowd pier) (shuffle (pier-crowd pier))))
+             (setf (pier-crowd pier) (shuffle (copy-seq (pier-crowd pier)))))
             ((= (floor (/ *migration-rate* 2))
                 (mod (island-era island) *migration-rate*))
              (loop
-                while pier
+                while pier 
                 while (< (length (island-deme island)) *island-capacity*) do
                   (incf *m-counter*)
                   (and *debug*
@@ -1847,3 +1855,35 @@ without incurring delays."
               (assert (equalp result1 result2))))))
 
                  
+(defun thyroid-params ()
+  (setf *dataset* :thyroid
+        *data-path* "./datasets/thyroid/ann-train.lbl.csv"
+        *testing-data-path* "./datasets/thyroid/ann-test.lbl.csv"
+        *selection-method* :lexicase
+        *mutation-rate* 95/100
+        *sex* nil
+        *sampling-policy* :balanced
+        *sampling-ratio* 1/3
+        
+        ))
+        
+
+(defun matrix-sum (&rest matrices)
+  (let ((accumulator
+         (make-array (array-dimensions (car matrices)) :initial-element 0)))
+    (loop for m in matrices do
+         (loop for i below (apply #'* (array-dimensions accumulator)) do
+              (incf (row-major-aref accumulator i)
+                    (row-major-aref m i))))
+    accumulator))
+
+(defun cmatrix-sum (island)
+  (apply #'matrix-sum
+         (mapcar #'(lambda (x) (compute-cmatrix x :ht *testing-hashtable*))
+                 (island-deme island))))
+
+(defun cmatrix-sum-of-island-ring (island-ring)
+  (apply #'matrix-sum (mapcar #'cmatrix-sum (de-ring island-ring))))
+
+
+  

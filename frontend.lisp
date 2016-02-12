@@ -180,14 +180,13 @@ and eventually, sanitize the input."
   (load param-path))
 
 
-
+(defparameter *label-counts* nil)
 
 
 (defun setup-data (&key (ratio *training-ratio*)
                      (dataset *dataset*)
                      (selection-method *selection-method*)
                      (pack-selection-method *pack-selection-method*)
-                     (fitfunc-name *fitfunc-name*)
                      (filename *data-path*))
   (let ((hashtable)
         (training+testing))
@@ -234,7 +233,7 @@ and eventually, sanitize the input."
       ((:2pt) (setf *mating-func* #'shufflefuck-2pt-constant))
       ((t) (setf *mating-func* #'shufflefuck-2pt-constant))
       (otherwise (setf *mating-func* 'cloning)))
-         
+    (setf *label-counts* (count-labels (car training+testing)))
     training+testing))
 
 

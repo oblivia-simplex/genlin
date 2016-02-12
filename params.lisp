@@ -167,7 +167,7 @@
 
 ;; see if you can put the entire virtual machine in its own environment
 
-(defparameter *opcode-bits* 4
+(defparameter *opcode-bits* 3
   "The number of bits in an instruction used to determine the operation. 
      Can be set to 1, 2, 3, or 4.")   ;; size
 
@@ -389,6 +389,8 @@
      :avg-acc-dr.")
 
 (defparameter *sampling-ratio* 1/8)
+
+(defparameter *sampling-freq* 50)
 
 (defparameter *tweakables*
   '(*menu*

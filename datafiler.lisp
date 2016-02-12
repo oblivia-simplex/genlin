@@ -165,6 +165,8 @@
     (format t "ACCURACY:       ~5,2F%~%"
             (* 100 (cmatrix->accuracy cm)))
     (hrule)
+    (format t "AGGREGATE CONFUSION MATRIX OF ISLAND-RING:~%~%")
+    (print-confusion-matrix (cmatrix-sum-of-island-ring +island-ring+))
     (values (cons correct incorrect)
             failures)))
 
@@ -291,3 +293,16 @@
 
 
 
+(defun count-labels (ht)
+  (let ((counts '())
+        (tally 0)
+        (lastseen))
+    (loop for val in
+         (sort (loop for v being the hash-values in ht collect v) #'<) do
+         (unless (or (null lastseen) (= val lastseen))
+           (push tally counts)
+           (setf tally 0))
+         (incf tally)
+         (setf lastseen val))
+    (push tally counts)
+    counts))
