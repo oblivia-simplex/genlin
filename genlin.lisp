@@ -1090,7 +1090,7 @@ shuffled in the process."
                                 (emigrant-fraction *migration-size*)
                                 (greedy *greedy-migration*))
   (assert (listp (island-deme island)))
-    (with-mutex ((pier-lock pier) :wait-p t :timeout 3)
+    (with-mutex ((pier-lock pier) :wait-p t :timeout 1)
       (cond ((and (>= (length (island-deme island)) *island-capacity*)
                   (= 0 (mod (island-era island) *migration-rate*)))
              (setf (island-deme island)
@@ -1714,8 +1714,7 @@ without incurring delays."
           (with-output-to-string (*trace-output*)
             (time (block evolver
                     (handler-case 
-                        (loop for i from 1 do
-                             (let ((isle (pop island-ring)))
+                        (loop for isle in island-ring do
                                ;; island-ring is circular, so pop
                                ;; will cycle & not exhaust it
                                (labels ((time-for (interval)
@@ -1728,7 +1727,7 @@ without incurring delays."
                                           ;;          *rounds*)
                                             (handler-case 
                                                 (with-mutex ((island-lock isle)
-                                                             :timeout 1)
+                                                             :wait-p t :timeout 1)
                                                   (incf (island-era isle))
                                                   (funcall (island-method isle)
                                                            isle)
@@ -1739,9 +1738,7 @@ without incurring delays."
                                               (sb-sys:memory-fault-error ()
                                                 (progn (format t "ENCOUNTERED MEMORY FAULT. WILL TRY TO EXIT GRACEFULLY.~%")
                                                        (setf *STOP* t)))))
-                                            
-                                            
-
+              
                                         (serial-dispatcher ()
                                           (incf (island-era isle))
                                           (funcall (island-method isle) isle)
@@ -1770,7 +1767,6 @@ without incurring delays."
                                    ;;(best-of-all +island-ring+)
                                    (print-statistics island-ring
                                                      :stopwatch stopwatch))
-                                
                                  (when (time-for-packs isle)             
                                    (populate-island-with-packs isle)
                                    (setf use-migration nil))
@@ -1780,11 +1776,11 @@ without incurring delays."
                                  (when (or (> (creature-fit
                                                (island-best isle))
                                               target)
-                                           (time-for *rounds*)
+                                           (time-for rounds)
                                            *STOP*)
                                    (format t "~%TARGET OF ~f REACHED AFTER ~d ROUNDS~%"
                                            target (max-era +island-ring+))
-                                   (return-from evolver)))))
+                                   (return-from evolver))))
                       (sb-sys:interactive-interrupt () (setf *STOP* t)))))))
           (print-statistics +island-ring+)
           ;;(best-of-all island-ring)
