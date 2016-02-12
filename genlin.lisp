@@ -1693,6 +1693,8 @@ without incurring delays."
 
 (defvar -save-lock- (make-mutex :name "save-lock"))
 
+(defparameter *saved-at* 0)
+
 (defun evolve (&key (method *method*)
                  (dataset *dataset*)
                  (rounds *rounds*)
@@ -1772,8 +1774,9 @@ without incurring delays."
                                  (when (time-for-packs isle)             
                                    (populate-island-with-packs isle)
                                    (setf use-migration nil))
-                                 (when (time-for *save-every*)
+                                 (when (and (time-for *save-every*) (not (= (sum-era +island-rings+) *saved-at*)))
                                    (with-mutex (-save-lock- :wait-p nil)
+                                     (setf *saved-at* (sum-era +island-rings+))
                                      (format t "~%~%--- SAVING ISLAND-RING AND PARAMETERS ---~%~%")
                                      (save-all +ISLAND-RING+)))
                                  (when (or (> (creature-fit
