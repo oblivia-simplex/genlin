@@ -1727,7 +1727,7 @@ without incurring delays."
                                           ;;          *rounds*)
                                             (handler-case 
                                                 (with-mutex ((island-lock isle)
-                                                             :wait-p t :timeout 1)
+                                                             :wait-p nil)
                                                   (incf (island-era isle))
                                                   (funcall (island-method isle)
                                                            isle)
