@@ -1691,6 +1691,8 @@ without incurring delays."
 (defun sum-era (island-ring)
   (reduce #'+ (mapcar #'island-era (de-ring island-ring))))
 
+(defvar -save-lock- (make-mutex :name "save-lock"))
+
 (defun evolve (&key (method *method*)
                  (dataset *dataset*)
                  (rounds *rounds*)
@@ -1771,8 +1773,9 @@ without incurring delays."
                                    (populate-island-with-packs isle)
                                    (setf use-migration nil))
                                  (when (time-for *save-every*)
-                                   (format t "~%~%--- SAVING ISLAND-RING AND PARAMETERS ---~%~%")
-                                   (save-all +ISLAND-RING+))
+                                   (with-mutex (-save-lock- :wait-p nil)
+                                     (format t "~%~%--- SAVING ISLAND-RING AND PARAMETERS ---~%~%")
+                                     (save-all +ISLAND-RING+)))
                                  (when (or (> (creature-fit
                                                (island-best isle))
                                               target)
