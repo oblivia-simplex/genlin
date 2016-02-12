@@ -709,7 +709,9 @@ conjunction with a stochastic selector, like f-lexicase."
      (shuffle (loop for k being the hash-keys in ht
                  using (hash-value v) collect (cons k v))))
     ((:balanced)
-     (balanced-sample *training-hashtable* )
+     (balanced-sample *training-hashtable*
+                      (* (hash-table-count *training-hashtable*)
+                         *sampling-ratio*)))
     ((:proportional)
      (shuffle (loop for k being the hash-keys in
                           (car (partition-data (sb-impl::copy-hash-table

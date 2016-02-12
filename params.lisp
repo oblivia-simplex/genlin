@@ -374,11 +374,10 @@
 (defparameter *restore-island-ring* nil
   "Loads a saved island ring from supplied path name.")
 
-(defparameter *sampling-policy*
-  :div-by-class-num-shuffle
+(defparameter *sampling-policy*  :balanced
   "Currently only implemented for lexicase.
-     Accepts: :div-by-class-num-shuffle, :full-shuffle [STUB]")
-
+     Accepts: :balanced, :proportional, :div-by-class-num-shuffle, 
+     :full-shuffle [STUB]")
 ;; (defparameter *fitness-by-detection-rate* t
 ;;   "If set to T, then fitness will be measured in terms of detection
 ;;      rate instead of accuracy. Currently only implemented for lexicase
@@ -406,6 +405,7 @@
     *fitfunc-name*
     *sampling-policy*
     *training-ratio*
+    *sampling-ratio*
     *selection-method*
     *lexicase-combatant-ratio*
     *lexicase-elitism*
@@ -444,7 +444,6 @@
     *verbose-report*
     *save-every*
     *restore-island-ring*
-    *sampling-ratio*
     *params-path*
     *last-params-path*))    
 
