@@ -6,10 +6,13 @@
 ;;
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+(in-package :genlin)
+
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; Execution: interface between genetic components and virtual machine
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+(export 'execute-creature)
 (defun execute-creature (crt &key (input) (output *out-reg*) (debug nil))
   (case (creature-typ crt)
     ((:alpha) (execute-pack crt
@@ -214,8 +217,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 ;; patch, once we see what they are. 
 
 (defun register-vote (output &key (comparator #'>) (pre #'abs))
-  "Return the index of the register with the highest or lowest value."
-  (assert output)
+  "Return the index of the register with the highest or lowest value.  (assert output)
   (reduce #'(lambda (x y) (if (funcall comparator
                                   (funcall pre (nth x output))
                                   (funcall pre (nth y output))) 
@@ -318,13 +320,15 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
        (* w2 (/ acc2 (hash-table-count ht))))))
 
 (defun fitness (crt &key
+                      (island)
                       (ht *training-hashtable*)
                       (fitfunc *fitfunc*))
   "Measures the fitness of a specimen, according to a specified
 fitness function."
+  (refresh-sample-if-needed island)
   (unless (creature-fit crt)  
     (setf (creature-fit crt)
-          (funcall fitfunc crt  :ht ht))
+          (funcall fitfunc crt  :ht ht :sample (island-sample island)))
     (loop for parent in (creature-parents crt) do
          (cond ((> (creature-fit crt) (creature-fit parent))
                 (incf (getf *records* :fitter-than-parents)))
@@ -400,8 +404,10 @@ fitness function."
   (setf seq (concatenate 'vector
                          (subseq seq 0 idx)
                          (vector (elt seq idx))
-                         (subseq seq idx (length seq))))
-  seq))
+                         (subseq seq idx (min ;; fixed?
+                                          *max-len*
+                                          (length seq)))))
+  seq)) ;; there was an unchecked code bloat problem here. 
 
 (defun smutate-grow (seq)
   "Doubles a random element of seq."
@@ -410,7 +416,7 @@ fitness function."
   (setf seq (concatenate 'vector
                          seq
                          (vector (random (expt 2 *wordsize*)))))
-  seq)
+  (subseq seq 0 (min (length seq) *max-len*)))
 
 (defun smutate-shrink (seq)
   "Removes a random element of seq."
@@ -521,10 +527,12 @@ fitness function."
                         *metamutation-step*)))))
   mut)
 
-(defun clone (p0 p1)
-  (list
-   (make-creature :seq (copy-seq (creature-seq p0)))
-   (make-creature :seq (copy-seq (creature-seq p1)))))
+(defun clone (p0 &optional (p1 nil))
+  (declare (ignorable p1))
+  (let ((offspring))
+    (push (make-creature :seq (copy-seq (creature-seq p0))) offspring)
+    (when p1 
+      (push (make-creature :seq (copy-seq (creature-seq p1))) offspring))))
 
 (defun pack-mingle (alpha1 alpha2)
   "Destructively mingles the two packs, preserving alphas and size."
@@ -535,17 +543,23 @@ fitness function."
     (setf (creature-pack alpha1) (subseq underlings 0 num)
           (creature-pack alpha2) (subseq underlings num))))
 
+(export 'mate)
 (defun mate (p0 p1 &key (island nil)
                      (genealogy *track-genealogy*)
                      (output-registers *out-reg*)
                      (sex *sex*)
+                     (single nil) ;; kludge. restructure func
                      (mingle-rate *mingle-rate*))
-  (declare (ignorable island))
+  (declare (ignorable island)
+           (ignorable p1))
+      
   (let* ((mating-func (case sex
                         ((:2pt) #'shufflefuck-2pt-constant)
                         ((:1pt) #'shufflefuck-1pt)
                         (otherwise #'clone)))
-         (offspring (funcall mating-func p0 p1))) ;; sexual reproduction
+         (offspring (if single 
+                        (clone p0)
+                        (funcall mating-func p0 p1)))) ;; sexual reproduction
 
     ;; PACK MINGLING
     (when (and (eq :alpha (creature-typ p0))
@@ -579,6 +593,7 @@ fitness function."
            (setf (creature-eff child) (remove-introns
                                        (creature-seq child)
                                        :output output-registers));; NB
+           (setf (creature-home child) (if island (island-id island) 666))
            (loop for parent in (list p0 p1) do
                 (when (equalp (creature-eff child) (creature-eff parent))
                   (setf (creature-fit child) (creature-fit parent))))
@@ -663,7 +678,7 @@ conjunction with a stochastic selector, like f-lexicase."
                                      (car (array-dimensions cmatrix)) sum
                                      (aref cmatrix j i)))))))
 
-
+(export 'compute-cmatrix)
 (defun compute-cmatrix (crt &key (ht *training-hashtable*)
                               (set t))
   ;; should gauge accuracy obey the sampling policy as well?
@@ -774,7 +789,7 @@ conjunction with a stochastic selector, like f-lexicase."
       (values (subseq candidates 0 2)
               worst)))) ;; return just one parent
 
-
+(export 'lexicase!)
 (defun lexicase! (island)
   ;; make elitism a probability, instead of a boolean
   "Selects parents by lexicase selection." ;; stub, ex
@@ -883,7 +898,7 @@ genealogical record."
              children unlucky)
      children))
 
-
+(export 'tournement!)
 (defun tournement! (island &key (genealogy *track-genealogy*)
                              (fitfunc *fitfunc*))
   "Tournement selction function: selects four combatants at random
@@ -906,6 +921,7 @@ genealogical record."
       (loop for combatant in combatants do
            (unless (creature-fit combatant)
              (fitness combatant
+                      :island island
                       :fitfunc fitfunc)))
       (let* ((ranked (sort combatants
                            #'(lambda (x y) (< (creature-fit x)
@@ -970,6 +986,7 @@ garbage-collected."
     (mapc #'(lambda (x) (setf (creature-home x) (island-id island))) children)
     children))
 
+(export 'greedy-roulette!)
 (defun greedy-roulette! (island)
   "New and old generations compete for survival. Instead of having the
 new generation replace the old, the population is replaced with the
@@ -984,6 +1001,7 @@ twice as long as #'roulette!"
                                       (fitness y))))
                   0 popsize))))
 
+(export 'roulette!)
 (defun roulette! (island)
   "Replaces the given island's population with the one generated by
 f-roulette."
@@ -1076,6 +1094,7 @@ shuffled in the process."
 
 (defstruct pier crowd lock)
 
+(export '*pier*)
 (defparameter *pier* (make-pier :crowd '()
                           :lock (sb-thread:make-mutex :name "pier-lock")))
 
@@ -1085,6 +1104,7 @@ shuffled in the process."
 (defparameter *m-counter* 0)
 
 ;; not ready for deployment yet. figure out what's meant by CASable places. 
+(export 'migrate-freely)
 (defun migrate-freely (island &key (pier *pier*)
                                 (emigrant-fraction *migration-size*)
                                 (greedy *greedy-migration*))
@@ -1105,7 +1125,7 @@ shuffled in the process."
                 while pier 
                 while (< (length (island-deme island)) *island-capacity*) do
                   (incf *m-counter*)
-                  (and *debug*
+                  (and ;;*debug*
                        (FORMAT T "== MIGRATING CREATURE FROM ISLAND ~A TO ISLAND ~A ==~%"
                                (roman (creature-home (car (pier-crowd pier))))
                                (roman (island-id island))))
@@ -1167,6 +1187,7 @@ applying, say, mapcar or length to it, in most cases."
                  :gen 0
                  :mut *mutation-rate*))
 
+(export 'init-population)
 (defun init-population (popsize slen &key (number-of-islands 4))
   (let ((adjusted-popsize (+ popsize (mod popsize (* 2 number-of-islands)))))
     ;; we need to adjust the population size so that there exists an integer
@@ -1179,6 +1200,7 @@ applying, say, mapcar or length to it, in most cases."
 
 
 
+(export 'release-all-locks)
 (defun release-all-locks (island-ring)
   "Mostly for running from the REPL after aborting the programme."
   (sb-thread:release-mutex -migration-lock-)
@@ -1201,6 +1223,7 @@ applying, say, mapcar or length to it, in most cases."
 ;;     ;; (setf *best* best-so-far) ;; cause of race condition?
 ;;     best-so-far))
 
+(export 'best)
 (defun best ()
   (island-best (reduce #'(lambda (x y) (if (> (creature-fit (island-best x))
                                          (creature-fit (island-best y)))
@@ -1331,7 +1354,7 @@ applying, say, mapcar or length to it, in most cases."
 
 (defun proportion-native-population (island)
   (flet ((native-p (x)
-           (= (creature-home x) (island-id island))))
+           (= (nil0 (creature-home x)) (nil0 (island-id island)))))
   (divide (length
            (remove-if-not #'native-p (island-deme island)))
           (length (island-deme island)))))

@@ -3,10 +3,10 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-(defpackage :genlin
-  (:use :common-lisp))
+;; (defpackage :genlin
+;;   (:use :common-lisp))
 
-(in-package :genlin)
+(in-package #:genlin)
 
 (defparameter *01vs+-* t)
 

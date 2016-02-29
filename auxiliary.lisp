@@ -2,32 +2,32 @@
 ;; General Mathematical Helper Functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defpackage :genlin
-  (:use :common-lisp))
 
 (in-package :genlin)
 
 (defun avg (&rest args)
   (divide (reduce #'+ args) (length args)))
 
-
+(export 'reverse-hash-table)
 (defun reverse-hash-table (hash-table &key (test 'eql))
   (let ((newtable (make-hash-table :test test)))
     (loop for k being the hash-keys in hash-table do
          (setf (gethash (gethash k hash-table) newtable) k))
     newtable))
 
-
+(export 'roman)
 (defun roman (n)
   (cond ((null n) "NULL")
         ((= 0 n) "ZERO")
         (t (format nil "~@R" n))))
 
-
+(export 'divide)
 (defun divide (&rest args)
   (if (some #'zerop args) 0
       (reduce #'/ args)))
 
+
+(export 'to-gray-vec)
 (defun to-gray-vec (base digits value)
   ;; adapted from C programme found in Wikipedia's Gray Code entry
   (let ((gray (make-array digits))
@@ -45,7 +45,7 @@
                  shift (+ shift (- base (aref gray i))))) ;; subtract from base so shift is +
       gray))
 
-
+;; tictactoe-specific
 (defparameter *gray-lookup*
   (let ((grayhash (make-hash-table)))
     (loop for i from 0 to #3r222222222 do
@@ -57,7 +57,7 @@
 
 
 
-
+(export 'sub-map)
 (defun sub-map (seq map)
   "Substitutes elements in seq according to hashtable ht. Keys and vals of ht 
 must be disjoint."
@@ -72,6 +72,7 @@ must be disjoint."
            (setf copy (substitute (funcall mapper e) e copy))))
     copy))
 
+(export 'sub-assoc)
 (defun sub-assoc (seq al)
   (let ((el (concatenate 'list (remove-duplicates seq)))
         (copy (copy-seq seq)))
@@ -79,7 +80,7 @@ must be disjoint."
          (setf copy (substitute (assoc e al) e copy)))
     copy))
 
-
+(export 'shuffle)
 (defun shuffle (seq)
   (sort seq #'(lambda (x y) (declare (ignore x y))(= 0 (random 2)))))
 

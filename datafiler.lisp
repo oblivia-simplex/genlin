@@ -2,10 +2,10 @@
 ;; Data reading functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defpackage :genlin
-  (:use :common-lisp))
+;;(defpackage :genlin
+;;  (:use :common-lisp))
 
-(in-package :genlin)
+(in-package #:genlin)
 
 ;; moved here from params. may cause bug. 
 (defparameter =label-scanner=
@@ -165,8 +165,8 @@
     (format t "ACCURACY:       ~5,2F%~%"
             (* 100 (cmatrix->accuracy cm)))
     (hrule)
-    (format t "AGGREGATE CONFUSION MATRIX OF ISLAND-RING:~%~%")
-    (print-confusion-matrix (cmatrix-sum-of-island-ring +island-ring+))
+;;    (format t "AGGREGATE CONFUSION MATRIX OF ISLAND-RING:~%~%")
+;;    (print-confusion-matrix (cmatrix-sum-of-island-ring +island-ring+))
     (values (cons correct incorrect)
             failures)))
 

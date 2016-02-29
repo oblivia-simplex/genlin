@@ -1,15 +1,22 @@
-(in-package :genlin)
+(in-package #:genlin)
 
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; types and structs
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+(export 'creature)
 (defstruct creature fit cm seq eff gen mut typ home parents pack) 
 
+(export 'island-id)
+(export 'island-of)
+(export 'island-deme)
+(export 'island-best)
 (defstruct island id of deme packs best era logger lock coverage method sample)
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+(defparameter *project-path* "./")
 
 (defparameter *tictactoe-path*
   (concatenate 'string *project-path* "datasets/TicTacToe/tic-tac-toe.data"))
@@ -35,8 +42,10 @@
 
 (defparameter *VERBOSE* nil)
 
+
 (defparameter *stat-interval* 500
   "Number of cycles per verbose update on the evolutionary process.")
+
 
 (defparameter *dataset* :iris
   "Just the name for your dataset. Mostly used for labelling output,
@@ -55,15 +64,17 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-
+(export '+ISLAND-RING+)
 (defvar +ISLAND-RING+)
 
-(defvar +HIVE-RING+)
+;;(defvar +HIVE-RING+)
 
 (setf +ISLAND-RING+ '())
 
+(export '*training-ht*)
 (defvar *training-ht* (make-hash-table :test 'equalp))
 
+(export '*testing-ht*)
 (defvar *testing-ht* (make-hash-table :test 'equalp))
 
 (defvar -print-lock- (sb-thread:make-mutex :name "print lock"))
@@ -447,6 +458,7 @@
     *params-path*
     *last-params-path*))    
 
+(loop for tweakable in *tweakables* do (export tweakable))
 
 ;;; IDEA: replace registers with stacks
 ;;; always hold at least one "anchor" element

@@ -1,9 +1,9 @@
 (load #p"~/Projects/genlin/package.lisp")
 
-(defpackage :genlin
-  (:use :common-lisp))
+;; (defpackage :genlin
+;;   (:use :common-lisp))
 
-(in-package :genlin)
+(in-package #:genlin)
 
 ;;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;;; Linear Genetic Algorithm
@@ -12,8 +12,8 @@
 (defparameter *project-path*
   "~/Projects/genlin/")
 
-(defun loadfile (filename)
-  (load (merge-pathnames filename *load-truename*)))
+;; (defun loadfile (filename)
+;;   (load (merge-pathnames filename *load-truename*)))
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -28,8 +28,8 @@
 ;; ;; slomachine is an unstable VM for self-modifying code
 
 (defun load-other-files ()
-  (loop for f in `("params.lisp"
-                   "auxiliary.lisp"
+  (loop for f in `("auxiliary.lisp"
+                   "params.lisp"
                    "stackmachine.lisp"
                    "datafiler.lisp"
                    "tictactoe.lisp"
@@ -38,7 +38,7 @@
        (loadfile (concatenate 'string *project-path* f))))
 
 
-(load-other-files)
+;;(load-other-files)
 
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ;; A pretty front-end

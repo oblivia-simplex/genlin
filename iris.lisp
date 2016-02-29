@@ -2,10 +2,10 @@
 ;; Data reading functions
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-(defpackage :genlin
-  (:use :common-lisp))
+;; (defpackage :genlin
+;;   (:use :common-lisp))
 
-(in-package :genlin)
+(in-package #:genlin)
 
 
 (defun parse-iris-key (k)

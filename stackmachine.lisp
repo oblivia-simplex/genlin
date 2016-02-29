@@ -398,15 +398,14 @@ push the instruction indexed by the SRC register into the bin."
           #'BIN #'CAL #'LOD #'STO))
 
 (defparameter *operations*
-  *preferred-8bit-ops*)
-  ;; (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
-  ;;         #'BIN #'CAL #'NBN #'CLR   ;; module construction and invocation
-  ;;         #'MOV #'STO #'LOD #'LEA   ;; loading, storing, moving
-  ;;         #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
-  ;;         #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
-  ;;         #'PSH #'PRG #'PEX #'PIN   ;; stack operations
-  ;;         #'NOP #'NOP #'NOP #'NOP   ;; destructive ops: clear module, halt
-  ;;         #'NOP #'NOP #'NOP #'NOP)) ;; the rest is NOP
+   (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
+           #'BIN #'CAL #'NBN #'CLR   ;; module construction and invocation
+           #'MOV #'STO #'LOD #'LEA   ;; loading, storing, moving
+           #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic
+           #'CMP #'JMP #'JLE #'HLT   ;; halting and jumping
+           #'PSH #'PRG #'PEX #'PIN   ;; stack operations
+           #'NOP #'NOP #'NOP #'NOP   ;; destructive ops: clear module, halt
+           #'NOP #'NOP #'NOP #'NOP)) ;; the rest is NOP
 
 (defun op->opcode (op)
   (position op *operations*))
