@@ -6,7 +6,7 @@
 ;; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 (export 'creature)
-(defstruct creature fit cm seq eff gen mut typ home parents pack) 
+(defstruct creature id fit cm seq eff gen mut typ home parents pack) 
 
 (export 'island-id)
 (export 'island-of)

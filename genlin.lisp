@@ -217,7 +217,8 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 ;; patch, once we see what they are. 
 
 (defun register-vote (output &key (comparator #'>) (pre #'abs))
-  "Return the index of the register with the highest or lowest value.  (assert output)
+  "Return the index of the register with the highest or lowest value."
+  (assert output)
   (reduce #'(lambda (x y) (if (funcall comparator
                                   (funcall pre (nth x output))
                                   (funcall pre (nth y output))) 
@@ -296,8 +297,7 @@ Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 (defun fitness-n-ary-classifier (crt &key
                                        (ht *training-hashtable*)
                                        (val-transform #'(lambda (x) x)))
-                    ;;                   (sharing t))
-  "Where n is the target register, measures fitness as the ratio of
+  "Where n is the target register measures fitness as the ratio of
 Rn to the sum of all output registers R0-R2 (wrt absolute value)."
 
   ;; (unless (> 0 (length (creature-eff crt)))
@@ -585,6 +585,7 @@ fitness function."
       (loop for child in offspring do
          ;; now, let the mutation rate be linked to each creature, and
          ;; potentially mutate, itself.
+           (setf (creature-id child) (random-name))
            (setf (creature-mut child) ;; baseline: avg of parents' muts
                  (metamutate (/ (+ (creature-mut p0) (creature-mut p1)) 2)))
            (setf (creature-seq child) (maybe-mutate (creature-seq child)
@@ -1179,12 +1180,23 @@ applying, say, mapcar or length to it, in most cases."
   (apply #'concatenate 'list (mapcar #'(lambda (x) (island-deme x))
                                      (de-ring island-ring))))
 
+(export 'random-name)
+(defun random-name ()
+  (let ((consonants "BCDFGHJKLMNPQRSTVWXZ")
+        (vowels "AEIOUY"))
+    (labels ((syl ()
+               (concatenate 'string (list (pick consonants)
+                                          (pick vowels)
+                                          (pick consonants)))))
+      (concatenate 'string (syl) (syl) "-" (syl) (syl)))))
+
 (defun spawn-sequence (len)
   (concatenate 'vector (loop repeat len collect (random *max-inst*))))
 
 (defun spawn-creature (len)
   (make-creature :seq (spawn-sequence len)
                  :gen 0
+                 :id (random-name)
                  :mut *mutation-rate*))
 
 (export 'init-population)

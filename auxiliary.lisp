@@ -189,6 +189,7 @@ must be disjoint."
      for hare on (cdr list) by #'cddr
      thereis (eq tortoise hare)))
 
+(export 'de-ring)
 (defun de-ring (ring)
   (let ((idx 0))
     (loop for cell on (cdr ring) do
@@ -220,6 +221,7 @@ must be disjoint."
 (defun rnd (integer)
   (if (zerop integer) 0 (random integer)))
 
+(export 'pick)
 (defmacro pick (seq)
   `(elt ,seq (random (length ,seq))))
 
