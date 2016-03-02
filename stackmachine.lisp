@@ -350,6 +350,23 @@ push the instruction indexed by the SRC register into the bin."
 ;; (defun PPR (&rest args)
 ;;   "
 
+(defun SNE (inst)
+  (setf (elt %reg (dst? inst))
+        (sin (elt %reg (src? inst)))))
+
+(defun CSN (inst)
+  (setf (elt %reg (dst? inst))
+        (cos (elt %reg (src? inst)))))
+
+(defun TNN (inst)
+  (setf (elt %reg (dst? inst))
+        (tan (elt %reg (src? inst)))))
+
+(defun LGS (inst)
+  (setf (elt %reg (dst? inst))
+        (if (zerop (elt %reg (src? inst))) 0
+            (log (abs (elt %reg (src? inst)))))))
+
 (defparameter *reg-ops-list*
   `(,#'ADD ,#'MUL ,#'SUB ,#'DIV
            ,#'EPT ,#'PMD ,#'XOR ,#'CNJ ,#'IOR ,#'MOV))
@@ -399,6 +416,7 @@ push the instruction indexed by the SRC register into the bin."
 
 (defparameter *operations*
    (vector #'ADD #'SUB #'DIV #'MUL   ;; basic arithmetic
+           #'SNE #'COS #'TNN #'LGS
            #'BIN #'CAL #'NBN #'CLR   ;; module construction and invocation
            #'MOV #'STO #'LOD #'LEA   ;; loading, storing, moving
            #'XOR #'IOR #'CNJ #'PMD   ;; logical operations & bit arithmetic

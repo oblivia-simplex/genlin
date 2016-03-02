@@ -1182,13 +1182,15 @@ applying, say, mapcar or length to it, in most cases."
 
 (export 'random-name)
 (defun random-name ()
+  "produces a random symbol, to be used as an identifier, following a
+vaguely Urbit-like naming scheme."
   (let ((consonants "BCDFGHJKLMNPQRSTVWXZ")
         (vowels "AEIOUY"))
     (labels ((syl ()
                (concatenate 'string (list (pick consonants)
                                           (pick vowels)
                                           (pick consonants)))))
-      (concatenate 'string (syl) (syl) "-" (syl) (syl)))))
+      (intern (concatenate 'string (syl) (syl) "-" (syl) (syl))))))
 
 (defun spawn-sequence (len)
   (concatenate 'vector (loop repeat len collect (random *max-inst*))))
