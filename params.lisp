@@ -362,7 +362,7 @@
 
 (defparameter *lexicase-elitism* 3/4)
 
-(defparameter *remove-introns* nil)
+(defparameter *remove-introns* :youbetyourass)
 
 (defparameter *records* '())
 

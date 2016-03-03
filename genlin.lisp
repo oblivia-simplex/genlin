@@ -1190,7 +1190,7 @@ vaguely Urbit-like naming scheme."
                (concatenate 'string (list (pick consonants)
                                           (pick vowels)
                                           (pick consonants)))))
-      (intern (concatenate 'string (syl) (syl) "-" (syl) (syl))))))
+      (intern (concatenate 'string (syl) "-" (syl) (syl))))))
 
 (defun spawn-sequence (len)
   (concatenate 'vector (loop repeat len collect (random *max-inst*))))
