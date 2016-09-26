@@ -1,3 +1,3 @@
-(load "frontend.lisp")
-(in-package :genlin)
-(sb-ext:save-lisp-and-die "GENLIN" :executable t :toplevel #'main)
+(load "~/quicklisp/setup.lisp")
+(ql:quickload :genlin)
+(sb-ext:save-lisp-and-die "GENLIN" :executable t :toplevel #'genlin::main)
